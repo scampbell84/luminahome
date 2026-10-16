@@ -1,0 +1,6 @@
+{
+  "name": "Lumina Home - Smart Display & Media Dashboard",
+  "description": "Self-hosted smart wall display and ambient media hub for Raspberry Pi with Home Assistant, Apple Music AirPlay multi-room audio, weather, calendar, and StandBy screensaver.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
