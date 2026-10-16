@@ -188,6 +188,12 @@ export interface AppConfig {
     autoNightMode: boolean; // Auto-switches to red monochrome night mode after 10 PM
     artCycleSeconds: number; // Frequency to rotate artwork photos
     dimLevel: number; // 0 to 60 percent screen dimming for ambient comfort
+    nightMode?: boolean; // Manual toggle: forces ultra-dim red monochrome night mode
+    nightModeDimLevel?: number; // 50 to 95 percent ultra-dim brightness level for night mode (default: 80)
+    nightModeScheduleEnabled?: boolean; // Enable automatic time-based night mode schedule
+    nightModeStartTime?: string; // Time of day to activate night mode (HH:mm, e.g. "22:00")
+    nightModeEndTime?: string; // Time of day to deactivate night mode (HH:mm, e.g. "07:00")
+    nightModePixelShift?: boolean; // Subtle anti-burn-in micro-drift for OLED/LCD screens
     weatherWidgetView?: 'current' | 'humidity' | 'forecast'; // Default view for HomeView Weather Widget
     showWeatherWidget?: boolean; // Enable/disable dedicated weather widget in screensaver
   };

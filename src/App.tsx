@@ -275,6 +275,7 @@ export default function App() {
           config={config}
           calendarEvents={calendarEvents}
           onWake={handleWakeFromScreensaver}
+          onUpdateConfig={handleSaveConfig}
         />
       )}
 

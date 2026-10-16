@@ -13,6 +13,7 @@
 
 - 🖥️ **Interactive 12-Column Grid Dashboard**: Drag, drop, and resize widgets with pixel-perfect responsive layouts tailored for 1080p, 1200p, and 4K displays.
 - 🕰️ **Liquid Glass StandBy Screensaver**: Full-screen Apple-inspired typographic digital clock with a gently pulsing seconds colon and a subtle frosted-glass complication showing the date and current weather.
+- 🌙 **Circadian Red Night Mode**: Instant toggle and automated time scheduling (e.g., 10 PM – 7 AM) switches the screensaver into pitch black with ultra-dim crimson red typography and anti-burn-in micro-drift pixel shift for bedroom and low-light environments.
 - 📅 **Multi-Feed Calendar Aggregator**: Live synchronisation with iCloud, Google Calendar, Microsoft Outlook, and standard `.ics` / Webcal feeds, complete with color coding and recurring event support.
 - ⛅ **Hyperlocal Weather & Warnings**: Real-time forecasts, precipitation probabilities, daily high/low temperatures via Open-Meteo, with automatic location detection and official weather alert badges.
 - 📝 **Household Notes & Quotes**: Pinned reminders, sticky notes, and customizable daily inspirational quotes.

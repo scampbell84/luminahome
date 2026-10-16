@@ -60,17 +60,19 @@ const RELEASE_NOTES: ReleaseNote[] = [
     title: 'Core Kiosk Streamline & Liquid Glass Ambient Screen Saver',
     isCurrent: true,
     highlights: [
-      'Core display streamline (Shopping, Media & HA retired)',
+      'Ultra-Dim Red Night Mode for screensaver with on-screen & scheduled toggle',
+      'Anti-burn-in micro-drift pixel shift for all-night displays',
       'Apple Liquid Glass screensaver with pulsing seconds colon',
-      'Weather single-degree symbol fix',
+      'Weather single-degree symbol fix & dynamic location auto-detect',
       'Git update engine & remote fetch fix',
     ],
     details: [
+      'Night Mode StandBy: Ultra-dim pure crimson red monochrome night clock on pitch black background to eliminate blue light, preserve night vision, and prevent sleep disruption in bedrooms.',
+      'Circadian Schedule & Quick Toggle: Includes an unobtrusive on-screen Moon toggle button and optional time-based schedule (e.g. 10 PM to 7 AM) with customizable dimming (50% to 95%).',
+      'Anti-Burn-In Micro-Drift: Automatic 2-4px pixel shifting every 3 minutes prevents OLED burn-in and LCD image retention during overnight displays.',
       'Core Streamline: Streamlined UI down to essential kiosk features (Calendar, Weather, Clock, Notes, Countdown, News, and Hardware Telemetry) for maximum speed and rock-solid stability.',
       'Liquid Glass Screen Saver: Minimalist full-screen Apple liquid glass digital clock with rhythmic seconds-pulsing colon and compact date/weather complication.',
       'Weather Accuracy: Resolved duplicate degree symbol formatting glitch, ensuring consistent single-degree readout.',
-      'Git Updater Optimization: Fixed git remote fetch command parameters to resolve behind-commit detection on Raspberry Pi.',
-      'Performance: Reduced bundle size by over 80 kB and accelerated build & render times.',
     ],
   },
   {

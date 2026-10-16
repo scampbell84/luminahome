@@ -26,6 +26,7 @@ import {
   Eye,
   LayoutGrid,
   Moon,
+  Sun,
   Layers,
   Thermometer,
   Droplets,
@@ -1489,6 +1490,227 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span>10% (Subtle Comfort)</span>
                   <span>30% (Living Room)</span>
                   <span>60% (Dark Bedroom)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Dedicated Night Mode Card */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                      <Moon className="w-4 h-4 fill-rose-400/30" />
+                    </div>
+                    <h4 className="text-sm font-semibold text-white">
+                      Night Mode (Ultra-Dim Red StandBy)
+                    </h4>
+                    <span className="text-[10px] bg-rose-500/10 text-rose-400 border border-rose-500/20 font-mono px-2 py-0.5 rounded-full uppercase">
+                      Circadian Low-Light
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                    Turns the screensaver pitch black with deep ruby red typography and ultra-dim brightness. Eliminates blue light to prevent sleep disruption in bedrooms and dark rooms.
+                  </p>
+                </div>
+
+                {/* Master Night Mode Toggle */}
+                <div className="flex items-center gap-3 self-end sm:self-center">
+                  <span className={`text-xs font-semibold ${config.screensaver?.nightMode ? 'text-rose-400' : 'text-slate-400'}`}>
+                    {config.screensaver?.nightMode ? 'Night Mode Active' : 'Off'}
+                  </span>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={config.screensaver?.nightMode ?? false}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          screensaver: {
+                            ...prev.screensaver,
+                            nightMode: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Night Mode Live Visual Preview */}
+              <div className="rounded-xl border border-red-950/80 bg-black p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-inner relative overflow-hidden">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-baseline font-black font-apple-rounded tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-red-500 via-rose-600 to-red-700 text-3xl sm:text-4xl drop-shadow-[0_0_15px_rgba(239,68,68,0.4)]">
+                    <span>10</span>
+                    <span className="px-1 text-red-500 animate-pulse">:</span>
+                    <span>42</span>
+                    <span className="text-xs text-red-900/60 font-bold ml-1.5 self-center">PM</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-950/30 border border-red-900/30 text-red-300/80 text-[11px] font-semibold">
+                    <span>Fri, 16 Oct</span>
+                    <span className="text-red-900">•</span>
+                    <span className="text-red-400 font-bold">12°C</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[11px] text-rose-300/80 bg-rose-950/20 px-3 py-1.5 rounded-lg border border-rose-900/30">
+                  <Eye className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                  <span>Preserves night vision & zero melatonin disruption</span>
+                </div>
+              </div>
+
+              {/* Controls Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                {/* Left: Schedule automation */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-xs text-slate-200 font-semibold block">
+                        Automatic Night Schedule
+                      </label>
+                      <span className="text-[11px] text-slate-400">
+                        Automatically engages Night Mode between set hours.
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.screensaver?.nightModeScheduleEnabled ?? false}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              nightModeScheduleEnabled: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                    </label>
+                  </div>
+
+                  {/* Start & End Time Pickers */}
+                  <div className={`grid grid-cols-2 gap-3 transition-opacity ${
+                    config.screensaver?.nightModeScheduleEnabled ? 'opacity-100' : 'opacity-40 pointer-events-none'
+                  }`}>
+                    <div>
+                      <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                        Turn On At
+                      </label>
+                      <input
+                        type="time"
+                        value={config.screensaver?.nightModeStartTime || '22:00'}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              nightModeStartTime: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs font-mono focus:border-rose-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                        Turn Off At
+                      </label>
+                      <input
+                        type="time"
+                        value={config.screensaver?.nightModeEndTime || '07:00'}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              nightModeEndTime: e.target.value,
+                            },
+                          }))
+                        }
+                        className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs font-mono focus:border-rose-500 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Anti-Burn-In Pixel Shift */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                    <div>
+                      <label className="text-xs text-slate-200 font-semibold block">
+                        Anti-Burn-In Micro-Drift
+                      </label>
+                      <span className="text-[11px] text-slate-400">
+                        Subtly shifts numerals by 2-4px every 3 min to protect screens overnight.
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.screensaver?.nightModePixelShift ?? true}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              nightModePixelShift: e.target.checked,
+                            },
+                          }))
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Right: Night Mode Ultra-Dim Brightness Level */}
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="text-xs text-slate-200 font-semibold">
+                        Night Mode Dimming Level
+                      </label>
+                      <span className="text-xs font-mono font-bold text-rose-400">
+                        {config.screensaver?.nightModeDimLevel ?? 80}% Ultra-Dim
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50"
+                      max="95"
+                      step="5"
+                      value={config.screensaver?.nightModeDimLevel ?? 80}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          screensaver: {
+                            ...prev.screensaver,
+                            nightModeDimLevel: parseInt(e.target.value, 10),
+                          },
+                        }))
+                      }
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
+                    />
+                    <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                      <span>50% (Soft Dim)</span>
+                      <span>70% (Bedside)</span>
+                      <span>85% (Ultra-Dim Sleep)</span>
+                      <span>95% (Min Lumens)</span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-slate-950/80 border border-slate-800 text-xs text-slate-300 space-y-1.5">
+                    <div className="flex items-center gap-2 text-rose-300 font-medium">
+                      <Moon className="w-3.5 h-3.5" />
+                      <span>Direct On-Screen Toggle Available</span>
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      You can also toggle Night Mode directly from the screensaver at any time using the quick moon button in the top right corner without opening Settings.
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
