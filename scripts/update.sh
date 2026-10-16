@@ -13,9 +13,10 @@ echo "🔄 Updating Lumina Home in $SCRIPT_DIR..."
 
 if [ -d ".git" ]; then
   echo "📥 Pulling latest updates from GitHub..."
-  # Stash any local uncommitted script modifications so git pull doesn't abort
+  # Stash any local uncommitted script modifications
   git stash push -m "auto-stash-before-update-$(date +%s)" 2>/dev/null || true
-  git pull origin main || git pull
+  git fetch origin main || git fetch origin
+  git reset --hard origin/main || git pull --rebase origin main || git pull origin main
 fi
 
 echo "📦 Installing application dependencies..."

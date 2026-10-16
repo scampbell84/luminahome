@@ -454,16 +454,66 @@ app.get('/api/system', (_req: Request, res: Response) => {
   const freeMem = os.freemem();
   const totalMem = os.totalmem();
 
+  // CPU Information
+  const cpus = os.cpus() || [];
+  const cpuModel = cpus.length > 0 ? cpus[0].model : 'ARM Cortex Processor';
+  const cpuCores = cpus.length;
+  const loadAvg = os.loadavg().map((l) => Math.round(l * 100) / 100);
+
+  // CPU Temperature (Raspberry Pi thermal zone or vcgencmd)
+  let cpuTemp: number | null = null;
+  try {
+    if (fs.existsSync('/sys/class/thermal/thermal_zone0/temp')) {
+      const rawTemp = fs.readFileSync('/sys/class/thermal/thermal_zone0/temp', 'utf8');
+      const parsed = parseInt(rawTemp.trim(), 10);
+      if (!isNaN(parsed) && parsed > 0) {
+        cpuTemp = Math.round((parsed / 1000) * 10) / 10;
+      }
+    }
+  } catch {
+    cpuTemp = null;
+  }
+
+  // Disk Storage Info using fs.statfs
+  let diskInfo: any = null;
+  try {
+    if (typeof (fs as any).statfsSync === 'function') {
+      const stat = (fs as any).statfsSync(process.cwd());
+      const totalBytes = Number(stat.bsize) * Number(stat.blocks);
+      const freeBytes = Number(stat.bsize) * Number(stat.bfree);
+      const usedBytes = totalBytes - freeBytes;
+      if (totalBytes > 0) {
+        diskInfo = {
+          totalGb: Math.round((totalBytes / (1024 * 1024 * 1024)) * 10) / 10,
+          freeGb: Math.round((freeBytes / (1024 * 1024 * 1024)) * 10) / 10,
+          usedGb: Math.round((usedBytes / (1024 * 1024 * 1024)) * 10) / 10,
+          usedPercentage: Math.round((usedBytes / totalBytes) * 100),
+        };
+      }
+    }
+  } catch {
+    diskInfo = null;
+  }
+
   const info: SystemInfo = {
     hostname: os.hostname(),
     platform: `${os.type()} ${os.release()} (${os.arch()})`,
     uptimeSeconds: Math.floor(os.uptime()),
     nodeVersion: process.version,
+    appVersion: 'v2.5.0',
     memoryMb: {
       free: Math.round(freeMem / (1024 * 1024)),
       total: Math.round(totalMem / (1024 * 1024)),
       used: Math.round((totalMem - freeMem) / (1024 * 1024)),
+      usedPercentage: Math.round(((totalMem - freeMem) / totalMem) * 100),
     },
+    cpu: {
+      model: cpuModel,
+      cores: cpuCores,
+      loadAverage: loadAvg,
+      temperatureCelsius: cpuTemp,
+    },
+    disk: diskInfo,
     networkInterfaces: ips,
     displayUrl: `http://${primaryIp}:${PORT}/display`,
     adminUrl: `http://${primaryIp}:${PORT}/admin`,
@@ -471,6 +521,28 @@ app.get('/api/system', (_req: Request, res: Response) => {
   };
 
   res.json(info);
+});
+
+// Restart Lumina Home system service
+app.post('/api/system/service/restart', (_req: Request, res: Response) => {
+  res.json({ ok: true, message: 'Restarting Lumina Home system service...' });
+  setTimeout(() => {
+    try {
+      exec('sudo systemctl restart luminahome || sudo systemctl restart kioskboard', () => {});
+    } catch {
+      process.exit(0);
+    }
+  }, 1000);
+});
+
+// Reboot Raspberry Pi Host OS
+app.post('/api/system/reboot', (_req: Request, res: Response) => {
+  res.json({ ok: true, message: 'Initiating Raspberry Pi reboot...' });
+  setTimeout(() => {
+    try {
+      exec('sudo reboot', () => {});
+    } catch {}
+  }, 1000);
 });
 
 // Helper to normalize start and inclusive end for all-day events vs timed events
@@ -531,7 +603,7 @@ app.get('/api/calendar', async (req: Request, res: Response) => {
     try {
       const response = await fetch(cleanUrl, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) KioskBoard/1.0',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LuminaHome/1.0',
           'Accept': 'text/calendar, text/plain, */*',
         },
         signal: AbortSignal.timeout(10000), // 10s timeout
@@ -779,7 +851,7 @@ app.post('/api/calendar/test-url', async (req: Request, res: Response) => {
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 KioskBoard/1.0',
+        'User-Agent': 'Mozilla/5.0 LuminaHome/1.0',
         'Accept': 'text/calendar, text/plain, */*',
       },
       signal: AbortSignal.timeout(8000),
@@ -1037,7 +1109,7 @@ app.get('/api/weather/geocode', async (req: Request, res: Response) => {
 // 6. News / RSS Feed Proxy
 const rssParser = new Parser({
   headers: {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) KioskBoard/1.0',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LuminaHome/1.0',
     'Accept': 'application/rss+xml, application/atom+xml, text/xml, */*',
   },
   timeout: 8000,
@@ -1226,7 +1298,7 @@ app.post('/api/homeassistant/test', async (req: Request, res: Response) => {
     const timeout = setTimeout(() => controller.abort(), 2500);
 
     const headers: Record<string, string> = {
-      'User-Agent': 'KioskBoard-HomeAssistant/1.0',
+      'User-Agent': 'LuminaHome-HomeAssistant/1.0',
     };
     if (accessToken) {
       headers['Authorization'] = `Bearer ${accessToken}`;
@@ -1359,7 +1431,7 @@ app.get('/api/homeassistant/states', async (_req: Request, res: Response) => {
     const timeout = setTimeout(() => controller.abort(), 3500);
 
     const headers: Record<string, string> = {
-      'User-Agent': 'KioskBoard-HomeAssistant/1.0',
+      'User-Agent': 'LuminaHome-HomeAssistant/1.0',
     };
     if (haConfig.accessToken) {
       headers['Authorization'] = `Bearer ${haConfig.accessToken}`;
@@ -1414,7 +1486,7 @@ app.post('/api/homeassistant/services/:domain/:service', async (req: Request, re
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'User-Agent': 'KioskBoard-HomeAssistant/1.0',
+      'User-Agent': 'LuminaHome-HomeAssistant/1.0',
     };
     if (haConfig.accessToken) {
       headers['Authorization'] = `Bearer ${haConfig.accessToken}`;
@@ -1927,9 +1999,9 @@ app.get('/api/system/update/check', async (_req: Request, res: Response) => {
 
   if (!isGit) {
     updateState.currentCommit = {
-      hash: 'pi-v2.4',
+      hash: 'pi-v2.5',
       date: new Date().toLocaleDateString(),
-      message: 'KioskBoard v2.4 (Active Installation)',
+      message: 'Lumina Home v2.5.0 (Active Installation)',
     };
     updateState.hasUpdate = false;
     updateState.message = 'Running in standalone / cloud preview mode. On your Raspberry Pi, install via Git to enable live updates!';
@@ -1961,7 +2033,7 @@ app.get('/api/system/update/check', async (_req: Request, res: Response) => {
     updateState.status = 'idle';
     updateState.message = behind > 0
       ? `Update available! ${behind} new commit${behind > 1 ? 's' : ''} ready to install.`
-      : 'KioskBoard is running the latest version.';
+      : 'Lumina Home is running the latest version.';
 
     res.json({ ok: true, state: updateState });
   } catch (err: any) {
@@ -1981,7 +2053,7 @@ app.post('/api/system/update/execute', async (_req: Request, res: Response) => {
   updateState.status = 'updating';
   updateState.step = 1;
   updateState.message = 'Backing up configuration and preparing update...';
-  updateState.logs = [`[${new Date().toLocaleTimeString()}] Starting KioskBoard One-Click Update...`];
+  updateState.logs = [`[${new Date().toLocaleTimeString()}] Starting Lumina Home One-Click Update...`];
   updateState.error = undefined;
 
   // Respond immediately so client can poll progress
@@ -1989,7 +2061,7 @@ app.post('/api/system/update/execute', async (_req: Request, res: Response) => {
 
   (async () => {
     try {
-      const backupConfigPath = path.resolve(os.tmpdir(), `kioskboard-config-${Date.now()}.json`);
+      const backupConfigPath = path.resolve(os.tmpdir(), `luminahome-config-${Date.now()}.json`);
       if (fs.existsSync(CONFIG_FILE)) {
         fs.copyFileSync(CONFIG_FILE, backupConfigPath);
         updateState.logs.push(`[${new Date().toLocaleTimeString()}] Backed up user settings to ${backupConfigPath}`);
@@ -2000,15 +2072,16 @@ app.post('/api/system/update/execute', async (_req: Request, res: Response) => {
       if (isGit) {
         updateState.step = 1;
         updateState.message = 'Pulling latest code from repository...';
-        updateState.logs.push(`[${new Date().toLocaleTimeString()}] Running git stash && git pull...`);
-        await execAsync('git stash save "Pre-update automatic stash"').catch(() => {});
-        const { stdout: pullOut } = await execAsync(`git pull origin ${updateState.branch || 'main'}`);
+        updateState.logs.push(`[${new Date().toLocaleTimeString()}] Stashing local edits & syncing with origin/${updateState.branch || 'main'}...`);
+        await execAsync('git stash push -m "Pre-update automatic stash"').catch(() => {});
+        await execAsync(`git fetch origin ${updateState.branch || 'main'}`).catch(() => {});
+        const { stdout: pullOut } = await execAsync(`git reset --hard origin/${updateState.branch || 'main'}`);
         updateState.logs.push(pullOut.trim());
 
         updateState.step = 2;
         updateState.message = 'Installing and updating packages...';
-        updateState.logs.push(`[${new Date().toLocaleTimeString()}] Running npm install --legacy-peer-deps...`);
-        const { stdout: npmOut } = await execAsync('npm install --legacy-peer-deps');
+        updateState.logs.push(`[${new Date().toLocaleTimeString()}] Running npm install...`);
+        const { stdout: npmOut } = await execAsync('npm install');
         updateState.logs.push(npmOut.slice(0, 500));
       } else {
         updateState.logs.push(`[${new Date().toLocaleTimeString()}] Non-git environment: skipping git pull, refreshing local bundle.`);
@@ -2029,13 +2102,13 @@ app.post('/api/system/update/execute', async (_req: Request, res: Response) => {
       updateState.step = 4;
       updateState.status = 'completed';
       updateState.hasUpdate = false;
-      updateState.message = 'Update complete! Kiosk service restarting...';
+      updateState.message = 'Update complete! Lumina Home service restarting...';
       updateState.logs.push(`[${new Date().toLocaleTimeString()}] ✅ Update completed successfully! Reloading service.`);
 
       // Trigger service restart in detached process after 2 seconds
       setTimeout(() => {
         try {
-          spawn('sudo', ['systemctl', 'restart', 'kioskboard'], {
+          spawn('sudo', ['systemctl', 'restart', 'luminahome'], {
             detached: true,
             stdio: 'ignore',
           }).unref();
@@ -2452,7 +2525,7 @@ async function startServer() {
   app.listen(PORT, '0.0.0.0', () => {
     const ips = getLocalNetworkIps();
     console.log(`\n======================================================`);
-    console.log(`🚀 KioskBoard server running on port ${PORT}`);
+    console.log(`🚀 Lumina Home server running on port ${PORT}`);
     console.log(`📺 Live Display Screen : http://localhost:${PORT}/display`);
     console.log(`⚙️  Admin Dashboard     : http://localhost:${PORT}/admin`);
     if (ips.length > 0) {

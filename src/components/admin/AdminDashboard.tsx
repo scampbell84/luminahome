@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppConfig, CalendarFeed, HomePodSpeaker } from '../../types/config';
 import { WALLPAPER_PRESETS, DEFAULT_CONFIG } from '../../constants/defaultConfig';
-import { PiGuide } from '../kiosk-guide/PiGuide';
+import { SystemSettings } from '../system/SystemSettings';
 import { GridVisualEditor } from './GridVisualEditor';
 import { parseHomeAssistantAddress, decodeHaToken } from '../../utils/homeAssistant';
 import {
@@ -66,7 +66,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onTriggerScreensaver,
 }) => {
   const [config, setConfig] = useState<AppConfig>(initialConfig);
-  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'homeassistant' | 'applemusic' | 'screensaver' | 'kiosk-guide'>('layout');
+  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'homeassistant' | 'applemusic' | 'screensaver' | 'kiosk-guide' | 'system'>('layout');
   const [saving, setSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -440,7 +440,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
           <div>
             <h1 className="text-base md:text-lg font-bold tracking-tight text-white flex items-center gap-2">
-              <span>KioskBoard Admin</span>
+              <span>Lumina Home Settings</span>
               <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-500/30 font-mono px-2 py-0.5 rounded-full uppercase">
                 Self-Hosted
               </span>
@@ -610,15 +610,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
 
           <button
-            onClick={() => setActiveTab('kiosk-guide')}
+            onClick={() => setActiveTab('system')}
             className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'kiosk-guide'
+              activeTab === 'system' || activeTab === 'kiosk-guide'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
           >
-            <Cpu className="w-4 h-4" />
-            <span>Raspberry Pi Kiosk Guide</span>
+            <Activity className="w-4 h-4 text-emerald-400" />
+            <span>System & Updates</span>
+            <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded font-mono">
+              v2.5
+            </span>
           </button>
         </div>
 
@@ -2989,8 +2992,8 @@ http:
           </div>
         )}
 
-        {/* Tab 6: Raspberry Pi Kiosk Setup Guide */}
-        {activeTab === 'kiosk-guide' && <PiGuide />}
+        {/* Tab: System & Updates */}
+        {(activeTab === 'system' || activeTab === 'kiosk-guide') && <SystemSettings />}
       </div>
     </div>
   );

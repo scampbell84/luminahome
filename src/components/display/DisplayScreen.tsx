@@ -341,7 +341,7 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
       {!isOnline && (
         <div className="fixed bottom-3 left-3 z-50 bg-rose-950/80 text-rose-300 border border-rose-600/50 px-3 py-1 rounded-full text-xs flex items-center gap-2 backdrop-blur-md animate-pulse">
           <AlertCircle className="w-3.5 h-3.5" />
-          <span>Reconnecting to KioskBoard Server...</span>
+          <span>Reconnecting to Lumina Home Server...</span>
         </div>
       )}
     </div>

@@ -289,11 +289,25 @@ export interface SystemInfo {
   platform: string;
   uptimeSeconds: number;
   nodeVersion: string;
+  appVersion?: string;
   memoryMb: {
     free: number;
     total: number;
     used: number;
+    usedPercentage?: number;
   };
+  cpu?: {
+    model: string;
+    cores: number;
+    loadAverage: number[];
+    temperatureCelsius?: number | null;
+  };
+  disk?: {
+    totalGb: number;
+    freeGb: number;
+    usedGb: number;
+    usedPercentage: number;
+  } | null;
   networkInterfaces: Array<{
     name: string;
     address: string;

@@ -298,7 +298,7 @@ export const MediaView: React.FC<MediaViewProps> = ({
         await mk.configure({
           developerToken: token,
           app: {
-            name: 'KioskBoard',
+            name: 'Lumina Home',
             build: '1.0.0',
           },
         });
@@ -1786,7 +1786,7 @@ export const MediaView: React.FC<MediaViewProps> = ({
                       className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all active:scale-98"
                     >
                       <Check className="w-4 h-4" />
-                      <span>Confirm & Connect to KioskBoard</span>
+                      <span>Confirm & Connect to Lumina Home</span>
                     </button>
                   </div>
                 </div>
@@ -1804,7 +1804,7 @@ export const MediaView: React.FC<MediaViewProps> = ({
                       If you already have Apple HomePods in your home, they are <strong>natively linked to your Apple Music subscription</strong> through your Apple Home.
                     </p>
                     <p className="text-[11px] text-slate-400 leading-relaxed">
-                      KioskBoard can command Home Assistant to stream Apple Music 1, live radio, and your favorite playlists straight to your HomePods in lossless AirPlay without needing any tokens.
+                      Lumina Home can command Home Assistant to stream Apple Music 1, live radio, and your favorite playlists straight to your HomePods in lossless AirPlay without needing any tokens.
                     </p>
                   </div>
 

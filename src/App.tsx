@@ -322,7 +322,7 @@ export default function App() {
         <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center animate-pulse mb-4 shadow-xl">
           <Monitor className="w-6 h-6 text-white" />
         </div>
-        <h1 className="text-lg font-semibold tracking-wide">KioskBoard</h1>
+        <h1 className="text-lg font-semibold tracking-wide">Lumina Home</h1>
         <p className="text-xs text-slate-400 mt-1">Initializing smart display...</p>
       </div>
     );
