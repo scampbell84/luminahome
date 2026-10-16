@@ -173,7 +173,7 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
       <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
         {/* Soft breathing color orb radiating from behind clock */}
         <div
-          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] sm:w-[850px] md:w-[1100px] h-[450px] sm:h-[600px] md:h-[750px] ${colorTheme.ambientOrb} rounded-full blur-[140px] md:blur-[200px] transition-all duration-1000 opacity-70`}
+          className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] sm:w-[1150px] md:w-[1450px] h-[550px] sm:h-[750px] md:h-[950px] ${colorTheme.ambientOrb} rounded-full blur-[160px] md:blur-[220px] transition-all duration-1000 opacity-75`}
         />
         {/* Subtle secondary ambient fill */}
         <div className="absolute -top-32 left-1/3 w-[500px] h-[500px] bg-indigo-600/[0.08] rounded-full blur-[160px]" />
@@ -191,7 +191,7 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
       )}
 
       {/* 2. Main Centerpiece: Digital Apple Liquid Glass Clock + Small Widget */}
-      <div className="relative z-10 flex flex-col items-center justify-center w-full px-6 max-w-6xl mx-auto my-auto select-none">
+      <div className="relative z-10 flex flex-col items-center justify-center w-full px-4 sm:px-8 max-w-7xl mx-auto my-auto select-none">
         {/* Massive Digital Apple Liquid Glass Clock Numerals */}
         <div
           aria-label={`${displayHours}:${displayMinutes} ${!format24 ? ampm : ''}`}
@@ -199,9 +199,9 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
         >
           {/* Hours */}
           <span
-            className={`text-[120px] sm:text-[180px] md:text-[230px] lg:text-[280px] xl:text-[340px] font-black leading-none font-apple-rounded tracking-tight bg-gradient-to-b ${colorTheme.gradient} bg-clip-text text-transparent`}
+            className={`text-[140px] sm:text-[200px] md:text-[270px] lg:text-[340px] xl:text-[400px] 2xl:text-[460px] font-black leading-none font-apple-rounded tracking-tight bg-gradient-to-b ${colorTheme.gradient} bg-clip-text text-transparent`}
             style={{
-              filter: `drop-shadow(0 0 55px ${colorTheme.glowColor}) drop-shadow(0 20px 40px rgba(0,0,0,0.85))`,
+              filter: `drop-shadow(0 0 65px ${colorTheme.glowColor}) drop-shadow(0 25px 50px rgba(0,0,0,0.9))`,
             }}
           >
             {displayHours}
@@ -210,9 +210,9 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
           {/* Gently Pulsing Liquid Glass Colon Separator */}
           <span
             aria-hidden="true"
-            className={`inline-block select-none animate-colon-pulse text-[120px] sm:text-[180px] md:text-[230px] lg:text-[280px] xl:text-[340px] font-black leading-none font-apple-rounded tracking-tight bg-gradient-to-b ${colorTheme.gradient} bg-clip-text text-transparent px-1 sm:px-2 md:px-3 -translate-y-[2%]`}
+            className={`inline-block select-none animate-colon-pulse text-[140px] sm:text-[200px] md:text-[270px] lg:text-[340px] xl:text-[400px] 2xl:text-[460px] font-black leading-none font-apple-rounded tracking-tight bg-gradient-to-b ${colorTheme.gradient} bg-clip-text text-transparent px-1 sm:px-2 md:px-4 -translate-y-[2%]`}
             style={{
-              filter: `drop-shadow(0 0 55px ${colorTheme.glowColor}) drop-shadow(0 20px 40px rgba(0,0,0,0.85))`,
+              filter: `drop-shadow(0 0 65px ${colorTheme.glowColor}) drop-shadow(0 25px 50px rgba(0,0,0,0.9))`,
             }}
           >
             :
@@ -220,26 +220,26 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
 
           {/* Minutes */}
           <span
-            className={`text-[120px] sm:text-[180px] md:text-[230px] lg:text-[280px] xl:text-[340px] font-black leading-none font-apple-rounded tracking-tight bg-gradient-to-b ${colorTheme.gradient} bg-clip-text text-transparent`}
+            className={`text-[140px] sm:text-[200px] md:text-[270px] lg:text-[340px] xl:text-[400px] 2xl:text-[460px] font-black leading-none font-apple-rounded tracking-tight bg-gradient-to-b ${colorTheme.gradient} bg-clip-text text-transparent`}
             style={{
-              filter: `drop-shadow(0 0 55px ${colorTheme.glowColor}) drop-shadow(0 20px 40px rgba(0,0,0,0.85))`,
+              filter: `drop-shadow(0 0 65px ${colorTheme.glowColor}) drop-shadow(0 25px 50px rgba(0,0,0,0.9))`,
             }}
           >
             {displayMinutes}
           </span>
 
           {!format24 && (
-            <span className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black font-apple-rounded text-white/40 tracking-normal ml-3 sm:ml-5 md:ml-6 mb-4 sm:mb-8 md:mb-12">
+            <span className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black font-apple-rounded text-white/40 tracking-normal ml-3 sm:ml-6 md:ml-8 mb-4 sm:mb-8 md:mb-16">
               {ampm}
             </span>
           )}
 
           {/* Liquid Glass Top Refraction Glow Bar */}
-          <div className="absolute -top-4 left-1/4 right-1/4 h-8 bg-white/[0.06] rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -top-6 left-1/4 right-1/4 h-10 bg-white/[0.08] rounded-full blur-2xl pointer-events-none" />
         </div>
 
         {/* 3. Small Refined Liquid Glass Widget: Date & Current Weather */}
-        <div className="mt-6 sm:mt-10 md:mt-12 flex items-center gap-3 sm:gap-4 px-5 sm:px-7 py-2.5 sm:py-3 rounded-full bg-slate-900/75 border border-white/15 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
+        <div className="mt-8 sm:mt-12 md:mt-14 flex items-center gap-3 sm:gap-4 px-6 sm:px-8 py-3 sm:py-3.5 rounded-full bg-slate-900/75 border border-white/15 backdrop-blur-2xl shadow-[0_12px_40px_rgba(0,0,0,0.6)]">
           {/* Date */}
           <span className="text-sm sm:text-base md:text-lg font-bold font-apple-rounded text-white/95 tracking-wide">
             {fullDateFormatted}

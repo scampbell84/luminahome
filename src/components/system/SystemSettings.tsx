@@ -55,10 +55,28 @@ interface ReleaseNote {
 
 const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: 'v2.6.0',
+    releaseDate: 'October 2026',
+    title: 'Core Kiosk Streamline & Liquid Glass Ambient Screen Saver',
+    isCurrent: true,
+    highlights: [
+      'Core display streamline (Shopping, Media & HA retired)',
+      'Apple Liquid Glass screensaver with pulsing seconds colon',
+      'Weather single-degree symbol fix',
+      'Git update engine & remote fetch fix',
+    ],
+    details: [
+      'Core Streamline: Streamlined UI down to essential kiosk features (Calendar, Weather, Clock, Notes, Countdown, News, and Hardware Telemetry) for maximum speed and rock-solid stability.',
+      'Liquid Glass Screen Saver: Minimalist full-screen Apple liquid glass digital clock with rhythmic seconds-pulsing colon and compact date/weather complication.',
+      'Weather Accuracy: Resolved duplicate degree symbol formatting glitch, ensuring consistent single-degree readout.',
+      'Git Updater Optimization: Fixed git remote fetch command parameters to resolve behind-commit detection on Raspberry Pi.',
+      'Performance: Reduced bundle size by over 80 kB and accelerated build & render times.',
+    ],
+  },
+  {
     version: 'v2.5.0',
     releaseDate: 'October 2026',
     title: 'Lumina Home Core Streamline & System Health Monitor',
-    isCurrent: true,
     highlights: [
       'Core display streamline & performance optimization',
       'Hardware & device telemetry dashboard',
@@ -126,7 +144,7 @@ export const SystemSettings: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [reconnectCountdown, setReconnectCountdown] = useState<number | null>(null);
-  const [expandedRelease, setExpandedRelease] = useState<string>('v2.5.0');
+  const [expandedRelease, setExpandedRelease] = useState<string>('v2.6.0');
 
   // System Action Modals
   const [confirmAction, setConfirmAction] = useState<'restart-service' | 'reboot' | null>(null);
@@ -313,7 +331,7 @@ export const SystemSettings: React.FC = () => {
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">Lumina Home OS</h2>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/30 font-mono">
-                  v2.5.0
+                  {system?.appVersion || 'v2.6.0'}
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -579,7 +597,7 @@ export const SystemSettings: React.FC = () => {
                 <div>
                   <h4 className="text-sm font-semibold text-slate-200">Lumina Home is up to date</h4>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Running version <span className="font-mono text-slate-300 font-semibold">v2.5.0</span> on branch <span className="font-mono text-slate-300">{updateState.branch || 'main'}</span>
+                    Running version <span className="font-mono text-slate-300 font-semibold">{system?.appVersion || 'v2.6.0'}</span> on branch <span className="font-mono text-slate-300">{updateState.branch || 'main'}</span>
                     {updateState.currentCommit && ` (${updateState.currentCommit.hash})`}
                   </p>
                 </div>
@@ -649,7 +667,7 @@ export const SystemSettings: React.FC = () => {
               Explore new features, hardware optimizations, and enhancements in each release
             </p>
           </div>
-          <span className="text-xs font-mono text-sky-400 font-semibold">Latest: v2.5.0</span>
+          <span className="text-xs font-mono text-sky-400 font-semibold">Latest: {RELEASE_NOTES[0].version}</span>
         </div>
 
         <div className="space-y-3">

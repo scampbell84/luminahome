@@ -387,7 +387,7 @@ app.get('/api/system', (_req: Request, res: Response) => {
     platform: `${os.type()} ${os.release()} (${os.arch()})`,
     uptimeSeconds: Math.floor(os.uptime()),
     nodeVersion: process.version,
-    appVersion: 'v2.5.0',
+    appVersion: 'v2.6.0',
     memoryMb: {
       free: Math.round(freeMem / (1024 * 1024)),
       total: Math.round(totalMem / (1024 * 1024)),
@@ -1102,9 +1102,9 @@ app.get('/api/system/update/check', async (_req: Request, res: Response) => {
 
   if (!isGit) {
     updateState.currentCommit = {
-      hash: 'pi-v2.5',
+      hash: 'pi-v2.6',
       date: new Date().toLocaleDateString(),
-      message: 'Lumina Home v2.5.0 (Active Installation)',
+      message: 'Lumina Home v2.6.0 (Active Installation)',
     };
     updateState.hasUpdate = false;
     updateState.message = 'Running in standalone / cloud preview mode. On your Raspberry Pi, install via Git to enable live updates!';
@@ -1122,8 +1122,13 @@ app.get('/api/system/update/check', async (_req: Request, res: Response) => {
     const [hHash, hDate, hSubject] = headInfo.trim().split('|');
     updateState.currentCommit = { hash: hHash, date: hDate, message: hSubject };
 
-    // Fetch remote branch with a strict timeout
-    await execAsync(`git fetch origin ${branch} --timeout=10`).catch(() => {});
+    // Fetch remote branch with proper Node exec timeout (NOT CLI flag)
+    await execAsync(`git fetch origin ${branch}`, { timeout: 20000 }).catch(async () => {
+      // Fallback: fetch without explicit branch
+      await execAsync('git fetch origin', { timeout: 20000 }).catch((e) => {
+        console.warn('git fetch fallback warning:', e.message);
+      });
+    });
 
     const { stdout: remoteInfo } = await execAsync(`git log -1 origin/${branch} --format="%h|%cd|%s" --date=relative`).catch(() => ({ stdout: headInfo }));
     const [rHash, rDate, rSubject] = remoteInfo.trim().split('|');
@@ -1131,11 +1136,14 @@ app.get('/api/system/update/check', async (_req: Request, res: Response) => {
 
     const { stdout: revCount } = await execAsync(`git rev-list HEAD..origin/${branch} --count`).catch(() => ({ stdout: '0' }));
     const behind = parseInt(revCount.trim(), 10) || 0;
-    updateState.behindCount = behind;
-    updateState.hasUpdate = behind > 0;
+    const isDifferentCommit = Boolean(hHash && rHash && hHash !== rHash);
+    const hasUpdate = behind > 0 || isDifferentCommit;
+
+    updateState.behindCount = behind > 0 ? behind : (isDifferentCommit ? 1 : 0);
+    updateState.hasUpdate = hasUpdate;
     updateState.status = 'idle';
-    updateState.message = behind > 0
-      ? `Update available! ${behind} new commit${behind > 1 ? 's' : ''} ready to install.`
+    updateState.message = hasUpdate
+      ? `Update available! ${updateState.behindCount} new commit${updateState.behindCount > 1 ? 's' : ''} ready to install.`
       : 'Lumina Home is running the latest version.';
 
     res.json({ ok: true, state: updateState });
