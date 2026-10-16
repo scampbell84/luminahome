@@ -16,7 +16,6 @@ import {
   Eye,
   EyeOff,
   Maximize2,
-  Music,
 } from 'lucide-react';
 
 interface GridVisualEditorProps {
@@ -180,15 +179,6 @@ export const GridVisualEditor: React.FC<GridVisualEditorProps> = ({
           configKey: 'system' as keyof AppConfig,
           badge: 'Heartbeat',
           desc: 'Local IP, online heartbeat & host uptime',
-        };
-      case 'mediaPlayer':
-        return {
-          title: 'Apple Music & HomePods',
-          icon: <Music className="w-4 h-4 text-rose-400" />,
-          enabled: config.appleMusic?.enabled ?? true,
-          configKey: 'appleMusic' as keyof AppConfig,
-          badge: 'AirPlay 2',
-          desc: 'Touch player, Apple Music library & HomePod multi-room audio',
         };
       default:
         return {

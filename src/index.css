@@ -162,6 +162,25 @@
   animation-play-state: paused;
 }
 
+/* Gentle rhythmic pulse for screensaver clock colon */
+@keyframes colon-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1.05);
+  }
+  50% {
+    opacity: 0.22;
+    transform: scale(0.96);
+    filter: brightness(0.85);
+  }
+}
+
+.animate-colon-pulse {
+  animation: colon-pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  will-change: opacity, transform;
+}
+
 /* React Grid Layout Custom Styling */
 .react-grid-layout {
   position: relative;

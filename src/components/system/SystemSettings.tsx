@@ -57,35 +57,35 @@ const RELEASE_NOTES: ReleaseNote[] = [
   {
     version: 'v2.5.0',
     releaseDate: 'October 2026',
-    title: 'Lumina Home Unified Brand & System Health Monitor',
+    title: 'Lumina Home Core Streamline & System Health Monitor',
     isCurrent: true,
     highlights: [
-      'Official rebrand to Lumina Home',
+      'Core display streamline & performance optimization',
       'Hardware & device telemetry dashboard',
       'Smart weather caching & 503 fault tolerance',
       'Automated divergent-branch updater',
     ],
     details: [
+      'Streamlined Core: Focused on essential wall kiosk functions — clock, high-contrast weather, multi-feed calendar, notes, event countdowns, and news ticker.',
       'New System Menu: Added real-time CPU load, CPU temperature thermal monitoring, RAM utilization, root storage breakdown, and system uptime.',
       'One-Click Update Engine: Modernized with automated Git stash, fetch, and hard-reset sync, preventing divergent branch pull locks.',
       'Weather Resilience: In-memory stale-while-revalidate caching and custom user-agent headers to prevent Open-Meteo 503 and rate limit disruptions.',
-      'Brand Unification: Replaced all legacy references across settings, displays, and media hubs with Lumina Home.',
       'Service Management: Added one-click service restart and Raspberry Pi host reboot triggers directly from the web interface.',
     ],
   },
   {
     version: 'v2.4.0',
     releaseDate: 'October 2026',
-    title: 'Home Assistant AirPlay 2 & Apple Music Hub',
+    title: 'Apple HomeView Ambient StandBy & Typography',
     highlights: [
-      'Multi-room Apple HomePod audio streaming',
-      'Zero-token lossless AirPlay radio presets',
-      'Apple StandBy duo widgets & complications',
+      'Ambient StandBy dual-panel screensaver',
+      'Curated 4K wallpaper presets & Unsplash rotation',
+      'Automated red night mode and touch wake',
     ],
     details: [
-      'AirPlay 2 Speaker Matrix: Discover and control volume on HomePods and stereo pairs throughout your home via Home Assistant.',
       'Ambient StandBy Mode: Apple-style dual widget clocks, weather dials, and photo complications with night-mode red tint.',
-      'Lossless Music Player: Full album art view, lyrics, and Apple Music station switcher.',
+      'Touch Wake: Instant responsiveness when touching anywhere on screen to return to the active kiosk display.',
+      'Dynamic Wallpapers: Ultra-wide landscape presets with custom dimming and blur controls for optimal text legibility.',
     ],
   },
   {
@@ -95,12 +95,12 @@ const RELEASE_NOTES: ReleaseNote[] = [
     highlights: [
       'Interactive 12-column widget grid layout',
       'Multi-feed iCal / ICS calendar aggregator',
-      'Real-time Home Assistant sensor cards',
+      'Live news ticker & sticky family reminders',
     ],
     details: [
-      'Visual Grid Customizer: Resize and position clock, weather, calendar, shopping list, and news widgets freely.',
+      'Visual Grid Customizer: Resize and position clock, weather, calendar, countdown, and news widgets freely.',
       'Multi-Feed Calendar: Aggregate family iCloud, Google, Outlook, and webcal feeds with recurring event expansion.',
-      'Shopping List Sync: Touch-optimized household grocery checklist with quick item addition and completion toggle.',
+      'Notes & Reminders: Inspirational daily quotes and interactive household reminders widget.',
     ],
   },
 ];

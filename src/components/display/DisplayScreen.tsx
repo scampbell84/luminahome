@@ -8,25 +8,18 @@ import { CountdownWidget } from '../widgets/CountdownWidget';
 import { NewsWidget } from '../widgets/NewsWidget';
 import { NotesWidget } from '../widgets/NotesWidget';
 import { SystemWidget } from '../widgets/SystemWidget';
-import { ShoppingWidget } from '../widgets/ShoppingWidget';
-import { AppleMediaPlayerWidget } from '../widgets/AppleMediaPlayerWidget';
-import { ShoppingItem } from '../../types/shopping';
 import { Settings, Maximize2, Minimize2, RefreshCw, AlertCircle } from 'lucide-react';
 
 interface DisplayScreenProps {
   config: AppConfig;
   onOpenAdmin: () => void;
   onRefreshConfig: () => void;
-  shoppingItems?: ShoppingItem[];
-  onOpenShopping?: () => void;
 }
 
 export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   config,
   onOpenAdmin,
   onRefreshConfig,
-  shoppingItems,
-  onOpenShopping,
 }) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(new Date());
@@ -155,10 +148,6 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
         return config.notes.enabled ? (
           <NotesWidget config={config.notes} />
         ) : null;
-      case 'shopping':
-        return shoppingItems && shoppingItems.length > 0 ? (
-          <ShoppingWidget items={shoppingItems} onOpenShopping={onOpenShopping} />
-        ) : null;
       case 'system':
         return config.system.enabled ? (
           <SystemWidget config={config.system} isOnline={isOnline} lastHeartbeat={lastHeartbeat} />
@@ -166,10 +155,6 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
       case 'news':
         return config.news.enabled ? (
           <NewsWidget config={config.news} />
-        ) : null;
-      case 'mediaPlayer':
-        return config.appleMusic?.enabled ? (
-          <AppleMediaPlayerWidget config={config} />
         ) : null;
       default:
         return null;
@@ -279,9 +264,6 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
                   <NotesWidget config={config.notes} />
                 )}
 
-                {shoppingItems && shoppingItems.length > 0 && (
-                  <ShoppingWidget items={shoppingItems} onOpenShopping={onOpenShopping} />
-                )}
 
                 {config.system.enabled && (
                   <div className="pt-2">

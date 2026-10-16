@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { AppConfig, CalendarFeed, HomePodSpeaker } from '../../types/config';
+import { AppConfig, CalendarFeed } from '../../types/config';
 import { WALLPAPER_PRESETS, DEFAULT_CONFIG } from '../../constants/defaultConfig';
 import { SystemSettings } from '../system/SystemSettings';
 import { GridVisualEditor } from './GridVisualEditor';
-import { parseHomeAssistantAddress, decodeHaToken } from '../../utils/homeAssistant';
 import {
   Save,
   RotateCcw,
@@ -42,11 +41,6 @@ import {
   Copy,
   Lock,
   Info,
-  Music,
-  Radio,
-  Play,
-  Pause,
-  Volume2,
   RefreshCw,
 } from 'lucide-react';
 
@@ -66,38 +60,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onTriggerScreensaver,
 }) => {
   const [config, setConfig] = useState<AppConfig>(initialConfig);
-  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'homeassistant' | 'applemusic' | 'screensaver' | 'kiosk-guide' | 'system'>('layout');
+  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'system'>('layout');
   const [saving, setSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  // Home Assistant test state
-  const [haTesting, setHaTesting] = useState<boolean>(false);
-  const [haTestResult, setHaTestResult] = useState<{
-    ok: boolean;
-    reachable: boolean;
-    message: string;
-    statusCode?: number;
-    serverUrl?: string;
-    status?: string;
-    isPrivateLan?: boolean;
-    details?: any;
-    tokenInfo?: any;
-  } | null>(null);
-  const [haCopied, setHaCopied] = useState<boolean>(false);
-  const [showHaToken, setShowHaToken] = useState<boolean>(false);
-
-  // Apple Music & HomePods state
-  const [discoveringHomePods, setDiscoveringHomePods] = useState<boolean>(false);
-  const [discoverResult, setDiscoverResult] = useState<{ ok: boolean; message: string; count?: number } | null>(null);
-  const [testingAirPlay, setTestingAirPlay] = useState<boolean>(false);
-  const [airPlayTestMessage, setAirPlayTestMessage] = useState<string | null>(null);
-  const [isAddingSpeaker, setIsAddingSpeaker] = useState<boolean>(false);
-  const [newSpeakerName, setNewSpeakerName] = useState<string>('');
-  const [newSpeakerRoom, setNewSpeakerRoom] = useState<string>('');
-  const [newSpeakerEntityId, setNewSpeakerEntityId] = useState<string>('');
-  const [newSpeakerModel, setNewSpeakerModel] = useState<'HomePod' | 'HomePod mini'>('HomePod mini');
-  const [newSpeakerStereo, setNewSpeakerStereo] = useState<boolean>(false);
 
   const handleToggleWidget = (key: keyof AppConfig) => {
     setConfig((prev) => {
@@ -258,178 +224,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const testHomeAssistant = async () => {
-    setHaTesting(true);
-    setHaTestResult(null);
-    try {
-      const parsed = parseHomeAssistantAddress(
-        config.homeAssistant?.ipAddress || '192.168.1.100',
-        config.homeAssistant?.port || 8123,
-        config.homeAssistant?.useHttps || false,
-        config.homeAssistant?.customPath || '/lovelace'
-      );
-      const res = await fetch('/api/homeassistant/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ipAddress: parsed.host,
-          port: parsed.port,
-          useHttps: parsed.useHttps,
-          customPath: parsed.customPath,
-          accessToken: config.homeAssistant?.accessToken || '',
-        }),
-      });
-      const data = await res.json();
-      setHaTestResult(data);
-    } catch (err: any) {
-      setHaTestResult({
-        ok: false,
-        reachable: false,
-        message: `Client test error: ${err.message}`,
-      });
-    } finally {
-      setHaTesting(false);
-    }
-  };
-
-  const EXAMPLE_SPEAKER_IDS = new Set(['living-room-pair', 'kitchen-mini', 'bedroom-mini', 'office-mini']);
-
-  const handleDiscoverHomePods = async () => {
-    setDiscoveringHomePods(true);
-    setDiscoverResult(null);
-    try {
-      const res = await fetch('/api/media/airplay/discover', { method: 'POST' });
-      const data = await res.json();
-      if (data.ok && data.discovered && data.discovered.length > 0) {
-        // Automatically prune out dummy example devices so only real devices remain
-        const realCurrent = (config.appleMusic?.homePods || []).filter(s => !EXAMPLE_SPEAKER_IDS.has(s.id));
-        const existingEntities = new Set(realCurrent.map(s => s.entityId));
-        const newOnes = data.discovered.filter((d: any) => !existingEntities.has(d.entityId));
-        const updatedHomePods = [...realCurrent, ...newOnes];
-
-        const updatedConfig = {
-          ...config,
-          appleMusic: {
-            ...config.appleMusic,
-            homePods: updatedHomePods,
-          },
-        };
-        setConfig(updatedConfig);
-        onSave(updatedConfig).catch(console.warn);
-
-        setDiscoverResult({
-          ok: true,
-          message: `Discovered ${data.discovered.length} media player entities on Home Assistant! Replaced example placeholders with your actual devices.`,
-          count: data.discovered.length,
-        });
-      } else {
-        setDiscoverResult({
-          ok: false,
-          message: data.message || 'No new media player entities found on Home Assistant.',
-        });
-      }
-    } catch (err: any) {
-      setDiscoverResult({
-        ok: false,
-        message: `Network error: ${err.message}`,
-      });
-    } finally {
-      setDiscoveringHomePods(false);
-    }
-  };
-
-  const handleClearExampleSpeakers = async () => {
-    const realCurrent = (config.appleMusic?.homePods || []).filter(s => !EXAMPLE_SPEAKER_IDS.has(s.id));
-    const updatedConfig = {
-      ...config,
-      appleMusic: {
-        ...config.appleMusic,
-        homePods: realCurrent,
-      },
-    };
-    setConfig(updatedConfig);
-    await onSave(updatedConfig);
-    try {
-      await fetch('/api/media/airplay/clean-examples', { method: 'POST' });
-    } catch (e) {
-      // ignore
-    }
-    setDiscoverResult({
-      ok: true,
-      message: 'Example placeholder speakers removed successfully.',
-    });
-  };
-
-  const handleAddSpeaker = () => {
-    if (!newSpeakerName.trim() || !newSpeakerRoom.trim()) return;
-    const newSp: HomePodSpeaker = {
-      id: `homepod-${Date.now()}`,
-      name: newSpeakerName.trim(),
-      room: newSpeakerRoom.trim(),
-      entityId: newSpeakerEntityId.trim() || `media_player.${newSpeakerRoom.toLowerCase().replace(/\s+/g, '_')}_homepod`,
-      isStereoPair: newSpeakerStereo,
-      volume: 50,
-      muted: false,
-      active: true,
-      model: newSpeakerModel,
-    };
-    const updatedConfig = {
-      ...config,
-      appleMusic: {
-        ...config.appleMusic,
-        homePods: [...(config.appleMusic?.homePods || []), newSp],
-      },
-    };
-    setConfig(updatedConfig);
-    onSave(updatedConfig).catch(console.warn);
-    setNewSpeakerName('');
-    setNewSpeakerRoom('');
-    setNewSpeakerEntityId('');
-    setIsAddingSpeaker(false);
-  };
-
-  const handleDeleteSpeaker = (id: string) => {
-    const updatedSpeakers = (config.appleMusic?.homePods || []).filter(s => s.id !== id);
-    const updatedConfig = {
-      ...config,
-      appleMusic: {
-        ...config.appleMusic,
-        homePods: updatedSpeakers,
-      },
-    };
-    setConfig(updatedConfig);
-    onSave(updatedConfig).catch(console.warn);
-  };
-
-  const handleTestAirPlayAudio = async () => {
-    setTestingAirPlay(true);
-    setAirPlayTestMessage('Sending playback test command to active HomePods...');
-    try {
-      const res = await fetch('/api/media/applemusic/playback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'play' }),
-      });
-      if (res.ok) {
-        setAirPlayTestMessage('Test stream dispatched! Active HomePods are playing.');
-        setTimeout(() => setAirPlayTestMessage(null), 5000);
-      }
-    } catch (err: any) {
-      setAirPlayTestMessage(`Test failed: ${err.message}`);
-    } finally {
-      setTestingAirPlay(false);
-    }
-  };
-
-  // Real-time parsed Home Assistant configuration and decoded token
-  const haParsed = parseHomeAssistantAddress(
-    config.homeAssistant?.ipAddress || '192.168.1.100',
-    config.homeAssistant?.port || 8123,
-    config.homeAssistant?.useHttps || false,
-    config.homeAssistant?.customPath || '/lovelace'
-  );
-  const haTokenDecoded = decodeHaToken(config.homeAssistant?.accessToken || '');
-
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
       {/* Top Header */}
@@ -564,35 +358,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <span>Widgets & Content</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('homeassistant')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'homeassistant'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Home className="w-4 h-4 text-cyan-400" />
-            <span>Home Assistant</span>
-            <span className="text-[10px] bg-cyan-400/20 text-cyan-300 font-bold px-1.5 py-0.5 rounded font-mono">
-              Server IP
-            </span>
-          </button>
 
-          <button
-            onClick={() => setActiveTab('applemusic')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'applemusic'
-                ? 'bg-rose-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Music className="w-4 h-4 text-rose-400" />
-            <span>Apple Music & HomePods</span>
-            <span className="text-[10px] bg-rose-400/20 text-rose-300 font-bold px-1.5 py-0.5 rounded font-mono">
-              AirPlay 2
-            </span>
-          </button>
 
           <button
             onClick={() => setActiveTab('screensaver')}
@@ -603,16 +369,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Apple HomeView & Screen Saver</span>
-            <span className="text-[10px] bg-amber-400/20 text-amber-300 font-bold px-1.5 py-0.5 rounded font-mono">
-              New
-            </span>
+            <span>Screen Saver</span>
           </button>
 
           <button
             onClick={() => setActiveTab('system')}
             className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'system' || activeTab === 'kiosk-guide'
+              activeTab === 'system'
                 ? 'bg-emerald-600 text-white shadow-sm'
                 : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
             }`}
@@ -1476,927 +1239,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
 
-        {/* Tab: Home Assistant Server & Dashboard Configuration */}
-        {activeTab === 'homeassistant' && (
-          <div className="space-y-6">
-            {/* Header Banner */}
-            <div className="bg-gradient-to-r from-slate-900 via-cyan-950/40 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-md">
-                    <Home className="w-4 h-4" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white tracking-tight">
-                    Home Assistant Integration
-                  </h3>
-                  <span className="text-[10px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-mono px-2 py-0.5 rounded-full uppercase">
-                    LAN Server & Lovelace
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                  Connect your smart kiosk directly to your local Home Assistant server. Enter your server's IP address below to embed your Lovelace dashboard, control smart devices, and trigger home automations.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={testHomeAssistant}
-                  disabled={haTesting}
-                  className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-lg shadow-cyan-600/20 flex items-center gap-2 transition-all active:scale-95 border border-cyan-400/30"
-                >
-                  <Activity className={`w-4 h-4 ${haTesting ? 'animate-spin' : ''}`} />
-                  <span>{haTesting ? 'Testing Server...' : 'Test Connection'}</span>
-                </button>
-
-                <a
-                  href={haParsed.fullUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5 text-cyan-400" />
-                  <span className="hidden sm:inline">Open in Browser</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Test Result Callout */}
-            {haTestResult && (
-              <div
-                className={`p-5 rounded-2xl border transition-all ${
-                  haTestResult.ok
-                    ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-200'
-                    : 'bg-amber-950/40 border-amber-500/40 text-amber-200'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  {haTestResult.ok ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                  )}
-                  <div className="flex-1 space-y-3">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h4 className="text-sm font-bold text-white">{haTestResult.message}</h4>
-                        {haTestResult.status === 'lan_verified' && (
-                          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
-                            LAN Verified
-                          </span>
-                        )}
-                        {haTestResult.status === 'connected' && (
-                          <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
-                            Connected
-                          </span>
-                        )}
-                      </div>
-                      <a
-                        href={haParsed.fullUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs bg-slate-800 hover:bg-slate-700 text-cyan-300 px-3 py-1.5 rounded-lg border border-slate-700 flex items-center gap-1.5 font-semibold transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Launch in Browser Tab</span>
-                      </a>
-                    </div>
-
-                    {/* Diagnostic Metrics */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                      <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Server Address</span>
-                        <span className="font-mono text-cyan-300 font-bold truncate block">{haParsed.host}:{haParsed.port}</span>
-                      </div>
-                      <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Dashboard Path</span>
-                        <span className="font-mono text-cyan-300 font-bold truncate block">{haParsed.customPath}</span>
-                      </div>
-                      <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Access Token</span>
-                        <span className="font-mono text-emerald-300 font-bold truncate block">
-                          {haTokenDecoded.valid ? `Valid (Expires ${haTokenDecoded.expiresAt})` : (config.homeAssistant?.accessToken ? 'Format Unrecognized' : 'Optional')}
-                        </span>
-                      </div>
-                      <div className="bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                        <span className="text-slate-400 block text-[10px] uppercase font-mono">Network Scope</span>
-                        <span className="font-mono text-white font-bold truncate block">
-                          {haParsed.isPrivateLan ? 'Private Home LAN' : 'Public / Internet'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Local LAN Explanation */}
-                    {haParsed.isPrivateLan && (
-                      <div className="bg-slate-900/90 rounded-xl p-3 border border-emerald-500/30 text-xs text-slate-300 space-y-1.5">
-                        <p className="leading-relaxed">
-                          <strong className="text-emerald-300">Why 'Open in Browser' works:</strong> Your browser device is on the same local Wi-Fi / LAN as Home Assistant, so it connects directly to <code className="text-cyan-300 font-mono">{haParsed.host}</code>.
-                        </p>
-                        <p className="leading-relaxed text-slate-400">
-                          <strong className="text-white">Kiosk Deployment:</strong> When this kiosk is installed and run on your Raspberry Pi or wall display (via <code className="text-slate-300 font-mono">npm start</code>), it runs natively on your home LAN with instant direct communication to Home Assistant!
-                        </p>
-                      </div>
-                    )}
-
-                    {!haTestResult.ok && (
-                      <p className="text-xs text-slate-300 leading-relaxed">
-                        Check that your Home Assistant server is turned on, connected to the same local network, and that port {haParsed.port} is open.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Main Configuration Card */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <div>
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Wifi className="w-4 h-4 text-cyan-400" />
-                    <span>Server Connection Settings</span>
-                  </h4>
-                  <p className="text-xs text-slate-400">
-                    Define the network address where your Home Assistant instance is reachable
-                  </p>
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <span className="text-xs font-semibold text-slate-300">Enable Tab:</span>
-                  <input
-                    type="checkbox"
-                    checked={config.homeAssistant?.enabled ?? true}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        homeAssistant: {
-                          ...prev.homeAssistant,
-                          enabled: e.target.checked,
-                        },
-                      }))
-                    }
-                    className="w-4 h-4 rounded text-cyan-600 bg-slate-800 border-slate-700 focus:ring-0"
-                  />
-                </label>
-              </div>
-
-              {/* IP Address & Port */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="md:col-span-2">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <label className="text-xs text-slate-300 font-semibold block">
-                      Home Assistant IP Address / Hostname <span className="text-cyan-400">*</span>
-                    </label>
-                    {haParsed.isPrivateLan && (
-                      <span className="text-[10px] font-mono text-cyan-300 bg-cyan-950/60 px-2 py-0.5 rounded-full border border-cyan-800/60">
-                        Local LAN IP
-                      </span>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={config.homeAssistant?.ipAddress || ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val.includes('://') || val.includes(':') || val.includes('/')) {
-                          const p = parseHomeAssistantAddress(
-                            val,
-                            config.homeAssistant?.port || 8123,
-                            config.homeAssistant?.useHttps || false,
-                            config.homeAssistant?.customPath || '/lovelace'
-                          );
-                          setConfig((prev) => ({
-                            ...prev,
-                            homeAssistant: {
-                              ...prev.homeAssistant,
-                              ipAddress: p.host,
-                              port: p.port,
-                              useHttps: p.useHttps,
-                              customPath: p.customPath,
-                            },
-                          }));
-                        } else {
-                          setConfig((prev) => ({
-                            ...prev,
-                            homeAssistant: {
-                              ...prev.homeAssistant,
-                              ipAddress: val,
-                            },
-                          }));
-                        }
-                      }}
-                      placeholder="e.g. 192.168.7.236 or homeassistant.local"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500 transition-colors"
-                    />
-                  </div>
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Typically your local Raspberry Pi, mini PC, or Home Assistant OS IP address (e.g. 192.168.7.236). Full URLs or Nabu Casa addresses auto-format automatically.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    Port Number
-                  </label>
-                  <input
-                    type="number"
-                    value={config.homeAssistant?.port || 8123}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        homeAssistant: {
-                          ...prev.homeAssistant,
-                          port: parseInt(e.target.value, 10) || 8123,
-                        },
-                      }))
-                    }
-                    placeholder="8123"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Standard Home Assistant port is 8123 (or 443 for HTTPS/Nabu Casa).
-                  </p>
-                </div>
-              </div>
-
-              {/* Protocol & Full URL Preview */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    Connection Protocol
-                  </label>
-                  <div className="flex bg-slate-950 rounded-xl p-1 border border-slate-800">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setConfig((prev) => ({
-                          ...prev,
-                          homeAssistant: { ...prev.homeAssistant, useHttps: false },
-                        }))
-                      }
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                        !config.homeAssistant?.useHttps
-                          ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      HTTP (Local LAN)
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setConfig((prev) => ({
-                          ...prev,
-                          homeAssistant: { ...prev.homeAssistant, useHttps: true },
-                        }))
-                      }
-                      className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                        config.homeAssistant?.useHttps
-                          ? 'bg-cyan-500 text-slate-950 shadow-sm'
-                          : 'text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      HTTPS (SSL)
-                    </button>
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    Target Full URL Preview
-                  </label>
-                  <div className="flex items-center gap-2 bg-slate-950 border border-slate-800 px-3.5 py-2 rounded-xl">
-                    <span className="font-mono text-xs text-cyan-300 truncate flex-1">
-                      {haParsed.fullUrl}{config.homeAssistant?.kioskMode ? '?kiosk' : ''}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const url = `${haParsed.fullUrl}${config.homeAssistant?.kioskMode ? '?kiosk' : ''}`;
-                        navigator.clipboard.writeText(url);
-                        setHaCopied(true);
-                        setTimeout(() => setHaCopied(false), 2000);
-                      }}
-                      className="text-slate-400 hover:text-white text-xs shrink-0 flex items-center gap-1"
-                      title="Copy URL"
-                    >
-                      {haCopied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Dashboard Path, Kiosk Mode & View Mode */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
-                <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    Lovelace Dashboard Path
-                  </label>
-                  <input
-                    type="text"
-                    value={config.homeAssistant?.customPath || '/lovelace'}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        homeAssistant: {
-                          ...prev.homeAssistant,
-                          customPath: e.target.value,
-                        },
-                      }))
-                    }
-                    placeholder="/lovelace or /dashboard-home/0"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    e.g. /lovelace, /dashboard-home/0, /energy, or /media-browser
-                  </p>
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">
-                    Default View Mode
-                  </label>
-                  <select
-                    value={config.homeAssistant?.viewMode || 'embed'}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        homeAssistant: {
-                          ...prev.homeAssistant,
-                          viewMode: e.target.value as any,
-                        },
-                      }))
-                    }
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-500"
-                  >
-                    <option value="embed">🌐 Embedded Lovelace Dashboard (Iframe)</option>
-                    <option value="cards">🎛️ Touch-Optimized Device Cards</option>
-                    <option value="split">◫ Split Screen (Cards + Embed)</option>
-                  </select>
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    Choose how Home Assistant appears on the kiosk display
-                  </p>
-                </div>
-
-                <div className="flex flex-col justify-center">
-                  <label className="flex items-center gap-2 cursor-pointer bg-slate-950 p-3 rounded-xl border border-slate-800 hover:border-slate-700 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={config.homeAssistant?.kioskMode ?? false}
-                      onChange={(e) =>
-                        setConfig((prev) => ({
-                          ...prev,
-                          homeAssistant: {
-                            ...prev.homeAssistant,
-                            kioskMode: e.target.checked,
-                          },
-                        }))
-                      }
-                      className="w-4 h-4 rounded text-cyan-600 bg-slate-800 border-slate-700 focus:ring-0"
-                    />
-                    <div>
-                      <span className="text-xs font-semibold text-white block">
-                        Append ?kiosk Mode
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Hides Lovelace header & sidebar
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              {/* Long-Lived Access Token */}
-              <div className="pt-2 border-t border-slate-800/80">
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs text-slate-300 font-semibold flex items-center gap-1.5">
-                    <Key className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Long-Lived Access Token</span>
-                    {haTokenDecoded.valid && (
-                      <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">
-                        Verified Token
-                      </span>
-                    )}
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowHaToken(!showHaToken)}
-                    className="text-[11px] text-cyan-400 hover:underline flex items-center gap-1"
-                  >
-                    <Eye className="w-3 h-3" />
-                    <span>{showHaToken ? 'Hide Token' : 'Reveal Token'}</span>
-                  </button>
-                </div>
-                <input
-                  type={showHaToken ? 'text' : 'password'}
-                  value={config.homeAssistant?.accessToken || ''}
-                  onChange={(e) =>
-                    setConfig((prev) => ({
-                      ...prev,
-                      homeAssistant: {
-                        ...prev.homeAssistant,
-                        accessToken: e.target.value.trim(),
-                      },
-                    }))
-                  }
-                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
-                />
-                {haTokenDecoded.valid ? (
-                  <div className="flex items-center gap-2 mt-2 text-[11px] text-emerald-400 bg-emerald-950/30 p-2.5 rounded-lg border border-emerald-500/20">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
-                    <span>
-                      Token Recognized: Issued by Home Assistant ({haTokenDecoded.issuer?.slice(0, 10)}...), Expires {haTokenDecoded.expiresAt} ({haTokenDecoded.daysRemaining ? `${haTokenDecoded.daysRemaining} days remaining` : 'active'}).
-                    </span>
-                  </div>
-                ) : config.homeAssistant?.accessToken ? (
-                  <div className="flex items-center gap-2 mt-1.5 text-[11px] text-amber-400">
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                    <span>Token entered but format unrecognized. Ensure the full 3-part JWT token is copied.</span>
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    Enables the kiosk to proxy entity states, control devices, and trigger automations without browser CORS blocks. Generated in Home Assistant under <em>Your Profile → Security → Long-Lived Access Tokens</em>.
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Lovelace Embedding Troubleshooting Guide */}
-            <div className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 space-y-3">
-              <div className="flex items-center gap-2 text-sm font-bold text-slate-200">
-                <Info className="w-4 h-4 text-cyan-400" />
-                <span>Home Assistant Iframe Setup & Tips</span>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                By default, Home Assistant restricts being embedded in iframes unless enabled in its configuration file. To enable seamless embedding on your kiosk screen:
-              </p>
-              <div className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs font-mono text-cyan-300 overflow-x-auto">
-{`# Add to your Home Assistant configuration.yaml:
-http:
-  use_x_frame_options: false
-  cors_allowed_origins:
-    - http://${window.location.host}`}
-              </div>
-              <p className="text-[11px] text-slate-500">
-                After saving <code className="text-slate-300 font-mono">configuration.yaml</code>, restart Home Assistant from Developer Tools → YAML → Restart.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Tab: Apple Music & HomePods Configuration */}
-        {activeTab === 'applemusic' && (
-          <div className="space-y-6">
-            {/* Header Banner */}
-            <div className="bg-gradient-to-r from-slate-900 via-rose-950/40 to-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#FA243C] to-rose-600 flex items-center justify-center text-white font-bold shadow-md shadow-rose-500/20">
-                    <Music className="w-4 h-4" />
-                  </div>
-                  <h3 className="text-lg font-bold text-white tracking-tight">
-                    Apple Music & HomePod AirPlay Media Hub
-                  </h3>
-                  <span className="text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono px-2 py-0.5 rounded-full uppercase">
-                    AirPlay 2
-                  </span>
-                </div>
-                <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                  Manage your Apple Music library connection, audio format quality, and HomePod speakers across every room. Audio routes seamlessly through your local Home Assistant bridge or native WebKit AirPlay picker.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
-                <button
-                  type="button"
-                  onClick={handleTestAirPlayAudio}
-                  disabled={testingAirPlay}
-                  className="px-4 py-2.5 bg-gradient-to-r from-rose-600 to-rose-500 hover:from-rose-500 hover:to-rose-400 text-white rounded-xl text-xs font-bold shadow-lg shadow-rose-600/25 flex items-center gap-2 transition-all active:scale-95 border border-rose-400/30 disabled:opacity-50"
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>{testingAirPlay ? 'Testing...' : 'Test HomePod Playback'}</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Test result message banner */}
-            {airPlayTestMessage && (
-              <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-xs text-rose-200 flex items-center gap-2">
-                <Radio className="w-4 h-4 text-rose-400 shrink-0" />
-                <span>{airPlayTestMessage}</span>
-              </div>
-            )}
-
-            {/* General Media Preferences */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
-              <div className="border-b border-slate-800 pb-3 flex items-center justify-between">
-                <div>
-                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <Sliders className="w-4 h-4 text-rose-400" />
-                    <span>Media Player Widget & Playback Options</span>
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Controls widget visibility on the dashboard and ambient complications.
-                  </p>
-                </div>
-
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={config.appleMusic?.enabled ?? true}
-                    onChange={e =>
-                      setConfig(prev => ({
-                        ...prev,
-                        appleMusic: {
-                          ...prev.appleMusic,
-                          enabled: e.target.checked,
-                        },
-                      }))
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-600" />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Audio Quality Format */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Audio Quality Stream Format
-                  </label>
-                  <select
-                    value={config.appleMusic?.audioQuality || 'Lossless'}
-                    onChange={e =>
-                      setConfig(prev => ({
-                        ...prev,
-                        appleMusic: {
-                          ...prev.appleMusic,
-                          audioQuality: e.target.value as any,
-                        },
-                      }))
-                    }
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-rose-500"
-                  >
-                    <option value="Lossless">Lossless (ALAC up to 24-bit/48 kHz)</option>
-                    <option value="Dolby Atmos">Dolby Atmos (Spatial Audio Immersive)</option>
-                    <option value="Hi-Res Lossless">Hi-Res Lossless (ALAC up to 24-bit/192 kHz)</option>
-                    <option value="High Quality">High Quality (AAC 256 kbps)</option>
-                  </select>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Lossless and Spatial Audio streams are supported directly on HomePods and compatible AirPlay 2 targets.
-                  </p>
-                </div>
-
-                {/* Screensaver Now Playing Complication */}
-                <div className="flex flex-col justify-between p-3.5 rounded-xl bg-slate-800/40 border border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold text-white">Now Playing Screensaver Capsule</span>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Displays animated EQ and current track in Apple HomeView screen saver.
-                      </p>
-                    </div>
-
-                    <label className="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
-                      <input
-                        type="checkbox"
-                        checked={config.appleMusic?.showNowPlayingInScreensaver ?? true}
-                        onChange={e =>
-                          setConfig(prev => ({
-                            ...prev,
-                            appleMusic: {
-                              ...prev.appleMusic,
-                              showNowPlayingInScreensaver: e.target.checked,
-                            },
-                          }))
-                        }
-                        className="sr-only peer"
-                      />
-                      <div className="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-rose-600" />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* HomePod Multi-Room Speaker Fleet */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
-              <div className="border-b border-slate-800 pb-3 flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <Radio className="w-4 h-4 text-rose-400" />
-                    <span>HomePod Multi-Room AirPlay Speakers</span>
-                    <span className="text-xs font-mono bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded-full border border-rose-500/30">
-                      {(config.appleMusic?.homePods || []).length} Speakers
-                    </span>
-                  </h4>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    Speakers configured for independent volume control, stereo pairing, and synchronized multi-room routing.
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {(config.appleMusic?.homePods || []).some(s => EXAMPLE_SPEAKER_IDS.has(s.id)) && (
-                    <button
-                      type="button"
-                      onClick={handleClearExampleSpeakers}
-                      className="px-3 py-1.5 bg-amber-600/30 hover:bg-amber-600/50 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5"
-                      title="Clear dummy/example devices"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Remove Example Devices</span>
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleDiscoverHomePods}
-                    disabled={discoveringHomePods}
-                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-xl text-xs font-medium border border-slate-700 transition-colors flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${discoveringHomePods ? 'animate-spin text-sky-400' : ''}`} />
-                    <span>{discoveringHomePods ? 'Scanning...' : 'Scan Home Assistant'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setIsAddingSpeaker(!isAddingSpeaker)}
-                    className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm shadow-rose-600/30"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Speaker</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Example Speakers Warning Banner */}
-              {(config.appleMusic?.homePods || []).some(s => EXAMPLE_SPEAKER_IDS.has(s.id)) && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                    <span>Example placeholder speakers detected (e.g. Bedroom HomePod mini). Clear them to show only your actual devices.</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleClearExampleSpeakers}
-                    className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold shrink-0"
-                  >
-                    Clear Examples
-                  </button>
-                </div>
-              )}
-
-              {/* Discovery status result banner */}
-              {discoverResult && (
-                <div
-                  className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                    discoverResult.ok
-                      ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
-                      : 'bg-amber-500/10 border border-amber-500/30 text-amber-300'
-                  }`}
-                >
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>{discoverResult.message}</span>
-                </div>
-              )}
-
-              {/* Inline Add Speaker Form */}
-              {isAddingSpeaker && (
-                <div className="p-4 rounded-xl bg-slate-800/60 border border-rose-500/30 space-y-3 animate-fade-in">
-                  <h5 className="text-xs font-bold text-white flex items-center gap-2">
-                    <Plus className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Add HomePod / AirPlay Speaker</span>
-                  </h5>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-300 mb-1">Speaker Name</label>
-                      <input
-                        type="text"
-                        value={newSpeakerName}
-                        onChange={e => setNewSpeakerName(e.target.value)}
-                        placeholder="Living Room HomePods"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-300 mb-1">Room / Location</label>
-                      <input
-                        type="text"
-                        value={newSpeakerRoom}
-                        onChange={e => setNewSpeakerRoom(e.target.value)}
-                        placeholder="Living Room"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-300 mb-1">HA Entity ID</label>
-                      <input
-                        type="text"
-                        value={newSpeakerEntityId}
-                        onChange={e => setNewSpeakerEntityId(e.target.value)}
-                        placeholder="media_player.living_room_homepod"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-rose-500"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-medium text-slate-300 mb-1">Speaker Model</label>
-                      <select
-                        value={newSpeakerModel}
-                        onChange={e => setNewSpeakerModel(e.target.value as any)}
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500"
-                      >
-                        <option value="HomePod">HomePod (Full Size)</option>
-                        <option value="HomePod mini">HomePod mini</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={newSpeakerStereo}
-                        onChange={e => setNewSpeakerStereo(e.target.checked)}
-                        className="rounded border-slate-700 text-rose-500 focus:ring-0"
-                      />
-                      <span>Is Stereo Pair (Left + Right configured in Apple Home)</span>
-                    </label>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setIsAddingSpeaker(false)}
-                        className="px-3 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg text-xs"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAddSpeaker}
-                        className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold"
-                      >
-                        Save Speaker
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Speaker List */}
-              <div className="divide-y divide-slate-800 border border-slate-800 rounded-xl overflow-hidden bg-slate-950/40">
-                {(config.appleMusic?.homePods || []).length === 0 ? (
-                  <div className="p-6 text-center text-slate-400">
-                    <Radio className="w-8 h-8 mx-auto mb-2 text-slate-500 opacity-50" />
-                    <p className="text-sm font-medium text-slate-300">No HomePod speakers configured</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      Click "Scan Home Assistant" to automatically import your speakers or add them manually.
-                    </p>
-                  </div>
-                ) : (
-                  (config.appleMusic?.homePods || []).map((sp, idx) => (
-                    <div
-                      key={sp.id}
-                      className="p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 hover:bg-white/[0.02] transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-slate-300 shrink-0">
-                          <Radio className="w-4 h-4 text-rose-400" />
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-white">{sp.name}</span>
-                            {sp.isStereoPair && (
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium">
-                                Stereo Pair
-                              </span>
-                            )}
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">
-                              {sp.model || 'HomePod'}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-400 mt-0.5">
-                            {sp.room} · <code className="text-slate-500 font-mono text-[10px]">{sp.entityId}</code>
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
-                        {/* Default Volume preview */}
-                        <div className="flex items-center gap-2">
-                          <Volume2 className="w-3.5 h-3.5 text-slate-400" />
-                          <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={sp.volume || 50}
-                            onChange={e => {
-                              const newVol = parseInt(e.target.value, 10);
-                              setConfig(prev => ({
-                                ...prev,
-                                appleMusic: {
-                                  ...prev.appleMusic,
-                                  homePods: (prev.appleMusic?.homePods || []).map(s =>
-                                    s.id === sp.id ? { ...s, volume: newVol } : s
-                                  ),
-                                },
-                              }));
-                            }}
-                            className="w-20 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                          />
-                          <span className="text-[11px] font-mono text-slate-400 w-7 text-right">
-                            {sp.volume || 50}%
-                          </span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteSpeaker(sp.id)}
-                          className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                          title="Remove speaker"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            {/* Apple Music Cloud Account & API Tokens */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
-              <div className="border-b border-slate-800 pb-3">
-                <h4 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Key className="w-4 h-4 text-amber-400" />
-                  <span>Apple Music Developer & Cloud Account Tokens (Optional)</span>
-                </h4>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Optional keys for loading your private Apple Music playlists and favorited tracks directly via MusicKit JS.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Apple Music Developer Token (JWT)
-                  </label>
-                  <input
-                    type="password"
-                    value={config.appleMusic?.developerToken || ''}
-                    onChange={e =>
-                      setConfig(prev => ({
-                        ...prev,
-                        appleMusic: {
-                          ...prev.appleMusic,
-                          developerToken: e.target.value,
-                        },
-                      }))
-                    }
-                    placeholder="eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9..."
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-rose-500"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Obtained from Apple Developer account under Keys → MusicKit.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    MusicKit User Token
-                  </label>
-                  <input
-                    type="password"
-                    value={config.appleMusic?.userToken || ''}
-                    onChange={e =>
-                      setConfig(prev => ({
-                        ...prev,
-                        appleMusic: {
-                          ...prev.appleMusic,
-                          userToken: e.target.value,
-                        },
-                      }))
-                    }
-                    placeholder="Optional personal account token..."
-                    className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 font-mono focus:outline-none focus:border-rose-500"
-                  />
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    Allows personal cloud library synchronization.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tab 5: Apple HomeView & Screen Saver */}
+        {/* Tab: Apple Liquid Glass Screen Saver */}
         {activeTab === 'screensaver' && (
           <div className="space-y-6">
             {/* Header / Preview Banner */}
@@ -2407,14 +1250,14 @@ http:
                     <Sparkles className="w-4 h-4" />
                   </div>
                   <h3 className="text-lg font-bold text-white tracking-tight">
-                    Apple HomeView & StandBy Screen Saver
+                    Apple Liquid Glass Screen Saver
                   </h3>
                   <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-500/30 font-mono px-2 py-0.5 rounded-full uppercase">
-                    1920 × 1200 Display
+                    Ambient StandBy
                   </span>
                 </div>
                 <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-                  Automatically transitions to an Apple-inspired ambient standby display when idle. Configurable with curated fine-art photography, oversized typographic clocks, live weather, calendar schedules, and bin reminders. Tapping anywhere immediately returns to the Home dashboard.
+                  Transforms into a distraction-free Apple liquid glass digital clock with live date and current weather. Touching the screen at any point wakes the display and returns directly to the Home dashboard.
                 </p>
               </div>
 
@@ -2439,7 +1282,7 @@ http:
                     <span>Idle Activation & Behavior</span>
                   </h4>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Controls when the screen saver automatically engages and how it wakes.
+                    Controls when the screen saver automatically engages.
                   </p>
                 </div>
 
@@ -2469,14 +1312,14 @@ http:
                   </label>
                   <div className="grid grid-cols-4 gap-2">
                     {[
-                      { val: 1, label: '1 min' },
-                      { val: 2, label: '2 min' },
-                      { val: 3, label: '3 min', badge: 'Default' },
-                      { val: 5, label: '5 min' },
-                      { val: 10, label: '10 min' },
-                      { val: 15, label: '15 min' },
-                      { val: 30, label: '30 min' },
-                      { val: 0, label: 'Never' },
+                      { val: 1, label: "1 min" },
+                      { val: 2, label: "2 min" },
+                      { val: 3, label: "3 min", badge: "Default" },
+                      { val: 5, label: "5 min" },
+                      { val: 10, label: "10 min" },
+                      { val: 15, label: "15 min" },
+                      { val: 30, label: "30 min" },
+                      { val: 0, label: "Never" },
                     ].map((item) => (
                       <button
                         key={item.val}
@@ -2492,8 +1335,8 @@ http:
                         }
                         className={`p-2 rounded-lg text-xs font-semibold transition-all border text-center ${
                           (config.screensaver?.idleTimeoutMinutes ?? 3) === item.val
-                            ? 'bg-sky-600 border-sky-400 text-white shadow-md'
-                            : 'bg-slate-950/70 border-slate-700/70 text-slate-300 hover:bg-slate-800'
+                            ? "bg-sky-600 border-sky-400 text-white shadow-md"
+                            : "bg-slate-950/70 border-slate-700/70 text-slate-300 hover:bg-slate-800"
                         }`}
                       >
                         <div>{item.label}</div>
@@ -2506,456 +1349,77 @@ http:
                     ))}
                   </div>
                   <p className="text-[11px] text-slate-400 mt-2">
-                    Triggers when no touches, mouse movements, or clicks occur for the chosen duration.
+                    Triggers when no touches or interactions occur for the selected duration.
                   </p>
                 </div>
 
                 <div>
                   <label className="text-xs text-slate-300 font-medium block mb-2">
-                    Screen Saver Wake Gesture
+                    Wake Gesture
                   </label>
                   <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-2">
                     <div className="flex items-center gap-2 font-medium text-white">
                       <Check className="w-4 h-4 text-emerald-400" />
-                      <span>Single Tap Anywhere Returns to Home</span>
+                      <span>Instant Wake on Screen Tap</span>
                     </div>
-                    <p className="text-slate-400 leading-relaxed">
-                      Designed for kiosk wall-displays: touching the screen at any point instantly wakes the display and navigates directly back to your primary Home dashboard.
+                    <p className="text-slate-400 leading-relaxed text-[11px]">
+                      Touching the screen at any point instantly dismisses the screensaver and returns cleanly to your active Home dashboard.
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Preloaded Screen Saver Styles */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg">
-              <h4 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-sky-400" />
-                <span>Preloaded HomeView Styles (7 Presets)</span>
-              </h4>
-              <p className="text-xs text-slate-400 mb-4">
-                Select your active screensaver ambient style. Configured exclusively here in Settings for a clean, distraction-free kiosk display.
-              </p>
+            {/* Color Scheme & Dimming */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
+              <div>
+                <h4 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span>Liquid Glass Clock Color Theme</span>
+                </h4>
+                <p className="text-xs text-slate-400 mb-3">
+                  Choose the specular liquid glass gradient and ambient breathing backglow.
+                </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                {[
-                  {
-                    id: 'standby-duo',
-                    name: 'Apple StandBy Duo',
-                    tag: 'Recommended',
-                    desc: 'Split-screen layout with oversized digital clock on left & interactive Smart Stack (schedule, live weather, bin collections) on right.',
-                    bg: 'from-sky-950/40 to-slate-900',
-                  },
-                  {
-                    id: 'weather-focus',
-                    name: 'Apple Weather Station',
-                    tag: 'Live Weather',
-                    desc: 'Dedicated ambient weather hub with oversized clock, live temperature, comfort humidity gauge, and 3-day forecast in liquid glass.',
-                    bg: 'from-sky-950/40 to-slate-900',
-                  },
-                  {
-                    id: 'photo-art',
-                    name: 'Curated Photo & Art Frame',
-                    tag: 'Fine Art',
-                    desc: 'Full-bleed high-res landscape and architecture photography with soft Ken Burns pan and translucent Liquid Glass complication capsule.',
-                    bg: 'from-amber-950/40 to-slate-900',
-                  },
-                  {
-                    id: 'bold-digital',
-                    name: 'Minimalist Bold Digital',
-                    tag: 'Typography',
-                    desc: 'Apple SF Pro style giant numerals with live date, weather status, and next event pills.',
-                    bg: 'from-indigo-950/40 to-slate-900',
-                  },
-                  {
-                    id: 'classic-analog',
-                    name: 'Luxury Chronograph Analog',
-                    tag: 'Swiss Dial',
-                    desc: 'Realistic SVG analog watchface with sweeping seconds hand and 3 complications for date, temperature, and schedule.',
-                    bg: 'from-slate-950 to-slate-900',
-                  },
-                  {
-                    id: 'cosmic-glow',
-                    name: 'Cosmic Aurora & Nebula',
-                    tag: 'Ambient Aura',
-                    desc: 'Deep space starry canvas with glowing ambient light orbs and luminous modern numerals.',
-                    bg: 'from-purple-950/40 to-slate-900',
-                  },
-                  {
-                    id: 'night-stand',
-                    name: 'Night Stand (Red Monochrome)',
-                    tag: 'OLED Night',
-                    desc: 'Pitch-black OLED background with pure crimson red glow designed to protect night vision during dark hours.',
-                    bg: 'from-red-950/30 to-black',
-                  },
-                ].map((styleItem) => {
-                  const isSelected = (config.screensaver?.style || 'standby-duo') === styleItem.id;
-                  return (
-                    <div
-                      key={styleItem.id}
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2.5">
+                  {[
+                    { id: "sunset", label: "Sunset Glow", color: "#f59e0b" },
+                    { id: "glacier", label: "Glacier Blue", color: "#38bdf8" },
+                    { id: "emerald", label: "Emerald Mint", color: "#34d399" },
+                    { id: "white", label: "Pure White", color: "#ffffff" },
+                    { id: "crimson", label: "Crimson Red", color: "#ef4444" },
+                    { id: "lavender", label: "Lavender", color: "#a855f7" },
+                  ].map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
                       onClick={() =>
                         setConfig((prev) => ({
                           ...prev,
                           screensaver: {
                             ...prev.screensaver,
-                            style: styleItem.id as any,
+                            clockColor: c.id as any,
                           },
                         }))
                       }
-                      className={`cursor-pointer rounded-xl p-4 transition-all border relative flex flex-col justify-between bg-gradient-to-b ${styleItem.bg} ${
-                        isSelected
-                          ? 'border-sky-400 ring-2 ring-sky-500/30 shadow-lg'
-                          : 'border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
+                      className={`p-3 rounded-xl text-xs font-semibold border flex flex-col items-center gap-2 transition-all ${
+                        (config.screensaver?.clockColor || "sunset") === c.id
+                          ? "bg-slate-800 border-sky-400 text-white shadow-md ring-1 ring-sky-400/40"
+                          : "bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900"
                       }`}
                     >
-                      <div>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-white">
-                            {styleItem.name}
-                          </span>
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded font-mono ${
-                            isSelected ? 'bg-sky-500 text-white' : 'bg-white/10 text-white/70'
-                          }`}>
-                            {styleItem.tag}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-300 leading-relaxed">
-                          {styleItem.desc}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-xs font-semibold">
-                        <span className={isSelected ? 'text-sky-300' : 'text-slate-400'}>
-                          {isSelected ? 'Active Preset' : 'Click to Select'}
-                        </span>
-                        {isSelected && <Check className="w-4 h-4 text-sky-400" />}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Artwork Gallery & Photography Options */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg">
-              <h4 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-sky-400" />
-                <span>Curated Fine Art & Photography Collections</span>
-              </h4>
-              <p className="text-xs text-slate-400 mb-4">
-                Used in the Photo Frame mode and preloaded gallery transitions.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-2">
-                    Artwork Category
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'all', label: 'All Collections' },
-                      { id: 'nature', label: 'Nature & Landscapes' },
-                      { id: 'architecture', label: 'Modern Architecture' },
-                      { id: 'space', label: 'Cosmic & Deep Sky' },
-                      { id: 'abstract', label: 'Abstract 3D Art' },
-                    ].map((cat) => (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() =>
-                          setConfig((prev) => ({
-                            ...prev,
-                            screensaver: {
-                              ...prev.screensaver,
-                              artworkCategory: cat.id as any,
-                            },
-                          }))
-                        }
-                        className={`p-2.5 rounded-lg text-xs font-semibold transition-all border text-left flex items-center justify-between ${
-                          (config.screensaver?.artworkCategory || 'nature') === cat.id
-                            ? 'bg-sky-600 border-sky-400 text-white shadow-md'
-                            : 'bg-slate-950/70 border-slate-700/70 text-slate-300 hover:bg-slate-800'
-                        }`}
-                      >
-                        <span>{cat.label}</span>
-                        {(config.screensaver?.artworkCategory || 'nature') === cat.id && (
-                          <Check className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-                    ))}
-                  </div>
+                      <span
+                        className="w-5 h-5 rounded-full shadow-md"
+                        style={{ backgroundColor: c.color }}
+                      />
+                      <span className="truncate">{c.label}</span>
+                    </button>
+                  ))}
                 </div>
-
-                <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-2">
-                    Artwork Rotation Interval
-                  </label>
-                  <select
-                    value={config.screensaver?.artCycleSeconds ?? 30}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        screensaver: {
-                          ...prev.screensaver,
-                          artCycleSeconds: parseInt(e.target.value, 10),
-                        },
-                      }))
-                    }
-                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-xs text-white focus:outline-none focus:border-sky-500 mb-3"
-                  >
-                    <option value={15}>Every 15 seconds</option>
-                    <option value={30}>Every 30 seconds (Recommended)</option>
-                    <option value={60}>Every 1 minute</option>
-                    <option value={300}>Every 5 minutes</option>
-                  </select>
-
-                  <label className="text-xs text-slate-300 font-medium block mb-1">
-                    Clock Color Theme
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: 'sunset', label: 'Sunset Glow', color: '#f59e0b' },
-                      { id: 'glacier', label: 'Glacier Blue', color: '#38bdf8' },
-                      { id: 'emerald', label: 'Emerald Mint', color: '#34d399' },
-                      { id: 'white', label: 'Pure White', color: '#ffffff' },
-                      { id: 'crimson', label: 'Crimson Red', color: '#ef4444' },
-                      { id: 'lavender', label: 'Lavender', color: '#a855f7' },
-                    ].map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        onClick={() =>
-                          setConfig((prev) => ({
-                            ...prev,
-                            screensaver: {
-                              ...prev.screensaver,
-                              clockColor: c.id as any,
-                            },
-                          }))
-                        }
-                        className={`p-2 rounded-lg text-xs font-semibold border flex items-center gap-2 transition-all ${
-                          (config.screensaver?.clockColor || 'sunset') === c.id
-                            ? 'bg-slate-800 border-sky-400 text-white'
-                            : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800/60'
-                        }`}
-                      >
-                        <span
-                          className="w-3 h-3 rounded-full shrink-0 shadow-sm"
-                          style={{ backgroundColor: c.color }}
-                        />
-                        <span className="truncate">{c.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Weather Widget Configuration */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4 mb-4">
-                <div>
-                  <h4 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                    <CloudSun className="w-4 h-4 text-sky-400" />
-                    <span>HomeView Weather Widget Configuration</span>
-                  </h4>
-                  <p className="text-xs text-slate-400">
-                    Configure the rounded-glass interactive weather widget featured in Apple StandBy Duo and Weather Station screensavers.
-                  </p>
-                </div>
-                <span className="text-[10px] bg-sky-500/20 text-sky-300 font-mono px-2 py-0.5 rounded-full border border-sky-400/30">
-                  Interactive 3-Way
-                </span>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-2">
-                    Default Initial Weather View Mode:
-                  </label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                    {[
-                      {
-                        id: 'current',
-                        name: 'Current Temperature',
-                        desc: 'Live temperature, condition icon, feels like, and today\'s spectrum high/low range bar.',
-                        icon: Thermometer,
-                      },
-                      {
-                        id: 'humidity',
-                        name: 'Humidity & Moisture',
-                        desc: 'Relative humidity %, comfort assessment, rounded progress bar, and rain chance.',
-                        icon: Droplets,
-                      },
-                      {
-                        id: 'forecast',
-                        name: '3-Day Forecast',
-                        desc: 'Three rounded-glass cards for Today and upcoming 2 days with daily min/max bars and precipitation probability.',
-                        icon: CalendarDays,
-                      },
-                    ].map((mode) => {
-                      const isSelected = (config.screensaver?.weatherWidgetView || 'current') === mode.id;
-                      const IconComponent = mode.icon;
-                      return (
-                        <div
-                          key={mode.id}
-                          onClick={() =>
-                            setConfig((prev) => ({
-                              ...prev,
-                              screensaver: {
-                                ...prev.screensaver,
-                                weatherWidgetView: mode.id as any,
-                              },
-                            }))
-                          }
-                          className={`cursor-pointer rounded-xl p-3.5 border transition-all ${
-                            isSelected
-                              ? 'bg-sky-500/15 border-sky-400 text-white shadow-md'
-                              : 'bg-slate-950 border-slate-800 text-slate-300 hover:border-slate-700 hover:bg-slate-900/60'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1.5">
-                            <div className="flex items-center gap-2 font-bold text-xs text-white">
-                              <IconComponent className={`w-4 h-4 ${isSelected ? 'text-sky-400' : 'text-slate-400'}`} />
-                              <span>{mode.name}</span>
-                            </div>
-                            {isSelected && <Check className="w-4 h-4 text-sky-400" />}
-                          </div>
-                          <p className="text-[11px] text-slate-400 leading-relaxed">
-                            {mode.desc}
-                          </p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-start gap-3 text-xs text-slate-300">
-                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-semibold text-white block">Real-Time On-Screen Toggling</span>
-                    <p className="text-slate-400 text-[11px] mt-0.5 leading-relaxed">
-                      While the screensaver is running, users can tap directly between the <strong className="text-white">Current Temp</strong>, <strong className="text-white">Humidity</strong>, or <strong className="text-white">3-Day Forecast</strong> pills to switch views dynamically without waking or leaving the screensaver.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Complications & Smart Reminders */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg">
-              <h4 className="text-sm font-semibold text-white mb-1 flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-sky-400" />
-                <span>Smart Complications & Ambient Comfort</span>
-              </h4>
-              <p className="text-xs text-slate-400 mb-4">
-                Toggle overlay widgets and low-light behaviors.
-              </p>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
-                  <div>
-                    <span className="text-xs font-semibold text-white block">
-                      Live Weather Complication
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Display temperature and condition in standby corner
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={config.screensaver?.showWeatherComplication ?? true}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        screensaver: {
-                          ...prev.screensaver,
-                          showWeatherComplication: e.target.checked,
-                        },
-                      }))
-                    }
-                    className="w-4 h-4 rounded text-sky-500 bg-slate-800 border-slate-700 focus:ring-0"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
-                  <div>
-                    <span className="text-xs font-semibold text-white block">
-                      Upcoming Calendar Schedule
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Show today's and tomorrow's upcoming events
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={config.screensaver?.showCalendarComplication ?? true}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        screensaver: {
-                          ...prev.screensaver,
-                          showCalendarComplication: e.target.checked,
-                        },
-                      }))
-                    }
-                    className="w-4 h-4 rounded text-sky-500 bg-slate-800 border-slate-700 focus:ring-0"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
-                  <div>
-                    <span className="text-xs font-semibold text-white block">
-                      Waste & Bin Collection Reminder
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Auto-detect Brown / Black bin collection days
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={config.screensaver?.showBinReminder ?? true}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        screensaver: {
-                          ...prev.screensaver,
-                          showBinReminder: e.target.checked,
-                        },
-                      }))
-                    }
-                    className="w-4 h-4 rounded text-sky-500 bg-slate-800 border-slate-700 focus:ring-0"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-3.5 rounded-xl bg-slate-950 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
-                  <div>
-                    <span className="text-xs font-semibold text-white block">
-                      Auto Night Mode (Red Monochrome)
-                    </span>
-                    <span className="text-[11px] text-slate-400">
-                      Automatically activate red night vision between 10 PM and 7 AM
-                    </span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={config.screensaver?.autoNightMode ?? false}
-                    onChange={(e) =>
-                      setConfig((prev) => ({
-                        ...prev,
-                        screensaver: {
-                          ...prev.screensaver,
-                          autoNightMode: e.target.checked,
-                        },
-                      }))
-                    }
-                    className="w-4 h-4 rounded text-sky-500 bg-slate-800 border-slate-700 focus:ring-0"
-                  />
-                </label>
               </div>
 
               {/* Ambient Dim Level */}
-              <div className="mt-5 pt-4 border-t border-slate-800">
+              <div className="pt-4 border-t border-slate-800">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-xs text-slate-300 font-medium">
                     Screen Saver Ambient Dimming Level
@@ -2983,7 +1447,7 @@ http:
                 />
                 <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
                   <span>0% (Full Brightness)</span>
-                  <span>10% (Subtle)</span>
+                  <span>10% (Subtle Comfort)</span>
                   <span>30% (Living Room)</span>
                   <span>60% (Dark Bedroom)</span>
                 </div>
@@ -2993,7 +1457,7 @@ http:
         )}
 
         {/* Tab: System & Updates */}
-        {(activeTab === 'system' || activeTab === 'kiosk-guide') && <SystemSettings />}
+        {activeTab === 'system' && <SystemSettings />}
       </div>
     </div>
   );

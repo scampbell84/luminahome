@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, ShoppingCart, Settings, Maximize2, Minimize2, CheckSquare, Sparkles, Music } from 'lucide-react';
+import { Home, Calendar, Settings, Maximize2, Minimize2, Sparkles } from 'lucide-react';
 
-export type NavigationTab = 'home' | 'calendar' | 'shopping' | 'media' | 'homeassistant' | 'settings';
+export type NavigationTab = 'home' | 'calendar' | 'settings';
 
 interface BottomMenuBarProps {
   activeTab: NavigationTab;
   onSelectTab: (tab: NavigationTab) => void;
-  shoppingPendingCount?: number;
   format24?: boolean;
   onTriggerScreensaver?: () => void;
 }
@@ -14,7 +13,6 @@ interface BottomMenuBarProps {
 export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
   activeTab,
   onSelectTab,
-  shoppingPendingCount = 0,
   format24 = false,
   onTriggerScreensaver,
 }) => {
@@ -51,7 +49,6 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
     id: NavigationTab;
     label: string;
     icon: React.ReactNode;
-    badge?: number | string;
   }> = [
     {
       id: 'home',
@@ -62,28 +59,6 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
       id: 'calendar',
       label: 'Calendar',
       icon: <Calendar className="w-5 h-5" />,
-    },
-    {
-      id: 'shopping',
-      label: 'Shopping',
-      icon: <ShoppingCart className="w-5 h-5" />,
-      badge: shoppingPendingCount > 0 ? shoppingPendingCount : undefined,
-    },
-    {
-      id: 'media',
-      label: 'Media',
-      icon: <Music className="w-5 h-5" />,
-    },
-    {
-      id: 'homeassistant',
-      label: 'Home Assistant',
-      icon: (
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 10.5L12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-9z" />
-          <path d="M9 21v-7a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v7" />
-          <circle cx="12" cy="8.5" r="1" fill="currentColor" />
-        </svg>
-      ),
     },
     {
       id: 'settings',
@@ -111,18 +86,7 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
                   : 'text-white/70 hover:text-white hover:bg-white/10 active:scale-95'
               }`}
             >
-              <div className="relative">
-                {item.icon}
-                {item.badge !== undefined && (
-                  <span className={`absolute -top-1.5 -right-2 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold font-mono flex items-center justify-center leading-none ${
-                    isActive 
-                      ? 'bg-amber-500 text-white' 
-                      : 'bg-amber-400 text-black'
-                  }`}>
-                    {item.badge}
-                  </span>
-                )}
-              </div>
+              {item.icon}
               <span className="text-[11px] md:text-xs uppercase tracking-wider font-bold">
                 {item.label}
               </span>
@@ -137,7 +101,7 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
           <button
             onClick={onTriggerScreensaver}
             className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white/90 hover:text-white rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold border border-white/15 shadow-sm active:scale-95"
-            title="Display Apple HomeView Screen Saver"
+            title="Display Screen Saver"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />
             <span className="hidden sm:inline">Screen Saver</span>

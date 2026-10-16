@@ -109,7 +109,6 @@ export interface AppConfig {
       countdown: WidgetZone;
       notes: WidgetZone;
       system: WidgetZone;
-      mediaPlayer?: WidgetZone;
     };
     gridColumns: number; // 12 columns by default
     gridItems?: Array<{
@@ -192,90 +191,6 @@ export interface AppConfig {
     weatherWidgetView?: 'current' | 'humidity' | 'forecast'; // Default view for HomeView Weather Widget
     showWeatherWidget?: boolean; // Enable/disable dedicated weather widget in screensaver
   };
-  homeAssistant: HomeAssistantConfig;
-  appleMusic: AppleMusicConfig;
-  spotify?: SpotifyConfig;
-  plex?: PlexConfig;
-  activeMediaSource?: 'apple' | 'spotify' | 'plex';
-}
-
-export interface SpotifyConfig {
-  enabled: boolean;
-  clientId?: string;
-  clientSecret?: string;
-  accessToken?: string;
-  refreshToken?: string;
-  connected?: boolean;
-  username?: string;
-  embedUri?: string; // Spotify URI e.g. spotify:playlist:...
-}
-
-export interface PlexConfig {
-  enabled: boolean;
-  serverUrl?: string; // e.g. http://192.168.1.100:32400
-  token?: string;     // X-Plex-Token
-  connected?: boolean;
-  serverName?: string;
-  musicSectionId?: string;
-}
-
-export interface HomePodSpeaker {
-  id: string;
-  name: string;
-  room: string;
-  entityId: string; // e.g. media_player.living_room_homepod
-  isStereoPair?: boolean;
-  volume: number; // 0 - 100
-  muted: boolean;
-  active: boolean; // currently routing audio to this speaker
-  ipAddress?: string;
-  model?: 'HomePod' | 'HomePod mini';
-}
-
-export interface AppleMusicTrack {
-  id: string;
-  title: string;
-  artist: string;
-  album: string;
-  artworkUrl: string;
-  duration: number; // in seconds
-  audioQuality?: 'Lossless' | 'Dolby Atmos' | 'Hi-Res Lossless' | 'High Quality';
-  streamUrl?: string;
-}
-
-export interface AppleMusicPlaylist {
-  id: string;
-  title: string;
-  subtitle: string;
-  artworkUrl: string;
-  trackCount: number;
-  type: 'playlist' | 'station' | 'album';
-  tracks?: AppleMusicTrack[];
-}
-
-export interface AppleMusicConfig {
-  enabled: boolean;
-  developerToken?: string;
-  userToken?: string;
-  isConnected?: boolean;
-  userDisplayName?: string;
-  appleIdEmail?: string;
-  defaultSpeakerId?: string;
-  homePods: HomePodSpeaker[];
-  favoritePlaylists: AppleMusicPlaylist[];
-  audioQuality: 'Lossless' | 'Dolby Atmos' | 'Hi-Res Lossless' | 'High Quality';
-  showNowPlayingInScreensaver: boolean;
-}
-
-export interface HomeAssistantConfig {
-  enabled: boolean;
-  ipAddress: string; // IP or hostname, e.g. "192.168.1.100" or "homeassistant.local"
-  port: number; // default: 8123
-  useHttps: boolean; // default: false
-  customPath: string; // e.g. "/lovelace" or "/lovelace-kiosk"
-  kioskMode: boolean; // whether to append ?kiosk query param
-  accessToken?: string; // Long-Lived Access Token for REST/WebSocket
-  viewMode?: 'embed' | 'cards' | 'split'; // Iframe embed, native touch cards, or split view
 }
 
 export type ScreenSaverStyle = 'standby-duo' | 'weather-focus' | 'photo-art' | 'bold-digital' | 'classic-analog' | 'cosmic-glow' | 'night-stand';
