@@ -45,9 +45,9 @@ export const DEFAULT_CONFIG: AppConfig = {
   },
   weather: {
     enabled: true,
-    cityName: 'Motherwell, United Kingdom',
-    latitude: 55.7925,
-    longitude: -3.9875,
+    cityName: 'London, United Kingdom',
+    latitude: 51.5074,
+    longitude: -0.1278,
     units: 'metric',
     show5Day: true,
     refreshIntervalMinutes: 30,

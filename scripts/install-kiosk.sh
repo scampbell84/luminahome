@@ -40,7 +40,7 @@ echo "✅ Node.js $(node -v) installed."
 echo "⚙️  Configuring background systemd service (luminahome.service)..."
 sudo bash -c "cat > /etc/systemd/system/luminahome.service" <<EOF
 [Unit]
-Description=Lumina Home Smart Wall Display & Media Hub
+Description=Lumina Home Smart Wall Display
 After=network.target
 
 [Service]
@@ -162,5 +162,4 @@ echo "=========================================================="
 echo "✅ Lumina Home successfully installed and running!"
 echo "📺 Display Screen : http://localhost:3000/display"
 echo "⚙️  Admin Settings : http://localhost:3000/admin"
-echo "🎵 Media Center   : http://localhost:3000/media"
 echo "=========================================================="

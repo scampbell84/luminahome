@@ -55,10 +55,10 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
     const fetchWeather = async () => {
       try {
         const query = new URLSearchParams({
-          lat: String(config.weather.latitude || 55.7925),
-          lon: String(config.weather.longitude || -3.9875),
+          lat: String(config.weather.latitude || 51.5074),
+          lon: String(config.weather.longitude || -0.1278),
           units: config.weather.units || 'metric',
-          city: config.weather.cityName || 'Motherwell, United Kingdom',
+          city: config.weather.cityName || 'London, United Kingdom',
         });
         const res = await fetch(`/api/weather?${query.toString()}`);
         if (res.ok && isMounted) {

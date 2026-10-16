@@ -2,6 +2,8 @@
 # ==============================================================================
 # Lumina Home - Automated Update Script
 # Updates repository, dependencies, rebuilds, and restarts the system service
+# Note: User configurations are stored safely in ~/.luminahome/config.json
+# and are completely preserved across all updates and git resets.
 # ==============================================================================
 
 set -e

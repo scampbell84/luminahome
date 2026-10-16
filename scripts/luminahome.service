@@ -1,0 +1,17 @@
+[Unit]
+Description=Lumina Home Smart Wall Display Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/luminahome
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=5
+Environment=NODE_ENV=production
+Environment=PORT=3000
+
+[Install]
+WantedBy=multi-user.target
+Alias=kioskboard.service

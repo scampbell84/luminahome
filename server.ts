@@ -15,9 +15,44 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 const execAsync = promisify(exec);
 
-// Ensure data directory exists
-const DATA_DIR = path.resolve(process.cwd(), 'data');
-const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
+// Resolve persistent config storage outside the Git repository (~/.luminahome)
+function resolveConfigFilePath(): string {
+  const customDir = process.env.LUMINA_CONFIG_DIR;
+  if (customDir) {
+    if (!fs.existsSync(customDir)) fs.mkdirSync(customDir, { recursive: true });
+    return path.join(customDir, 'config.json');
+  }
+
+  try {
+    const homeDir = os.homedir();
+    const primaryDir = path.join(homeDir, '.luminahome');
+    if (!fs.existsSync(primaryDir)) {
+      fs.mkdirSync(primaryDir, { recursive: true });
+    }
+
+    const primaryFile = path.join(primaryDir, 'config.json');
+    const legacyFile = path.resolve(process.cwd(), 'data', 'config.json');
+
+    // Auto-migrate from legacy ./data/config.json if primary file does not exist yet
+    if (!fs.existsSync(primaryFile) && fs.existsSync(legacyFile)) {
+      try {
+        fs.copyFileSync(legacyFile, primaryFile);
+        console.log(`[Config] Migrated legacy configuration from ${legacyFile} to ${primaryFile}`);
+      } catch (err: any) {
+        console.warn(`[Config] Migration warning: ${err.message}`);
+      }
+    }
+
+    return primaryFile;
+  } catch (err: any) {
+    console.warn(`[Config] Home directory inaccessible (${err.message}). Using local ./data fallback.`);
+    const fallbackDir = path.resolve(process.cwd(), 'data');
+    if (!fs.existsSync(fallbackDir)) fs.mkdirSync(fallbackDir, { recursive: true });
+    return path.join(fallbackDir, 'config.json');
+  }
+}
+
+const CONFIG_FILE = resolveConfigFilePath();
 // Load or initialize config
 function loadConfig(): AppConfig {
   try {
@@ -334,8 +369,33 @@ app.post('/api/config/reset', (_req: Request, res: Response) => {
   res.json({ success: true, config: DEFAULT_CONFIG });
 });
 
+// Helper: Resolve the Git remote origin URL and repository slug dynamically
+async function getGitRemoteInfo(): Promise<{ repoUrl: string; repoSlug: string }> {
+  try {
+    const { stdout } = await execAsync('git config --get remote.origin.url');
+    const raw = stdout.trim();
+    if (!raw) {
+      return { repoUrl: 'https://github.com/luminahome/luminahome', repoSlug: 'luminahome/luminahome' };
+    }
+    // Match https://github.com/owner/repo.git or git@github.com:owner/repo.git
+    const match = raw.match(/github\.com[/:]([^/]+)\/([^/.]+)/);
+    if (match) {
+      const owner = match[1];
+      const repo = match[2].replace(/\.git$/, '');
+      const repoSlug = `${owner}/${repo}`;
+      return {
+        repoUrl: `https://github.com/${repoSlug}`,
+        repoSlug,
+      };
+    }
+    return { repoUrl: raw, repoSlug: raw };
+  } catch {
+    return { repoUrl: 'https://github.com/luminahome/luminahome', repoSlug: 'luminahome/luminahome' };
+  }
+}
+
 // 3. System and Network Information
-app.get('/api/system', (_req: Request, res: Response) => {
+app.get('/api/system', async (_req: Request, res: Response) => {
   const ips = getLocalNetworkIps();
   const primaryIp = ips.length > 0 ? ips[0].address : 'localhost';
   const freeMem = os.freemem();
@@ -382,6 +442,8 @@ app.get('/api/system', (_req: Request, res: Response) => {
     diskInfo = null;
   }
 
+  const gitRemote = await getGitRemoteInfo();
+
   const info: SystemInfo = {
     hostname: os.hostname(),
     platform: `${os.type()} ${os.release()} (${os.arch()})`,
@@ -405,6 +467,8 @@ app.get('/api/system', (_req: Request, res: Response) => {
     displayUrl: `http://${primaryIp}:${PORT}/display`,
     adminUrl: `http://${primaryIp}:${PORT}/admin`,
     serverTime: new Date().toISOString(),
+    repoUrl: gitRemote.repoUrl,
+    repoSlug: gitRemote.repoSlug,
   };
 
   res.json(info);
@@ -774,7 +838,7 @@ async function fetchOpenMeteoWithRetry(url: string, maxRetries = 2): Promise<any
     try {
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'LuminaHome/1.0 (Smart Wall Display Dashboard; https://github.com/scampbell84/luminahome)',
+          'User-Agent': 'LuminaHome/1.0 (Smart Wall Display Dashboard; https://github.com/luminahome/luminahome)',
           'Accept': 'application/json',
         },
         signal: AbortSignal.timeout(7000),
@@ -808,7 +872,7 @@ app.get('/api/weather', async (req: Request, res: Response) => {
   const lat = parseFloat((req.query.lat as string) || String(config.weather.latitude));
   const lon = parseFloat((req.query.lon as string) || String(config.weather.longitude));
   const units = (req.query.units as string) || config.weather.units || 'metric';
-  const cityName = (req.query.city as string) || config.weather.cityName || 'Motherwell, United Kingdom';
+  const cityName = (req.query.city as string) || config.weather.cityName || 'London, United Kingdom';
   const forceTestAlert = req.query.testAlert === 'true' || Boolean(config.weather.testAlert);
 
   const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)},${units},${cityName},alert=${forceTestAlert}`;
@@ -968,7 +1032,7 @@ app.get('/api/weather/geocode', async (req: Request, res: Response) => {
     const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=en&format=json`;
     const response = await fetch(url, {
       headers: {
-        'User-Agent': 'LuminaHome/1.0 (Smart Wall Display Dashboard; https://github.com/scampbell84/luminahome)',
+        'User-Agent': 'LuminaHome/1.0 (Smart Wall Display Dashboard; https://github.com/luminahome/luminahome)',
         'Accept': 'application/json',
       },
       signal: AbortSignal.timeout(6000),

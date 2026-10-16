@@ -538,7 +538,7 @@ export const SystemSettings: React.FC = () => {
               <span>Software Updates & Releases</span>
             </h3>
             <p className="text-xs text-slate-400 mt-1">
-              Synchronize directly with your GitHub repository (<span className="text-sky-300 font-mono">scampbell84/luminahome</span>)
+              Synchronize directly with your GitHub repository (<span className="text-sky-300 font-mono">{system?.repoSlug || 'connected repository'}</span>)
             </p>
           </div>
 
@@ -837,7 +837,7 @@ export const SystemSettings: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                <span>Synchronizes with <strong className="text-slate-300 font-mono">scampbell84/luminahome</strong></span>
+                <span>Synchronizes with <strong className="text-slate-300 font-mono">{system?.repoSlug || 'origin remote'}</strong></span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -849,12 +849,12 @@ export const SystemSettings: React.FC = () => {
           <div className="mt-6 pt-4 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
             <span>Repository</span>
             <a
-              href="https://github.com/scampbell84/luminahome"
+              href={system?.repoUrl || 'https://github.com/luminahome/luminahome'}
               target="_blank"
               rel="noopener noreferrer"
               className="text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1"
             >
-              <span>scampbell84/luminahome</span>
+              <span>{system?.repoSlug || 'luminahome/luminahome'}</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>

@@ -231,4 +231,6 @@ export interface SystemInfo {
   displayUrl: string;
   adminUrl: string;
   serverTime: string;
+  repoUrl?: string;
+  repoSlug?: string;
 }

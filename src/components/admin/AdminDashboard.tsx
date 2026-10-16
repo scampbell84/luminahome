@@ -383,7 +383,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Activity className="w-4 h-4 text-emerald-400" />
             <span>System & Updates</span>
             <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded font-mono">
-              v2.5
+              v2.6
             </span>
           </button>
         </div>
@@ -854,17 +854,56 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
               {/* Quick Location Presets */}
               <div className="mb-4">
-                <span className="text-xs text-slate-300 font-medium block mb-2">
-                  Quick Location Presets:
-                </span>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-slate-300 font-medium">
+                    Quick Location Presets:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!navigator.geolocation) {
+                        return;
+                      }
+                      navigator.geolocation.getCurrentPosition(
+                        async (pos) => {
+                          const lat = Number(pos.coords.latitude.toFixed(4));
+                          const lon = Number(pos.coords.longitude.toFixed(4));
+                          try {
+                            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+                            const data = await res.json();
+                            const city = data.address?.city || data.address?.town || data.address?.village || data.address?.county || 'My Location';
+                            const country = data.address?.country || '';
+                            const fullLabel = country ? `${city}, ${country}` : city;
+                            setConfig((prev) => ({
+                              ...prev,
+                              weather: { ...prev.weather, cityName: fullLabel, latitude: lat, longitude: lon },
+                            }));
+                          } catch {
+                            setConfig((prev) => ({
+                              ...prev,
+                              weather: { ...prev.weather, cityName: 'Detected Location', latitude: lat, longitude: lon },
+                            }));
+                          }
+                        },
+                        (err) => {
+                          console.warn('Geolocation warning:', err.message);
+                        }
+                      );
+                    }}
+                    className="text-xs text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1.5 transition-colors"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>Auto-Detect My Location</span>
+                  </button>
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {[
-                    { label: 'Motherwell, United Kingdom', latitude: 55.7925, longitude: -3.9875, isDefault: true },
-                    { label: 'Edinburgh, United Kingdom', latitude: 55.9533, longitude: -3.1883 },
-                    { label: 'Glasgow, United Kingdom', latitude: 55.8642, longitude: -4.2518 },
-                    { label: 'London, United Kingdom', latitude: 51.5074, longitude: -0.1278 },
-                    { label: 'Manchester, United Kingdom', latitude: 53.4808, longitude: -2.2426 },
+                    { label: 'London, United Kingdom', latitude: 51.5074, longitude: -0.1278, isDefault: true },
                     { label: 'New York, United States', latitude: 40.7128, longitude: -74.0060 },
+                    { label: 'Paris, France', latitude: 48.8566, longitude: 2.3522 },
+                    { label: 'Tokyo, Japan', latitude: 35.6762, longitude: 139.6503 },
+                    { label: 'Sydney, Australia', latitude: -33.8688, longitude: 151.2093 },
+                    { label: 'Berlin, Germany', latitude: 52.5200, longitude: 13.4050 },
                   ].map((preset) => {
                     const isSelected = config.weather.cityName.toLowerCase().includes(preset.label.split(',')[0].toLowerCase());
                     return (
@@ -994,7 +1033,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </span>
                     </div>
                     <span className="text-[11px] text-amber-200/80 leading-relaxed block">
-                      Force-activates a simulated active Met Office Yellow Rain & Flooding warning for Motherwell, UK so you can test the high-contrast indicator badge and detail drawer right now.
+                      Force-activates a simulated active severe weather alert so you can test the high-contrast indicator badge and detail drawer right now.
                     </span>
                   </div>
                   <input
