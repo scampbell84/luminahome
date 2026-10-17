@@ -10,16 +10,20 @@ import { NotesWidget } from '../widgets/NotesWidget';
 import { SystemWidget } from '../widgets/SystemWidget';
 import { Settings, Maximize2, Minimize2, RefreshCw, AlertCircle } from 'lucide-react';
 
+import { CountdownItem } from '../../types/config';
+
 interface DisplayScreenProps {
   config: AppConfig;
   onOpenAdmin: () => void;
   onRefreshConfig: () => void;
+  onUpdateConfig?: (updatedConfig: AppConfig) => void;
 }
 
 export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   config,
   onOpenAdmin,
   onRefreshConfig,
+  onUpdateConfig,
 }) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(new Date());
@@ -126,6 +130,18 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   const isPortrait = config.general.orientation === 'portrait';
   const gridItems = config.layout.gridItems;
 
+  const handleUpdateCountdownItems = (items: CountdownItem[]) => {
+    if (onUpdateConfig) {
+      onUpdateConfig({
+        ...config,
+        countdown: {
+          ...config.countdown,
+          items,
+        },
+      });
+    }
+  };
+
   const renderWidgetContent = (id: string) => {
     switch (id) {
       case 'clock':
@@ -142,7 +158,7 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
         ) : null;
       case 'countdown':
         return config.countdown.enabled ? (
-          <CountdownWidget config={config.countdown} />
+          <CountdownWidget config={config.countdown} onUpdateItems={handleUpdateCountdownItems} />
         ) : null;
       case 'notes':
         return config.notes.enabled ? (
@@ -257,7 +273,7 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
 
               <div className={`${isPortrait ? 'w-full space-y-4' : 'lg:col-span-4 space-y-4'}`}>
                 {config.countdown.enabled && (
-                  <CountdownWidget config={config.countdown} />
+                  <CountdownWidget config={config.countdown} onUpdateItems={handleUpdateCountdownItems} />
                 )}
 
                 {config.notes.enabled && (

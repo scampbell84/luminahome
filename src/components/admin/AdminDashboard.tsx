@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppConfig, CalendarFeed } from '../../types/config';
+import { AppConfig, CalendarFeed, CountdownItem } from '../../types/config';
 import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS } from '../../constants/defaultConfig';
 import { SystemSettings } from '../system/SystemSettings';
 import { GridVisualEditor } from './GridVisualEditor';
@@ -23,6 +23,7 @@ import {
   Sparkles,
   Sliders,
   Image as ImageIcon,
+  Repeat,
   Eye,
   LayoutGrid,
   Moon,
@@ -247,6 +248,113 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         feeds: prev.calendar.feeds.filter((f) => f.id !== id),
       },
     }));
+  };
+
+  // Countdown multi-item operations
+  const getCountdownItems = (): CountdownItem[] => {
+    if (config.countdown.items && Array.isArray(config.countdown.items)) {
+      return config.countdown.items;
+    }
+    if (config.countdown.title && config.countdown.targetDate) {
+      return [
+        {
+          id: 'countdown-default',
+          title: config.countdown.title,
+          targetDate: config.countdown.targetDate,
+          icon: config.countdown.icon || 'plane',
+          annual: config.countdown.annual || false,
+        },
+      ];
+    }
+    return [];
+  };
+
+  const addCountdownItem = () => {
+    const nextMonth = new Date();
+    nextMonth.setMonth(nextMonth.getMonth() + 1);
+    nextMonth.setHours(12, 0, 0, 0);
+    const dateStr = nextMonth.toISOString().slice(0, 16);
+
+    const newItem: CountdownItem = {
+      id: `countdown-${Date.now()}`,
+      title: 'New Event Countdown',
+      targetDate: dateStr,
+      icon: 'sparkles',
+      annual: false,
+    };
+
+    setConfig((prev) => {
+      const currentItems = prev.countdown.items && Array.isArray(prev.countdown.items)
+        ? prev.countdown.items
+        : prev.countdown.title && prev.countdown.targetDate
+        ? [
+            {
+              id: 'countdown-default',
+              title: prev.countdown.title,
+              targetDate: prev.countdown.targetDate,
+              icon: prev.countdown.icon || 'plane',
+              annual: prev.countdown.annual || false,
+            },
+          ]
+        : [];
+      return {
+        ...prev,
+        countdown: {
+          ...prev.countdown,
+          items: [...currentItems, newItem],
+        },
+      };
+    });
+  };
+
+  const updateCountdownItem = (id: string, updates: Partial<CountdownItem>) => {
+    setConfig((prev) => {
+      const currentItems = prev.countdown.items && Array.isArray(prev.countdown.items)
+        ? prev.countdown.items
+        : prev.countdown.title && prev.countdown.targetDate
+        ? [
+            {
+              id: 'countdown-default',
+              title: prev.countdown.title,
+              targetDate: prev.countdown.targetDate,
+              icon: prev.countdown.icon || 'plane',
+              annual: prev.countdown.annual || false,
+            },
+          ]
+        : [];
+      return {
+        ...prev,
+        countdown: {
+          ...prev.countdown,
+          items: currentItems.map((item) => (item.id === id ? { ...item, ...updates } : item)),
+        },
+      };
+    });
+  };
+
+  const removeCountdownItem = (id: string) => {
+    setConfig((prev) => {
+      const currentItems = prev.countdown.items && Array.isArray(prev.countdown.items)
+        ? prev.countdown.items
+        : prev.countdown.title && prev.countdown.targetDate
+        ? [
+            {
+              id: 'countdown-default',
+              title: prev.countdown.title,
+              targetDate: prev.countdown.targetDate,
+              icon: prev.countdown.icon || 'plane',
+              annual: prev.countdown.annual || false,
+            },
+          ]
+        : [];
+      return {
+        ...prev,
+        countdown: {
+          ...prev.countdown,
+          items: currentItems.filter((item) => item.id !== id),
+        },
+      };
+    });
   };
 
   const testCalendarFeed = async (feed: CalendarFeed) => {
@@ -1339,57 +1447,193 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
 
             {/* Countdown Widget Settings */}
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                  <Hourglass className="w-4 h-4 text-amber-400" />
-                  <span>Countdown Timer Widget</span>
-                </h3>
-                <input
-                  type="checkbox"
-                  checked={config.countdown.enabled}
-                  onChange={(e) => setConfig(prev => ({ ...prev, countdown: { ...prev.countdown, enabled: e.target.checked } }))}
-                  className="w-4 h-4 rounded text-sky-600"
-                />
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                    <Hourglass className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <span>Countdown Timers & Annual Reminders</span>
+                      <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">
+                        {getCountdownItems().length} active
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Track upcoming vacations, birthdays, anniversaries, and holidays.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {config.countdown.enabled && (
+                    <button
+                      type="button"
+                      onClick={addCountdownItem}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Countdown</span>
+                    </button>
+                  )}
+
+                  <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
+                    <span className="text-xs text-slate-400">Enabled</span>
+                    <input
+                      type="checkbox"
+                      checked={config.countdown.enabled}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          countdown: { ...prev.countdown, enabled: e.target.checked },
+                        }))
+                      }
+                      className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                    />
+                  </div>
+                </div>
               </div>
 
               {config.countdown.enabled && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs text-slate-300 font-medium block mb-1">Event Title</label>
-                    <input
-                      type="text"
-                      value={config.countdown.title}
-                      onChange={(e) => setConfig(prev => ({ ...prev, countdown: { ...prev.countdown, title: e.target.value } }))}
-                      placeholder="e.g. Hawaii Vacation"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
-                    />
-                  </div>
+                <div className="space-y-3">
+                  {getCountdownItems().length === 0 ? (
+                    <div className="p-6 text-center bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-2">
+                      <Hourglass className="w-8 h-8 text-slate-600 mx-auto" />
+                      <p className="text-xs text-slate-400">
+                        No countdown timers configured. Click <strong className="text-amber-400">Add Countdown</strong> to create your first event!
+                      </p>
+                    </div>
+                  ) : (
+                    getCountdownItems().map((item, idx) => {
+                      const dtValue = item.targetDate ? item.targetDate.slice(0, 16) : '';
+                      return (
+                        <div
+                          key={item.id}
+                          className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-3 hover:border-slate-700 transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2 border-b border-slate-800/60 pb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-slate-500 bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                                #{idx + 1}
+                              </span>
+                              <span className="text-xs font-bold text-white truncate max-w-xs">
+                                {item.title || 'Untitled Event'}
+                              </span>
+                              {item.annual && (
+                                <span className="text-[9px] bg-sky-500/20 text-sky-300 border border-sky-500/30 px-1.5 py-0.5 rounded-full font-mono flex items-center gap-1">
+                                  <Repeat className="w-2.5 h-2.5" />
+                                  <span>Annual</span>
+                                </span>
+                              )}
+                            </div>
 
-                  <div>
-                    <label className="text-xs text-slate-300 font-medium block mb-1">Target Date & Time</label>
-                    <input
-                      type="datetime-local"
-                      value={config.countdown.targetDate ? config.countdown.targetDate.slice(0, 16) : ''}
-                      onChange={(e) => setConfig(prev => ({ ...prev, countdown: { ...prev.countdown, targetDate: new Date(e.target.value).toISOString() } }))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
-                    />
-                  </div>
+                            <button
+                              type="button"
+                              onClick={() => removeCountdownItem(item.id)}
+                              className="p-1 text-slate-500 hover:text-rose-400 hover:bg-slate-900 rounded transition-colors cursor-pointer"
+                              title="Delete countdown"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
 
-                  <div>
-                    <label className="text-xs text-slate-300 font-medium block mb-1">Event Icon</label>
-                    <select
-                      value={config.countdown.icon}
-                      onChange={(e) => setConfig(prev => ({ ...prev, countdown: { ...prev.countdown, icon: e.target.value } }))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
-                    >
-                      <option value="plane">✈️ Vacation / Plane</option>
-                      <option value="gift">🎁 Birthday / Gift</option>
-                      <option value="party">🎉 Party / Celebration</option>
-                      <option value="sun">☀️ Summer / Sun</option>
-                      <option value="trophy">🏆 Milestone / Trophy</option>
-                      <option value="heart">❤️ Anniversary / Heart</option>
-                    </select>
+                          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                            {/* Title */}
+                            <div className="sm:col-span-5">
+                              <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                                Event Title
+                              </label>
+                              <input
+                                type="text"
+                                value={item.title}
+                                onChange={(e) =>
+                                  updateCountdownItem(item.id, { title: e.target.value })
+                                }
+                                placeholder="e.g. Hawaii Vacation, Mum's Birthday"
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                              />
+                            </div>
+
+                            {/* Target Date & Time */}
+                            <div className="sm:col-span-4">
+                              <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                                Target Date & Time
+                              </label>
+                              <input
+                                type="datetime-local"
+                                value={dtValue}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  updateCountdownItem(item.id, {
+                                    targetDate: val ? new Date(val).toISOString() : '',
+                                  });
+                                }}
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                              />
+                            </div>
+
+                            {/* Event Icon */}
+                            <div className="sm:col-span-3">
+                              <label className="text-[11px] text-slate-400 font-medium block mb-1">
+                                Event Icon
+                              </label>
+                              <select
+                                value={item.icon}
+                                onChange={(e) =>
+                                  updateCountdownItem(item.id, { icon: e.target.value })
+                                }
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
+                              >
+                                <option value="plane">✈️ Vacation / Plane</option>
+                                <option value="gift">🎁 Birthday / Gift</option>
+                                <option value="cake">🎂 Birthday Cake</option>
+                                <option value="party">🎉 Party / Celebration</option>
+                                <option value="heart">❤️ Anniversary / Heart</option>
+                                <option value="sun">☀️ Holiday / Summer</option>
+                                <option value="trophy">🏆 Milestone / Trophy</option>
+                                <option value="graduation">🎓 Graduation</option>
+                                <option value="rocket">🚀 Project / Launch</option>
+                                <option value="flame">🔥 Fitness / Goal</option>
+                                <option value="sparkles">✨ Special Event</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Annual Recurring Toggle */}
+                          <div className="flex items-center justify-between p-2.5 bg-slate-900/70 rounded-lg border border-slate-800">
+                            <div className="flex items-center gap-2">
+                              <Repeat className={`w-3.5 h-3.5 ${item.annual ? 'text-sky-400' : 'text-slate-500'}`} />
+                              <div>
+                                <span className="text-xs font-semibold text-slate-200 block">
+                                  Annual Recurring Event
+                                </span>
+                                <span className="text-[10px] text-slate-400 block">
+                                  Displays 'Today' on the event day, then automatically advances to next year.
+                                </span>
+                              </div>
+                            </div>
+
+                            <input
+                              type="checkbox"
+                              checked={item.annual || false}
+                              onChange={(e) =>
+                                updateCountdownItem(item.id, { annual: e.target.checked })
+                              }
+                              className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {/* Information banner */}
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-xs text-amber-200/90">
+                    <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">
+                      <strong>Countdown Behavior:</strong> When the target date/time is reached, it will display <strong>'Today'</strong>. Once the day passes, standard countdown items are removed, while <strong>Annual</strong> events automatically advance to the next year and continue counting down.
+                    </p>
                   </div>
                 </div>
               )}

@@ -72,7 +72,13 @@ function loadConfig(): AppConfig {
         weather: { ...DEFAULT_CONFIG.weather, ...(parsed.weather || {}) },
         calendar: { ...DEFAULT_CONFIG.calendar, ...(parsed.calendar || {}) },
         news: { ...DEFAULT_CONFIG.news, ...(parsed.news || {}) },
-        countdown: { ...DEFAULT_CONFIG.countdown, ...(parsed.countdown || {}) },
+        countdown: {
+          ...DEFAULT_CONFIG.countdown,
+          ...(parsed.countdown || {}),
+          items: (parsed.countdown?.items && Array.isArray(parsed.countdown.items))
+            ? parsed.countdown.items
+            : (DEFAULT_CONFIG.countdown.items || []),
+        },
         notes: { ...DEFAULT_CONFIG.notes, ...(parsed.notes || {}) },
         system: { ...DEFAULT_CONFIG.system, ...(parsed.system || {}) },
       };

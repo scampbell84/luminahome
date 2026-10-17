@@ -234,6 +234,7 @@ export default function App() {
               config={config}
               onOpenAdmin={() => navigateTo('settings')}
               onRefreshConfig={loadConfig}
+              onUpdateConfig={handleSaveConfig}
             />
           </div>
         )}

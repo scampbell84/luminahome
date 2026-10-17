@@ -105,6 +105,37 @@ export const DEFAULT_CONFIG: AppConfig = {
     title: 'Summer Vacation & Road Trip',
     targetDate: '2026-11-26T00:00:00',
     icon: 'plane',
+    annual: false,
+    items: [
+      {
+        id: 'countdown-vacation',
+        title: 'Summer Vacation & Road Trip',
+        targetDate: '2026-11-26T00:00:00',
+        icon: 'plane',
+        annual: false,
+      },
+      {
+        id: 'countdown-birthday',
+        title: "Family Birthday Celebration",
+        targetDate: '2026-10-17T00:00:00',
+        icon: 'gift',
+        annual: true,
+      },
+      {
+        id: 'countdown-anniversary',
+        title: 'Wedding Anniversary',
+        targetDate: '2026-12-14T00:00:00',
+        icon: 'heart',
+        annual: true,
+      },
+      {
+        id: 'countdown-newyear',
+        title: "New Year's Eve",
+        targetDate: '2026-12-31T23:59:59',
+        icon: 'party',
+        annual: true,
+      },
+    ],
   },
   notes: {
     enabled: true,

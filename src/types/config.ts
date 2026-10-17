@@ -103,6 +103,14 @@ export interface CalendarHolidayToggles {
   newzealand?: boolean;
 }
 
+export interface CountdownItem {
+  id: string;
+  title: string;
+  targetDate: string; // ISO date format or YYYY-MM-DD / YYYY-MM-DDTHH:mm
+  icon: string;
+  annual?: boolean; // Toggles 'Annual' recurring events (birthdays, anniversaries)
+}
+
 export interface AppConfig {
   general: {
     orientation: 'landscape' | 'portrait';
@@ -181,9 +189,11 @@ export interface AppConfig {
   };
   countdown: {
     enabled: boolean;
-    title: string;
-    targetDate: string; // ISO date format
-    icon: string;
+    title?: string;
+    targetDate?: string;
+    icon?: string;
+    annual?: boolean;
+    items?: CountdownItem[];
   };
   notes: {
     enabled: boolean;
