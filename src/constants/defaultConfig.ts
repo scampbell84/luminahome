@@ -1,4 +1,4 @@
-import { AppConfig } from '../types/config';
+import { AppConfig, CalendarTheme } from '../types/config';
 
 export const DEFAULT_CONFIG: AppConfig = {
   general: {
@@ -57,6 +57,12 @@ export const DEFAULT_CONFIG: AppConfig = {
   calendar: {
     enabled: true,
     view: 'split',
+    theme: 'default',
+    startOfWeek: 'monday',
+    holidays: {
+      uk: true,
+      us: false,
+    },
     maxAgendaDays: 14,
     maxAgendaItems: 8,
     showPastEventsToday: false,
@@ -76,9 +82,9 @@ export const DEFAULT_CONFIG: AppConfig = {
         enabled: true,
       },
       {
-        id: 'feed-us-holidays',
-        name: 'US Holidays',
-        url: 'https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics',
+        id: 'feed-uk-holidays',
+        name: 'UK Bank Holidays',
+        url: 'https://www.gov.uk/bank-holidays/england-and-wales.ics',
         color: '#34d399', // Emerald
         enabled: true,
       },
@@ -329,3 +335,209 @@ export const WALLPAPER_PRESETS = [
     thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=80',
   },
 ];
+
+export const RANDOM_FEED_COLORS = [
+  '#38bdf8', // Sky Blue
+  '#a855f7', // Purple
+  '#34d399', // Emerald
+  '#f43f5e', // Rose
+  '#fb923c', // Orange
+  '#eab308', // Amber
+  '#06b6d4', // Cyan
+  '#ec4899', // Pink
+  '#6366f1', // Indigo
+  '#10b981', // Mint
+  '#84cc16', // Lime
+  '#d946ef', // Fuchsia
+  '#14b8a6', // Teal
+  '#f97316', // Bright Tangerine
+];
+
+export interface CalendarThemeOption {
+  id: CalendarTheme;
+  name: string;
+  desc: string;
+  accent: string;
+  previewBg: string;
+}
+
+export const CALENDAR_THEMES: CalendarThemeOption[] = [
+  {
+    id: 'default',
+    name: 'Midnight Studio',
+    desc: 'Sleek dark dashboard with balanced slate contrast (Default)',
+    accent: '#38bdf8',
+    previewBg: 'bg-slate-900 border-slate-700',
+  },
+  {
+    id: 'glass',
+    name: 'Frosted Glass',
+    desc: 'Heavy liquid glassmorphism with specular reflections and soft blur',
+    accent: '#818cf8',
+    previewBg: 'bg-white/10 border-white/20 backdrop-blur-md',
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal Clean',
+    desc: 'Understated distraction-free design with hairline borders and pure focus',
+    accent: '#94a3b8',
+    previewBg: 'bg-slate-950 border-slate-800/50',
+  },
+  {
+    id: 'vibrant',
+    name: 'Vibrant Glow',
+    desc: 'Rich saturated highlights and luminous color cards for active family hubs',
+    accent: '#ec4899',
+    previewBg: 'bg-indigo-950/40 border-sky-500/40',
+  },
+  {
+    id: 'monochrome',
+    name: 'Monochrome OLED',
+    desc: 'Pitch pure black backdrop with high-contrast monochrome text and colored dots',
+    accent: '#f1f5f9',
+    previewBg: 'bg-black border-neutral-800',
+  },
+  {
+    id: 'warm',
+    name: 'Warm Hearth',
+    desc: 'Cozy terracotta and amber card accents for a welcoming home feeling',
+    accent: '#f97316',
+    previewBg: 'bg-[#181310] border-amber-900/40',
+  },
+  {
+    id: 'nordic',
+    name: 'Nordic Frost',
+    desc: 'Crisp arctic navy with glacial cyan borders and cool polar luminance',
+    accent: '#06b6d4',
+    previewBg: 'bg-[#0b1320] border-cyan-800/40',
+  },
+  {
+    id: 'forest',
+    name: 'Emerald Forest',
+    desc: 'Deep evergreen canopy with luminous mint accents and soothing natural vibe',
+    accent: '#10b981',
+    previewBg: 'bg-[#081711] border-emerald-900/40',
+  },
+];
+
+export interface HolidayFeedPreset {
+  id: string;
+  countryKey: 'uk' | 'scotland' | 'us' | 'canada' | 'australia' | 'germany' | 'france' | 'ireland' | 'spain' | 'italy' | 'netherlands' | 'newzealand';
+  name: string;
+  country: string;
+  flag: string;
+  url: string;
+  color: string;
+}
+
+export const HOLIDAY_PRESETS: HolidayFeedPreset[] = [
+  {
+    id: 'feed-holiday-uk',
+    countryKey: 'uk',
+    name: 'UK Bank Holidays',
+    country: 'United Kingdom (England & Wales)',
+    flag: '🇬🇧',
+    url: 'https://www.gov.uk/bank-holidays/england-and-wales.ics',
+    color: '#34d399',
+  },
+  {
+    id: 'feed-holiday-scotland',
+    countryKey: 'scotland',
+    name: 'Scotland Bank Holidays',
+    country: 'Scotland',
+    flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+    url: 'https://www.gov.uk/bank-holidays/scotland.ics',
+    color: '#38bdf8',
+  },
+  {
+    id: 'feed-holiday-us',
+    countryKey: 'us',
+    name: 'US Public Holidays',
+    country: 'United States',
+    flag: '🇺🇸',
+    url: 'https://www.officeholidays.com/ics/usa',
+    color: '#f43f5e',
+  },
+  {
+    id: 'feed-holiday-ca',
+    countryKey: 'canada',
+    name: 'Canada Statutory Holidays',
+    country: 'Canada',
+    flag: '🇨🇦',
+    url: 'https://www.officeholidays.com/ics/canada',
+    color: '#fb7185',
+  },
+  {
+    id: 'feed-holiday-au',
+    countryKey: 'australia',
+    name: 'Australia Public Holidays',
+    country: 'Australia',
+    flag: '🇦🇺',
+    url: 'https://www.officeholidays.com/ics/australia',
+    color: '#fbbf24',
+  },
+  {
+    id: 'feed-holiday-de',
+    countryKey: 'germany',
+    name: 'German Public Holidays',
+    country: 'Germany',
+    flag: '🇩🇪',
+    url: 'https://www.officeholidays.com/ics/germany',
+    color: '#f59e0b',
+  },
+  {
+    id: 'feed-holiday-fr',
+    countryKey: 'france',
+    name: 'French Public Holidays',
+    country: 'France',
+    flag: '🇫🇷',
+    url: 'https://www.officeholidays.com/ics/france',
+    color: '#60a5fa',
+  },
+  {
+    id: 'feed-holiday-ie',
+    countryKey: 'ireland',
+    name: 'Ireland Bank Holidays',
+    country: 'Ireland',
+    flag: '🇮🇪',
+    url: 'https://www.officeholidays.com/ics/ireland',
+    color: '#10b981',
+  },
+  {
+    id: 'feed-holiday-es',
+    countryKey: 'spain',
+    name: 'Spain Public Holidays',
+    country: 'Spain',
+    flag: '🇪🇸',
+    url: 'https://www.officeholidays.com/ics/spain',
+    color: '#e11d48',
+  },
+  {
+    id: 'feed-holiday-it',
+    countryKey: 'italy',
+    name: 'Italy Public Holidays',
+    country: 'Italy',
+    flag: '🇮🇹',
+    url: 'https://www.officeholidays.com/ics/italy',
+    color: '#059669',
+  },
+  {
+    id: 'feed-holiday-nl',
+    countryKey: 'netherlands',
+    name: 'Netherlands Holidays',
+    country: 'Netherlands',
+    flag: '🇳🇱',
+    url: 'https://www.officeholidays.com/ics/netherlands',
+    color: '#ea580c',
+  },
+  {
+    id: 'feed-holiday-nz',
+    countryKey: 'newzealand',
+    name: 'New Zealand Holidays',
+    country: 'New Zealand',
+    flag: '🇳🇿',
+    url: 'https://www.officeholidays.com/ics/new-zealand',
+    color: '#0284c7',
+  },
+];
+

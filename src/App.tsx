@@ -243,6 +243,7 @@ export default function App() {
             <BigCalendarView
               events={calendarEvents}
               feeds={config.calendar.feeds}
+              config={config.calendar}
               onRefresh={loadCalendar}
             />
           </div>

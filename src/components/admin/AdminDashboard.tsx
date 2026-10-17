@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AppConfig, CalendarFeed } from '../../types/config';
-import { WALLPAPER_PRESETS, DEFAULT_CONFIG } from '../../constants/defaultConfig';
+import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS } from '../../constants/defaultConfig';
 import { SystemSettings } from '../system/SystemSettings';
 import { GridVisualEditor } from './GridVisualEditor';
 import {
@@ -161,11 +161,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   // Calendar feed operations
   const addCalendarFeed = () => {
+    const existingColors = new Set(config.calendar.feeds.map((f) => f.color.toLowerCase()));
+    const availableColors = RANDOM_FEED_COLORS.filter((c) => !existingColors.has(c.toLowerCase()));
+    const assignedColor =
+      availableColors.length > 0
+        ? availableColors[Math.floor(Math.random() * availableColors.length)]
+        : RANDOM_FEED_COLORS[Math.floor(Math.random() * RANDOM_FEED_COLORS.length)];
+
     const newFeed: CalendarFeed = {
       id: `feed-${Date.now()}`,
       name: 'New Calendar',
       url: '',
-      color: '#38bdf8',
+      color: assignedColor,
       enabled: true,
     };
     setConfig((prev) => ({
@@ -175,6 +182,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         feeds: [...prev.calendar.feeds, newFeed],
       },
     }));
+  };
+
+  const isHolidayActive = (preset: HolidayFeedPreset) => {
+    return config.calendar.feeds.some((f) => f.url === preset.url || f.id === preset.id);
+  };
+
+  const toggleHolidayPreset = (preset: HolidayFeedPreset) => {
+    setConfig((prev) => {
+      const isCurrentlyActive = prev.calendar.feeds.some(
+        (f) => f.url === preset.url || f.id === preset.id
+      );
+
+      const currentHolidays = prev.calendar.holidays || {};
+      const updatedHolidays = {
+        ...currentHolidays,
+        [preset.countryKey]: !isCurrentlyActive,
+      };
+
+      let updatedFeeds = [...prev.calendar.feeds];
+      if (isCurrentlyActive) {
+        // Remove holiday feed
+        updatedFeeds = updatedFeeds.filter(
+          (f) => f.url !== preset.url && f.id !== preset.id
+        );
+      } else {
+        // Add holiday feed
+        const newFeed: CalendarFeed = {
+          id: preset.id,
+          name: preset.name,
+          url: preset.url,
+          color: preset.color,
+          enabled: true,
+        };
+        updatedFeeds.push(newFeed);
+      }
+
+      return {
+        ...prev,
+        calendar: {
+          ...prev.calendar,
+          holidays: updatedHolidays,
+          feeds: updatedFeeds,
+        },
+      };
+    });
   };
 
   const updateCalendarFeed = (id: string, updates: Partial<CalendarFeed>) => {
@@ -329,7 +381,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }`}
           >
             <Calendar className="w-4 h-4" />
-            <span>Calendar Feeds</span>
+            <span>Calendar</span>
             <span className="text-[10px] bg-sky-950 text-sky-300 px-1.5 py-0.5 rounded-full font-mono border border-sky-400/30">
               {config.calendar.feeds.length}
             </span>
@@ -639,63 +691,160 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           />
         )}
 
-        {/* Tab 2: Calendar Feeds */}
+        {/* Tab 2: Calendar Settings */}
         {activeTab === 'calendar' && (
           <div className="space-y-6">
-            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg">
-              <div className="flex items-center justify-between mb-4">
+            {/* 1. Calendar Aesthetic Themes Card */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
                   <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-sky-400" />
-                    <span>Universal Multi-iCal Calendar Feeds</span>
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>Calendar Aesthetic Themes</span>
                   </h3>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Connect Google Calendar secret iCal, Apple iCloud public calendars, Outlook, or holiday feeds.
+                    Choose the visual presentation and atmospheric styling for your calendar views.
                   </p>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={addCalendarFeed}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-medium transition-colors shadow-sm"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add Calendar Feed</span>
-                </button>
+                <span className="text-[10px] bg-sky-500/10 text-sky-300 border border-sky-500/20 font-mono px-2 py-0.5 rounded-full uppercase">
+                  {config.calendar.theme || 'default'}
+                </span>
               </div>
 
-              {/* Calendar Display Settings */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-950 rounded-lg border border-slate-800 mb-5">
+              {/* Theme Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
+                {CALENDAR_THEMES.map((theme) => {
+                  const isSelected = (config.calendar.theme || 'default') === theme.id;
+                  return (
+                    <button
+                      key={theme.id}
+                      type="button"
+                      onClick={() =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          calendar: { ...prev.calendar, theme: theme.id },
+                        }))
+                      }
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-slate-800 border-sky-400 shadow-md ring-1 ring-sky-400/40 text-white'
+                          : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-300 hover:bg-slate-900/60'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <span
+                            className="w-3.5 h-3.5 rounded-full shadow-sm"
+                            style={{ backgroundColor: theme.accent }}
+                          />
+                          {isSelected && (
+                            <Check className="w-3.5 h-3.5 text-sky-400" />
+                          )}
+                        </div>
+                        <span className="text-xs font-bold block">{theme.name}</span>
+                        <span className="text-[10px] text-slate-400 leading-snug mt-1 block">
+                          {theme.desc}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Calendar Behavior Controls: Start of Week, View, Max Items, Sync */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 p-3.5 bg-slate-950 rounded-xl border border-slate-800 pt-3 mt-2">
+                {/* Start of Week Option */}
                 <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-1">Default View Mode</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                    Start of Week
+                  </label>
+                  <select
+                    value={config.calendar.startOfWeek || 'monday'}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        calendar: {
+                          ...prev.calendar,
+                          startOfWeek: e.target.value as any,
+                        },
+                      }))
+                    }
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                  >
+                    <option value="monday">Monday (Default / Standard)</option>
+                    <option value="sunday">Sunday (US / Traditional)</option>
+                  </select>
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Sets first column across all calendar grids
+                  </span>
+                </div>
+
+                {/* Default View Mode */}
+                <div>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                    Default View Mode
+                  </label>
                   <select
                     value={config.calendar.view}
-                    onChange={(e) => setConfig(prev => ({ ...prev, calendar: { ...prev.calendar, view: e.target.value as any } }))}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        calendar: { ...prev.calendar, view: e.target.value as any },
+                      }))
+                    }
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
                   >
                     <option value="split">Split View (Month Grid + Agenda)</option>
                     <option value="agenda">Agenda List Only</option>
                     <option value="month">Month Grid Only</option>
                   </select>
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Starting view for home dashboard widget
+                  </span>
                 </div>
 
+                {/* Max Upcoming Events */}
                 <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-1">Max Upcoming Events</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                    Max Upcoming Events
+                  </label>
                   <input
                     type="number"
                     min={3}
-                    max={20}
+                    max={25}
                     value={config.calendar.maxAgendaItems}
-                    onChange={(e) => setConfig(prev => ({ ...prev, calendar: { ...prev.calendar, maxAgendaItems: parseInt(e.target.value) || 8 } }))}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        calendar: {
+                          ...prev.calendar,
+                          maxAgendaItems: parseInt(e.target.value, 10) || 8,
+                        },
+                      }))
+                    }
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
                   />
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Items shown in the agenda list
+                  </span>
                 </div>
 
+                {/* Sync Refresh Interval */}
                 <div>
-                  <label className="text-xs text-slate-300 font-medium block mb-1">Sync Refresh Interval</label>
+                  <label className="text-xs text-slate-300 font-semibold block mb-1">
+                    Sync Refresh Interval
+                  </label>
                   <select
                     value={config.calendar.refreshIntervalMinutes}
-                    onChange={(e) => setConfig(prev => ({ ...prev, calendar: { ...prev.calendar, refreshIntervalMinutes: parseInt(e.target.value) || 15 } }))}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        calendar: {
+                          ...prev.calendar,
+                          refreshIntervalMinutes: parseInt(e.target.value, 10) || 15,
+                        },
+                      }))
+                    }
                     className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
                   >
                     <option value={5}>Every 5 minutes</option>
@@ -703,87 +852,184 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <option value={30}>Every 30 minutes</option>
                     <option value={60}>Every 1 hour</option>
                   </select>
+                  <span className="text-[10px] text-slate-500 mt-1 block">
+                    Automatic background iCal sync rate
+                  </span>
                 </div>
+              </div>
+            </div>
+
+            {/* 2. National & Regional Holidays Card */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-emerald-400" />
+                    <span>National & Regional Holidays</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Toggle official statutory bank and public holiday feeds for your region.
+                  </p>
+                </div>
+                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
+                  {HOLIDAY_PRESETS.filter((p) => isHolidayActive(p)).length} active
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                {HOLIDAY_PRESETS.map((preset) => {
+                  const active = isHolidayActive(preset);
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => toggleHolidayPreset(preset)}
+                      className={`p-3 rounded-xl border text-left flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
+                        active
+                          ? 'bg-slate-800/90 border-emerald-500/50 shadow-md ring-1 ring-emerald-500/30'
+                          : 'bg-slate-950 border-slate-800/80 hover:bg-slate-900/70 hover:border-slate-700 opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="text-xl shrink-0" role="img" aria-label={preset.country}>
+                          {preset.flag}
+                        </span>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-white block truncate">
+                            {preset.name}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block truncate">
+                            {preset.country}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div
+                        className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 transition-colors ${
+                          active
+                            ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                            : 'bg-slate-800 border border-slate-700 text-transparent'
+                        }`}
+                      >
+                        <Check className="w-3 h-3 stroke-[3]" />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 3. Custom iCal & Webcal Feeds Card */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-sky-400" />
+                    <span>Connected Calendars ({config.calendar.feeds.length})</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Connect Google Calendar secret iCal, Apple iCloud public calendars, Outlook, or private ICS links.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addCalendarFeed}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-lg text-xs font-medium transition-colors shadow-sm cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Calendar Feed</span>
+                </button>
               </div>
 
               {/* Feed List */}
               <div className="space-y-3">
-                {config.calendar.feeds.map((feed) => (
-                  <div
-                    key={feed.id}
-                    className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2.5 flex-1">
-                        <input
-                          type="color"
-                          value={feed.color}
-                          onChange={(e) => updateCalendarFeed(feed.id, { color: e.target.value })}
-                          className="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
-                          title="Feed color"
-                        />
+                {config.calendar.feeds.length === 0 ? (
+                  <div className="text-center py-8 text-xs text-slate-500">
+                    No calendar feeds configured. Click "Add Calendar Feed" or toggle a national holiday above.
+                  </div>
+                ) : (
+                  config.calendar.feeds.map((feed) => (
+                    <div
+                      key={feed.id}
+                      className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-3"
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 flex-1">
+                          <input
+                            type="color"
+                            value={feed.color}
+                            onChange={(e) => updateCalendarFeed(feed.id, { color: e.target.value })}
+                            className="w-7 h-7 rounded border-0 cursor-pointer bg-transparent"
+                            title="Feed color"
+                          />
+                          <input
+                            type="text"
+                            value={feed.name}
+                            onChange={(e) => updateCalendarFeed(feed.id, { name: e.target.value })}
+                            placeholder="Calendar Name"
+                            className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-medium focus:outline-none focus:border-sky-500 w-48"
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => testCalendarFeed(feed)}
+                            disabled={testingFeedId === feed.id || !feed.url}
+                            className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded text-xs font-medium transition-colors border border-slate-700 cursor-pointer disabled:opacity-40"
+                          >
+                            {testingFeedId === feed.id ? 'Testing...' : 'Test Feed'}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => removeCalendarFeed(feed.id)}
+                            className="p-1 text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                            title="Delete feed"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
                         <input
                           type="text"
-                          value={feed.name}
-                          onChange={(e) => updateCalendarFeed(feed.id, { name: e.target.value })}
-                          placeholder="Calendar Name"
-                          className="bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-white font-medium focus:outline-none focus:border-sky-500 w-44"
+                          value={feed.url}
+                          onChange={(e) => updateCalendarFeed(feed.id, { url: e.target.value })}
+                          placeholder="iCal / ICS Feed URL (e.g., https://.../basic.ics or webcal://...)"
+                          className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
                         />
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => testCalendarFeed(feed)}
-                          disabled={testingFeedId === feed.id || !feed.url}
-                          className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-sky-300 rounded text-xs font-medium transition-colors border border-slate-700"
+                      {/* Test result feedback banner */}
+                      {feedTestResult && feedTestResult.id === feed.id && (
+                        <div
+                          className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
+                            feedTestResult.ok
+                              ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
+                              : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
+                          }`}
                         >
-                          {testingFeedId === feed.id ? 'Testing...' : 'Test Feed'}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => removeCalendarFeed(feed.id)}
-                          className="p-1 text-slate-500 hover:text-rose-400 transition-colors"
-                          title="Delete feed"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                          {feedTestResult.ok ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                              <span>
+                                Feed validated successfully! Found {feedTestResult.count} calendar events.
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
+                              <span>Feed error: {feedTestResult.error}</span>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
-
-                    <div>
-                      <input
-                        type="text"
-                        value={feed.url}
-                        onChange={(e) => updateCalendarFeed(feed.id, { url: e.target.value })}
-                        placeholder="iCal / ICS Feed URL (e.g., https://.../basic.ics or webcal://...)"
-                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
-                      />
-                    </div>
-
-                    {/* Test result feedback banner */}
-                    {feedTestResult && feedTestResult.id === feed.id && (
-                      <div className={`text-xs p-2 rounded-lg flex items-center gap-2 ${
-                        feedTestResult.ok
-                          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/30'
-                          : 'bg-rose-500/10 text-rose-300 border border-rose-500/30'
-                      }`}>
-                        {feedTestResult.ok ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                            <span>Feed validated successfully! Found {feedTestResult.count} calendar events.</span>
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle className="w-3.5 h-3.5 text-rose-400 shrink-0" />
-                            <span>Feed error: {feedTestResult.error}</span>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
 
               {/* Instructions on where to find ICS feeds */}

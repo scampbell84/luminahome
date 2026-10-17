@@ -539,8 +539,8 @@ app.get('/api/calendar', async (req: Request, res: Response) => {
   const feeds = config.calendar.feeds.filter(f => f.enabled && f.url && f.url.trim().length > 0);
 
   const now = new Date();
-  const pastCutoff = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000); // 60 days in past (2 months back)
-  const futureCutoff = new Date(now.getTime() + 150 * 24 * 60 * 60 * 1000); // 150 days in future (5 months forward)
+  const pastCutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 365 days in past (1 year back for Year View)
+  const futureCutoff = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 365 days in future (1 year forward for Year View)
 
   const allEvents: CalendarEvent[] = [];
   const feedResults: Array<{ id: string; name: string; count: number; error?: string }> = [];

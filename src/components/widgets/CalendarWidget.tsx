@@ -107,7 +107,11 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
     const month = now.getMonth();
     const monthName = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-    const firstDayIndex = new Date(year, month, 1).getDay(); // 0 is Sunday
+    const startOfWeek = config.startOfWeek || 'monday';
+    const rawFirstDayIndex = new Date(year, month, 1).getDay(); // 0 is Sunday
+    const firstDayIndex = startOfWeek === 'monday' 
+      ? (rawFirstDayIndex + 6) % 7 
+      : rawFirstDayIndex;
     const daysInMonth = new Date(year, month + 1, 0).getDate();
 
     // Map events by day number
@@ -144,7 +148,7 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
       currentDay: now.getDate(),
       eventsByDay,
     };
-  }, [events]);
+  }, [events, config.startOfWeek]);
 
   const formatEventTime = (ev: CalendarEvent) => {
     if (ev.allDay) {
@@ -234,7 +238,10 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
   };
 
   const renderMonthGrid = () => {
-    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    const startOfWeek = config.startOfWeek || 'monday';
+    const days = startOfWeek === 'sunday' 
+      ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] 
+      : ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     const blanks = Array.from({ length: monthData.firstDayIndex });
     const dayNumbers = Array.from({ length: monthData.daysInMonth }, (_, i) => i + 1);
 
@@ -273,6 +280,7 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
 
           {dayNumbers.map((day) => {
             const isToday = day === monthData.currentDay;
+            const isPassed = day < monthData.currentDay;
             const dayEvents = monthData.eventsByDay[day] || [];
             const hasEvents = dayEvents.length > 0;
 
@@ -282,6 +290,8 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
                 className={`h-8 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center relative text-xs lg:text-sm transition-colors ${
                   isToday
                     ? 'bg-sky-500 font-bold text-white shadow-sm'
+                    : isPassed
+                    ? 'text-white/35 opacity-50'
                     : hasEvents
                     ? 'bg-white/10 text-white font-medium hover:bg-white/20'
                     : 'text-white/70'
@@ -289,7 +299,7 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
               >
                 <span>{day}</span>
                 {hasEvents && !isToday && (
-                  <div className="flex items-center gap-0.5 mt-0.5">
+                  <div className={`flex items-center gap-0.5 mt-0.5 ${isPassed ? 'opacity-40' : ''}`}>
                     {dayEvents.slice(0, 3).map((ev, idx) => (
                       <span
                         key={idx}

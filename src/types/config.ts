@@ -85,6 +85,24 @@ export type WidgetZone =
   | 'bottom-bar'
   | 'sidebar';
 
+export type CalendarTheme = 'default' | 'minimal' | 'glass' | 'vibrant' | 'monochrome' | 'warm' | 'nordic' | 'forest';
+export type CalendarStartOfWeek = 'monday' | 'sunday';
+
+export interface CalendarHolidayToggles {
+  us?: boolean;
+  uk?: boolean;
+  scotland?: boolean;
+  canada?: boolean;
+  australia?: boolean;
+  germany?: boolean;
+  france?: boolean;
+  ireland?: boolean;
+  spain?: boolean;
+  italy?: boolean;
+  netherlands?: boolean;
+  newzealand?: boolean;
+}
+
 export interface AppConfig {
   general: {
     orientation: 'landscape' | 'portrait';
@@ -143,6 +161,9 @@ export interface AppConfig {
   calendar: {
     enabled: boolean;
     view: 'split' | 'agenda' | 'month';
+    theme?: CalendarTheme;
+    startOfWeek?: CalendarStartOfWeek;
+    holidays?: CalendarHolidayToggles;
     maxAgendaDays: number;
     maxAgendaItems: number;
     showPastEventsToday: boolean;
