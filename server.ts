@@ -7,8 +7,8 @@ import { exec, spawn, execSync } from 'child_process';
 import { promisify } from 'util';
 import ical from 'node-ical';
 import Parser from 'rss-parser';
-import { DEFAULT_CONFIG } from './src/constants/defaultConfig.js';
-import { AppConfig, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo } from './src/types/config.js';
+import { DEFAULT_CONFIG, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from './src/constants/defaultConfig.js';
+import { AppConfig, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto } from './src/types/config.js';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -81,6 +81,7 @@ function loadConfig(): AppConfig {
         },
         notes: { ...DEFAULT_CONFIG.notes, ...(parsed.notes || {}) },
         system: { ...DEFAULT_CONFIG.system, ...(parsed.system || {}) },
+        screensaver: { ...DEFAULT_CONFIG.screensaver, ...(parsed.screensaver || {}) },
       };
     }
   } catch (err) {
@@ -1060,6 +1061,266 @@ app.get('/api/weather/geocode', async (req: Request, res: Response) => {
     res.json({ results });
   } catch (err: any) {
     res.json({ results: [], error: err.message });
+  }
+});
+
+// ==============================================================================
+// Apple Photos iCloud Shared Album Parser & Image Proxy
+// ==============================================================================
+const BASE_62_CHAR_SET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+function base62ToInt(str: string): number {
+  let result = 0;
+  for (let i = 0; i < str.length; i++) {
+    result = result * 62 + BASE_62_CHAR_SET.indexOf(str[i]);
+  }
+  return result;
+}
+
+function extractICloudToken(urlOrToken: string): string {
+  const trimmed = urlOrToken.trim();
+  if (trimmed.includes('#')) {
+    const afterHash = trimmed.split('#')[1];
+    return afterHash.split('?')[0].split(';')[0];
+  }
+  if (trimmed.includes('/photos/')) {
+    const parts = trimmed.split('/photos/')[1];
+    return parts.split('/')[0].split('?')[0].split('#')[0].split(';')[0];
+  }
+  if (trimmed.includes('/sharedalbum/')) {
+    const parts = trimmed.split('/sharedalbum/')[1];
+    return parts.replace(/^en-[a-z]+\//i, '').replace(/^#/, '').split('?')[0].split(';')[0];
+  }
+  return trimmed.split(';')[0];
+}
+
+function getICloudInitialBaseUrl(token: string): string {
+  const firstChar = token[0];
+  const partition = firstChar === 'A' ? base62ToInt(token[1]) : base62ToInt(token.substring(1, 3));
+  const serverPartition = partition < 10 ? `0${partition}` : `${partition}`;
+  return `https://p${serverPartition}-sharedstreams.icloud.com/${token}/sharedstreams/`;
+}
+
+interface ICloudCacheEntry {
+  timestamp: number;
+  data: {
+    ok: boolean;
+    streamName: string;
+    owner: string;
+    count: number;
+    photos: ICloudPhoto[];
+  };
+}
+
+const icloudCache = new Map<string, ICloudCacheEntry>();
+const ICLOUD_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+
+app.get('/api/icloud-album', async (req: Request, res: Response) => {
+  const rawUrl = (req.query.url as string || '').trim();
+  if (!rawUrl) {
+    return res.status(400).json({ ok: false, error: 'iCloud Shared Album URL is required' });
+  }
+
+  // Check demo album request
+  if (rawUrl.toLowerCase() === 'demo' || rawUrl.toLowerCase() === 'sample') {
+    return res.json({
+      ok: true,
+      streamName: 'Family Highlights (Demo Album)',
+      owner: 'Apple Photos Demo',
+      count: DEFAULT_ICLOUD_SAMPLE_PHOTOS.length,
+      photos: DEFAULT_ICLOUD_SAMPLE_PHOTOS,
+    });
+  }
+
+  const token = extractICloudToken(rawUrl);
+  if (!token) {
+    return res.status(400).json({ ok: false, error: 'Could not parse token from iCloud Shared Album URL' });
+  }
+
+  // Check cache
+  const cached = icloudCache.get(token);
+  if (cached && Date.now() - cached.timestamp < ICLOUD_CACHE_TTL_MS) {
+    return res.json(cached.data);
+  }
+
+  try {
+    const initialBaseUrl = getICloudInitialBaseUrl(token);
+    const icloudHeaders = {
+      'Origin': 'https://www.icloud.com',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Content-Type': 'text/plain',
+      'Accept': '*/*',
+      'Referer': 'https://www.icloud.com/sharedalbum/',
+      'Connection': 'keep-alive',
+    };
+
+    let effectiveBaseUrl = initialBaseUrl;
+
+    // Step 1: Initial call to webstream (handling 330 redirect)
+    let webstreamRes = await fetch(`${initialBaseUrl}webstream`, {
+      method: 'POST',
+      headers: icloudHeaders,
+      body: JSON.stringify({ streamCtag: null }),
+    });
+
+    if (webstreamRes.status === 330) {
+      let redirectHost = webstreamRes.headers.get('x-apple-mme-host');
+      if (!redirectHost) {
+        try {
+          const body = (await webstreamRes.json()) as any;
+          redirectHost = body['X-Apple-MMe-Host'];
+        } catch {}
+      }
+      if (redirectHost) {
+        effectiveBaseUrl = `https://${redirectHost}/${token}/sharedstreams/`;
+        webstreamRes = await fetch(`${effectiveBaseUrl}webstream`, {
+          method: 'POST',
+          headers: icloudHeaders,
+          body: JSON.stringify({ streamCtag: null }),
+        });
+      }
+    }
+
+    if (!webstreamRes.ok) {
+      return res.status(webstreamRes.status).json({
+        ok: false,
+        error: `iCloud service responded with HTTP ${webstreamRes.status}. Make sure "Public Website" is toggled ON in this shared album.`,
+        fallbackPhotos: DEFAULT_ICLOUD_SAMPLE_PHOTOS,
+      });
+    }
+
+    const streamData = (await webstreamRes.json()) as any;
+    const rawPhotos = streamData.photos || [];
+    const photoGuids: string[] = rawPhotos.map((p: any) => p.photoGuid).filter(Boolean);
+
+    if (photoGuids.length === 0) {
+      const emptyResult = {
+        ok: true,
+        streamName: streamData.streamName || 'iCloud Shared Album',
+        owner: [streamData.userFirstName, streamData.userLastName].filter(Boolean).join(' ') || 'iCloud User',
+        count: 0,
+        photos: [],
+      };
+      icloudCache.set(token, { timestamp: Date.now(), data: emptyResult });
+      return res.json(emptyResult);
+    }
+
+    // Step 2: Fetch asset URLs in batches of 25 photoGuids
+    const assetItems: Record<string, { url_location: string; url_path: string }> = {};
+    for (let i = 0; i < photoGuids.length; i += 25) {
+      const chunk = photoGuids.slice(i, i + 25);
+      try {
+        const assetRes = await fetch(`${effectiveBaseUrl}webasseturls`, {
+          method: 'POST',
+          headers: icloudHeaders,
+          body: JSON.stringify({ photoGuids: chunk }),
+        });
+        if (assetRes.ok) {
+          const assetData = (await assetRes.json()) as any;
+          if (assetData.items) {
+            Object.assign(assetItems, assetData.items);
+          }
+        }
+      } catch (err: any) {
+        console.warn('[iCloud] Error fetching asset urls batch:', err.message);
+      }
+    }
+
+    // Step 3: Construct enriched photo list with best derivatives and thumbnail derivatives
+    const photos: ICloudPhoto[] = [];
+    for (const rawPhoto of rawPhotos) {
+      const derivativesObj = rawPhoto.derivatives || {};
+      const derivativesList: any[] = Object.values(derivativesObj);
+
+      // Find available derivatives that have URLs
+      const matched = derivativesList.filter((d: any) => d && d.checksum && assetItems[d.checksum]);
+      if (matched.length === 0) continue;
+
+      // Sort by resolution / fileSize descending
+      matched.sort((a, b) => {
+        const sizeA = (Number(a.width) || 0) * (Number(a.height) || 0) || Number(a.fileSize) || 0;
+        const sizeB = (Number(b.width) || 0) * (Number(b.height) || 0) || Number(b.fileSize) || 0;
+        return sizeB - sizeA;
+      });
+
+      const best = matched[0];
+      const bestAsset = assetItems[best.checksum];
+      const fullUrl = `https://${bestAsset.url_location}${bestAsset.url_path}`;
+
+      // Find a smaller derivative for thumbnail
+      let thumbUrl = fullUrl;
+      const thumbnailCandidate = matched.find((d: any) => Number(d.width) <= 800 && Number(d.width) >= 300) || matched[matched.length - 1];
+      if (thumbnailCandidate && assetItems[thumbnailCandidate.checksum]) {
+        const thumbAsset = assetItems[thumbnailCandidate.checksum];
+        thumbUrl = `https://${thumbAsset.url_location}${thumbAsset.url_path}`;
+      }
+
+      photos.push({
+        id: rawPhoto.photoGuid,
+        url: fullUrl,
+        thumbnailUrl: thumbUrl,
+        width: Number(best.width) || Number(rawPhoto.width) || 1920,
+        height: Number(best.height) || Number(rawPhoto.height) || 1080,
+        caption: rawPhoto.caption || undefined,
+        dateCreated: rawPhoto.dateCreated ? String(rawPhoto.dateCreated) : undefined,
+      });
+    }
+
+    const result = {
+      ok: true,
+      streamName: streamData.streamName || 'iCloud Shared Album',
+      owner: [streamData.userFirstName, streamData.userLastName].filter(Boolean).join(' ') || 'iCloud User',
+      count: photos.length,
+      photos,
+    };
+
+    icloudCache.set(token, { timestamp: Date.now(), data: result });
+    res.json(result);
+  } catch (err: any) {
+    console.error('[iCloud] Error parsing shared album:', err);
+    res.status(500).json({
+      ok: false,
+      error: `Failed to load iCloud album: ${err.message}. Ensure the album is set to Public Website.`,
+      fallbackPhotos: DEFAULT_ICLOUD_SAMPLE_PHOTOS,
+    });
+  }
+});
+
+// Proxy route to bypass CORS/referrer headers on Apple CDN photos
+app.get('/api/icloud-photo-proxy', async (req: Request, res: Response) => {
+  const targetUrl = req.query.url as string;
+  if (!targetUrl || (!targetUrl.startsWith('https://') && !targetUrl.startsWith('http://'))) {
+    return res.status(400).send('Valid image URL required');
+  }
+
+  try {
+    const parsedTarget = new URL(targetUrl);
+    const allowed = parsedTarget.hostname.endsWith('.icloud.com') ||
+                    parsedTarget.hostname.endsWith('.icloud-content.com') ||
+                    parsedTarget.hostname.endsWith('.apple.com') ||
+                    parsedTarget.hostname.endsWith('.unsplash.com');
+    if (!allowed) {
+      return res.status(403).send('Host not permitted for photo proxy');
+    }
+
+    const imgRes = await fetch(targetUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)',
+        'Referer': 'https://www.icloud.com/',
+      },
+    });
+
+    if (!imgRes.ok) {
+      return res.status(imgRes.status).send('Failed to fetch remote photo');
+    }
+
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
+    const arrayBuffer = await imgRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    res.status(500).send('Image proxy error: ' + err.message);
   }
 });
 

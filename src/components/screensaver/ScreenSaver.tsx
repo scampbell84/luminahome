@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { AppConfig, CalendarEvent, WeatherData } from '../../types/config';
+import { AppConfig, CalendarEvent, WeatherData, ICloudPhoto } from '../../types/config';
+import { DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
 import { WeatherIcon } from '../widgets/WeatherIcon';
-import { AlertTriangle, Moon, Sun } from 'lucide-react';
+import { AlertTriangle, Moon, Sun, Camera } from 'lucide-react';
 
 interface ScreenSaverProps {
   config: AppConfig;
@@ -53,11 +54,19 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
     nightModeStartTime: '22:00',
     nightModeEndTime: '07:00',
     nightModePixelShift: true,
+    backgroundType: 'liquid-glow',
+    photoBrightness: 40,
+    photoBlur: 4,
   };
 
   const clockColor = ssConfig.clockColor || 'sunset';
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherData | null>(null);
+
+  // Photos state for Apple Photos iCloud Shared Album background
+  const [ssPhotos, setSsPhotos] = useState<ICloudPhoto[]>(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+  const [currentSsIndex, setCurrentSsIndex] = useState<number>(0);
+  const [ssAlbumName, setSsAlbumName] = useState<string>('');
 
   // Local override state for quick in-screensaver toggle
   const [manualNightModeOverride, setManualNightModeOverride] = useState<boolean | null>(null);
@@ -154,6 +163,56 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
       clearInterval(interval);
     };
   }, [config.weather]);
+
+  // Fetch Apple Photos iCloud Shared Album for ScreenSaver if configured
+  useEffect(() => {
+    if (ssConfig.backgroundType !== 'icloud_album') return;
+
+    const albumUrl = (ssConfig.icloudAlbumUrl || config.general.icloudAlbumUrl || '').trim();
+    if (!albumUrl) {
+      setSsPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchAlbum = async () => {
+      try {
+        const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(albumUrl)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            if (data.photos && data.photos.length > 0) {
+              setSsPhotos(data.photos);
+            } else if (data.fallbackPhotos) {
+              setSsPhotos(data.fallbackPhotos);
+            }
+            if (data.streamName) {
+              setSsAlbumName(data.streamName);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch iCloud photos for screensaver:', err);
+      }
+    };
+
+    fetchAlbum();
+    const interval = setInterval(fetchAlbum, 20 * 60 * 1000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [ssConfig.backgroundType, ssConfig.icloudAlbumUrl, config.general.icloudAlbumUrl]);
+
+  // Screensaver photo cycling timer (1 min, 3 min, 5 min, etc.)
+  useEffect(() => {
+    if (ssConfig.backgroundType !== 'icloud_album' || ssPhotos.length <= 1) return;
+    const cycleMinutes = Math.max(1, ssConfig.icloudCycleMinutes || 3);
+    const interval = setInterval(() => {
+      setCurrentSsIndex((prev) => (prev + 1) % ssPhotos.length);
+    }, cycleMinutes * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [ssConfig.backgroundType, ssConfig.icloudCycleMinutes, ssPhotos.length]);
 
   // Keyboard wake up
   useEffect(() => {
@@ -279,6 +338,11 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
     return ssConfig.dimLevel ?? 10;
   }, [isNightMode, ssConfig.nightModeDimLevel, ssConfig.dimLevel]);
 
+  const currentPhoto = ssPhotos.length > 0 ? ssPhotos[currentSsIndex % ssPhotos.length] : null;
+  const photoUrl = currentPhoto ? `/api/icloud-photo-proxy?url=${encodeURIComponent(currentPhoto.url)}` : '';
+  const photoBrightness = isNightMode ? 15 : Math.max(10, Math.min(100, ssConfig.photoBrightness ?? 40));
+  const photoBlur = ssConfig.photoBlur ?? 4;
+
   return (
     <div
       onClick={onWake}
@@ -289,8 +353,25 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
         isNightMode ? 'bg-[#000000]' : 'bg-[#02040a]'
       }`}
     >
+      {/* Photo Background Layer for Apple Photos iCloud Shared Album */}
+      {ssConfig.backgroundType === 'icloud_album' && photoUrl && (
+        <div
+          className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000 ease-in-out pointer-events-none"
+          style={{
+            backgroundImage: `url('${photoUrl}')`,
+            filter: `brightness(${photoBrightness}%) blur(${photoBlur}px)`,
+            transform: photoBlur > 0 ? 'scale(1.06)' : undefined,
+          }}
+        />
+      )}
+
+      {/* Photo Vignette Shade Layer */}
+      {ssConfig.backgroundType === 'icloud_album' && (
+        <div className="absolute inset-0 z-0 bg-gradient-to-t from-black/85 via-black/40 to-black/75 pointer-events-none" />
+      )}
+
       {/* 1. Ambient Dynamic Liquid Glass Caustics */}
-      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+      <div className={`absolute inset-0 z-0 overflow-hidden pointer-events-none ${ssConfig.backgroundType === 'icloud_album' ? 'opacity-40' : ''}`}>
         {/* Soft breathing color orb radiating from behind clock (suppressed in Night Mode for darkness) */}
         <div
           className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] sm:w-[1150px] md:w-[1450px] h-[550px] sm:h-[750px] md:h-[950px] ${
@@ -494,6 +575,19 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
           )}
         </div>
       </div>
+
+      {/* 5. Bottom Photo Album Pill (Subtle Apple-style indicator) */}
+      {ssConfig.backgroundType === 'icloud_album' && currentPhoto && (
+        <div className="absolute bottom-6 left-6 z-30 flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/45 backdrop-blur-xl border border-white/10 text-white/75 text-xs font-mono pointer-events-none transition-opacity">
+          <Camera className="w-3.5 h-3.5 text-sky-400" />
+          <span>{ssAlbumName || 'iCloud Photos'} • {currentSsIndex + 1}/{ssPhotos.length}</span>
+          {currentPhoto.caption && (
+            <span className="hidden sm:inline text-white/50 border-l border-white/20 pl-2 max-w-[260px] truncate">
+              {currentPhoto.caption}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 };

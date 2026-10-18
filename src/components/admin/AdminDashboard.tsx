@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { AppConfig, CalendarFeed, CountdownItem } from '../../types/config';
-import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS } from '../../constants/defaultConfig';
+import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto } from '../../types/config';
+import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
 import { SystemSettings } from '../system/SystemSettings';
 import { GridVisualEditor } from './GridVisualEditor';
 import {
@@ -28,6 +28,8 @@ import {
   LayoutGrid,
   Moon,
   Sun,
+  Camera,
+  Loader2,
   Layers,
   Thermometer,
   Droplets,
@@ -101,6 +103,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Feed testing state
   const [testingFeedId, setTestingFeedId] = useState<string | null>(null);
   const [feedTestResult, setFeedTestResult] = useState<{ id: string; ok: boolean; count?: number; error?: string } | null>(null);
+
+  // Apple Photos iCloud Shared Album testing state
+  const [testingICloud, setTestingICloud] = useState<boolean>(false);
+  const [icloudTestResult, setIcloudTestResult] = useState<{
+    ok: boolean;
+    streamName?: string;
+    owner?: string;
+    count?: number;
+    photos?: ICloudPhoto[];
+    error?: string;
+  } | null>(null);
+
+  const handleTestICloudAlbum = async (urlToTest?: string) => {
+    const rawTarget = (urlToTest !== undefined ? urlToTest : (config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '')).trim();
+    if (!rawTarget) {
+      setIcloudTestResult({
+        ok: false,
+        error: 'Please enter an Apple Photos iCloud Shared Album URL first (or click "Use Sample Demo Album").',
+      });
+      return;
+    }
+
+    setTestingICloud(true);
+    setIcloudTestResult(null);
+
+    try {
+      const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(rawTarget)}`);
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        setIcloudTestResult({
+          ok: true,
+          streamName: data.streamName,
+          owner: data.owner,
+          count: data.count,
+          photos: data.photos || [],
+        });
+      } else {
+        setIcloudTestResult({
+          ok: false,
+          error: data.error || 'Failed to fetch photos from iCloud.',
+          photos: data.fallbackPhotos || [],
+        });
+      }
+    } catch (err: any) {
+      setIcloudTestResult({
+        ok: false,
+        error: `Network error: ${err.message}`,
+      });
+    } finally {
+      setTestingICloud(false);
+    }
+  };
 
   // Sync state if initialConfig updates externally
   useEffect(() => {
@@ -635,7 +689,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </h3>
 
               {/* Wallpaper Type Picker */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
                 <button
                   type="button"
                   onClick={() => setConfig(prev => ({ ...prev, general: { ...prev.general, backgroundType: 'preset' } }))}
@@ -646,6 +700,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   }`}
                 >
                   Curated 4K Presets
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setConfig(prev => ({ ...prev, general: { ...prev.general, backgroundType: 'icloud_album' } }))}
+                  className={`p-2.5 rounded-lg border text-xs font-medium transition-all flex items-center justify-center gap-1.5 ${
+                    config.general.backgroundType === 'icloud_album'
+                      ? 'border-sky-500 bg-sky-500/10 text-sky-300 shadow-sm'
+                      : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                  }`}
+                >
+                  <Camera className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Apple Photos (iCloud)</span>
                 </button>
 
                 <button
@@ -672,6 +739,267 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   Custom Photo URL
                 </button>
               </div>
+
+              {/* Apple Photos iCloud Shared Album Configuration */}
+              {config.general.backgroundType === 'icloud_album' && (
+                <div className="space-y-4 p-4 rounded-xl bg-slate-950/70 border border-slate-800">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-white">Apple Photos iCloud Shared Album</h4>
+                        <p className="text-[11px] text-slate-400">Stream photos directly from your family's iCloud Shared Album.</p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const demoUrl = 'sample';
+                        setConfig(prev => ({
+                          ...prev,
+                          general: { ...prev.general, icloudAlbumUrl: demoUrl },
+                        }));
+                        handleTestICloudAlbum(demoUrl);
+                      }}
+                      className="px-2.5 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg border border-slate-700 transition-colors shrink-0"
+                    >
+                      Use Sample Demo Album
+                    </button>
+                  </div>
+
+                  {/* URL Input & Test Action */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-slate-300 font-medium block">
+                      iCloud Shared Album Public Web Link:
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={config.general.icloudAlbumUrl || ''}
+                        onChange={(e) =>
+                          setConfig(prev => ({
+                            ...prev,
+                            general: { ...prev.general, icloudAlbumUrl: e.target.value },
+                          }))
+                        }
+                        placeholder="https://www.icloud.com/sharedalbum/#B0zG6XBubJk..."
+                        className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleTestICloudAlbum()}
+                        disabled={testingICloud}
+                        className="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-colors shadow-sm"
+                      >
+                        {testingICloud ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Fetching...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-3.5 h-3.5" />
+                            <span>Test & Fetch Photos</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="p-2.5 rounded-lg bg-sky-950/30 border border-sky-800/40 text-[11px] text-sky-200/80 leading-relaxed flex items-start gap-2">
+                      <Info className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong>How to get this link:</strong> In Apple Photos on iPhone, iPad, or Mac, open any Shared Album &gt; tap the People / Info icon &gt; turn <strong>Public Website</strong> ON &gt; tap <strong>Share Link</strong> and paste it here.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Test Results Display */}
+                  {icloudTestResult && (
+                    <div
+                      className={`p-3 rounded-lg border text-xs space-y-2 ${
+                        icloudTestResult.ok
+                          ? 'bg-emerald-950/30 border-emerald-800 text-emerald-200'
+                          : 'bg-rose-950/30 border-rose-800 text-rose-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 font-semibold">
+                          {icloudTestResult.ok ? (
+                            <>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                              <span>Album Verified: {icloudTestResult.streamName}</span>
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="w-4 h-4 text-rose-400" />
+                              <span>Connection Warning</span>
+                            </>
+                          )}
+                        </div>
+                        {icloudTestResult.ok && (
+                          <span className="text-[11px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono">
+                            {icloudTestResult.count} Photos Found
+                          </span>
+                        )}
+                      </div>
+
+                      {icloudTestResult.error && (
+                        <p className="text-[11px] text-rose-300/90 leading-normal">
+                          {icloudTestResult.error}
+                        </p>
+                      )}
+
+                      {/* Photo Thumbnail Strip */}
+                      {icloudTestResult.photos && icloudTestResult.photos.length > 0 && (
+                        <div className="pt-2 border-t border-white/10">
+                          <span className="text-[10px] text-white/60 block mb-1.5 uppercase tracking-wider font-semibold">
+                            Preview of Photos in Album:
+                          </span>
+                          <div className="flex gap-2 overflow-x-auto pb-1 agenda-scroll">
+                            {icloudTestResult.photos.slice(0, 10).map((p, idx) => (
+                              <div
+                                key={p.id || idx}
+                                className="w-16 h-16 rounded-md overflow-hidden shrink-0 border border-white/15 relative group bg-black"
+                              >
+                                <img
+                                  src={`/api/icloud-photo-proxy?url=${encodeURIComponent(p.thumbnailUrl || p.url)}`}
+                                  alt={p.caption || `Photo ${idx + 1}`}
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
+                                  onError={(e) => {
+                                    // Fallback to direct url
+                                    (e.target as HTMLImageElement).src = p.url;
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Photo Rotation Interval */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    <div>
+                      <label className="text-xs text-slate-300 font-medium block mb-1">
+                        Rotate / Cycle Interval
+                      </label>
+                      <select
+                        value={config.general.icloudCycleMinutes ?? 3}
+                        onChange={(e) =>
+                          setConfig(prev => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              icloudCycleMinutes: parseInt(e.target.value, 10),
+                            },
+                          }))
+                        }
+                        className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                      >
+                        <option value={1}>Every 1 Minute</option>
+                        <option value={3}>Every 3 Minutes (Recommended)</option>
+                        <option value={5}>Every 5 Minutes</option>
+                        <option value={10}>Every 10 Minutes</option>
+                        <option value={15}>Every 15 Minutes</option>
+                        <option value={30}>Every 30 Minutes</option>
+                        <option value={60}>Every 1 Hour</option>
+                      </select>
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Smoothly transitions between photos in the album.
+                      </span>
+                    </div>
+
+                    {/* Photo Brightness Slider */}
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-slate-300 font-medium">Photo Brightness</label>
+                        <span className="text-xs font-mono font-bold text-sky-400">
+                          {config.general.icloudBrightness ?? 50}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        step="5"
+                        value={config.general.icloudBrightness ?? 50}
+                        onChange={(e) =>
+                          setConfig(prev => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              icloudBrightness: parseInt(e.target.value, 10),
+                            },
+                          }))
+                        }
+                        className="w-full accent-sky-500"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Dims photo to ensure clock & calendar widgets remain readable.
+                      </span>
+                    </div>
+
+                    {/* Photo Blur Slider */}
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-slate-300 font-medium">Photo Blur</label>
+                        <span className="text-xs font-mono font-bold text-sky-400">
+                          {config.general.icloudBlur ?? 0}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="25"
+                        step="1"
+                        value={config.general.icloudBlur ?? 0}
+                        onChange={(e) =>
+                          setConfig(prev => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              icloudBlur: parseInt(e.target.value, 10),
+                            },
+                          }))
+                        }
+                        className="w-full accent-sky-500"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Softens background details so foreground text pops.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Live Simulation Card */}
+                  <div className="mt-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block mb-2">
+                      Live Wallpaper Preview with Current Brightness & Blur:
+                    </span>
+                    <div className="relative h-28 rounded-lg overflow-hidden border border-slate-700/80 flex items-center justify-center">
+                      <div
+                        className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                        style={{
+                          backgroundImage: `url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80')`,
+                          filter: `brightness(${config.general.icloudBrightness ?? 50}%) blur(${config.general.icloudBlur ?? 0}px)`,
+                          transform: (config.general.icloudBlur ?? 0) > 0 ? 'scale(1.08)' : undefined,
+                        }}
+                      />
+                      <div
+                        className="absolute inset-0 bg-black"
+                        style={{ opacity: (config.general.backgroundDim || 0.45) * 0.5 }}
+                      />
+                      <div className="relative z-10 text-center px-4 py-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 shadow-lg">
+                        <div className="text-lg font-black text-white leading-none">10:45 AM</div>
+                        <div className="text-[11px] font-bold text-sky-300 mt-0.5">Family Calendar • 3 Events Today</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Curated Presets Grid */}
               {config.general.backgroundType === 'preset' && (
@@ -1982,6 +2310,266 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <span>60% (Dark Bedroom)</span>
                 </div>
               </div>
+            </div>
+
+            {/* Apple Photos iCloud Shared Album Background for ScreenSaver */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                    <Camera className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-white">
+                      Screen Saver Ambient Background Style
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Choose between Apple Liquid Glass ambient caustics or an Apple Photos Shared Album stream.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        screensaver: {
+                          ...prev.screensaver,
+                          backgroundType: 'liquid-glow',
+                        },
+                      }))
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      (config.screensaver?.backgroundType || 'liquid-glow') === 'liquid-glow'
+                        ? 'bg-sky-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    Liquid Glow
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        screensaver: {
+                          ...prev.screensaver,
+                          backgroundType: 'icloud_album',
+                        },
+                      }))
+                    }
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
+                      config.screensaver?.backgroundType === 'icloud_album'
+                        ? 'bg-sky-600 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>iCloud Photos</span>
+                  </button>
+                </div>
+              </div>
+
+              {config.screensaver?.backgroundType === 'icloud_album' && (
+                <div className="space-y-4 pt-1">
+                  {/* Option to use same album as wallpaper */}
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/70 border border-slate-800">
+                    <div>
+                      <span className="text-xs font-semibold text-white block">
+                        Sync with Home Wallpaper Album
+                      </span>
+                      <span className="text-[11px] text-slate-400 block mt-0.5">
+                        {config.general.icloudAlbumUrl
+                          ? `Current wallpaper URL: "${config.general.icloudAlbumUrl.slice(0, 40)}..."`
+                          : 'No wallpaper album URL set yet. Enter one below.'}
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (config.general.icloudAlbumUrl) {
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              icloudAlbumUrl: config.general.icloudAlbumUrl,
+                            },
+                          }));
+                          handleTestICloudAlbum(config.general.icloudAlbumUrl);
+                        }
+                      }}
+                      className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-sky-300 rounded-lg border border-slate-700 transition-colors"
+                    >
+                      Copy Wallpaper Album
+                    </button>
+                  </div>
+
+                  {/* Album URL Input */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs text-slate-300 font-medium block">
+                      Screensaver iCloud Shared Album URL:
+                    </label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <input
+                        type="text"
+                        value={config.screensaver?.icloudAlbumUrl ?? config.general.icloudAlbumUrl ?? ''}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              icloudAlbumUrl: e.target.value,
+                            },
+                          }))
+                        }
+                        placeholder="https://www.icloud.com/sharedalbum/#B0zG6XBubJk..."
+                        className="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleTestICloudAlbum(config.screensaver?.icloudAlbumUrl || config.general.icloudAlbumUrl)}
+                        disabled={testingICloud}
+                        className="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-colors shadow-sm"
+                      >
+                        {testingICloud ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Fetching...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Search className="w-3.5 h-3.5" />
+                            <span>Verify Album</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cycling and Appearance controls */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                    {/* Cycling Interval */}
+                    <div>
+                      <label className="text-xs text-slate-300 font-medium block mb-1">
+                        Photo Cycle Interval
+                      </label>
+                      <select
+                        value={config.screensaver?.icloudCycleMinutes ?? 3}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              icloudCycleMinutes: parseInt(e.target.value, 10),
+                            },
+                          }))
+                        }
+                        className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                      >
+                        <option value={1}>Every 1 Minute</option>
+                        <option value={3}>Every 3 Minutes (Recommended)</option>
+                        <option value={5}>Every 5 Minutes</option>
+                        <option value={10}>Every 10 Minutes</option>
+                        <option value={15}>Every 15 Minutes</option>
+                        <option value={30}>Every 30 Minutes</option>
+                      </select>
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Rotates through album photos during screensaver standby.
+                      </span>
+                    </div>
+
+                    {/* Screensaver Photo Brightness */}
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-slate-300 font-medium">Photo Brightness</label>
+                        <span className="text-xs font-mono font-bold text-sky-400">
+                          {config.screensaver?.photoBrightness ?? 40}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="10"
+                        max="90"
+                        step="5"
+                        value={config.screensaver?.photoBrightness ?? 40}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              photoBrightness: parseInt(e.target.value, 10),
+                            },
+                          }))
+                        }
+                        className="w-full accent-sky-500"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Subtle brightness ensures the glowing clock remains primary.
+                      </span>
+                    </div>
+
+                    {/* Screensaver Photo Blur */}
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <label className="text-xs text-slate-300 font-medium">Photo Blur</label>
+                        <span className="text-xs font-mono font-bold text-sky-400">
+                          {config.screensaver?.photoBlur ?? 4}px
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="25"
+                        step="1"
+                        value={config.screensaver?.photoBlur ?? 4}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              photoBlur: parseInt(e.target.value, 10),
+                            },
+                          }))
+                        }
+                        className="w-full accent-sky-500"
+                      />
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Softens the photo to avoid visual distraction in standby.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Screensaver StandBy Clock & Photo Live Preview */}
+                  <div className="mt-3 p-3 rounded-xl bg-slate-950 border border-slate-800">
+                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block mb-2">
+                      StandBy Screensaver Simulation (Clock + Photo Background):
+                    </span>
+                    <div className="relative h-36 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
+                      <div
+                        className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                        style={{
+                          backgroundImage: `url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80')`,
+                          filter: `brightness(${config.screensaver?.photoBrightness ?? 40}%) blur(${config.screensaver?.photoBlur ?? 4}px)`,
+                          transform: (config.screensaver?.photoBlur ?? 4) > 0 ? 'scale(1.08)' : undefined,
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/75" />
+                      <div className="relative z-10 flex flex-col items-center">
+                        <div className="text-3xl font-black font-apple-rounded tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-orange-400 to-rose-400 drop-shadow-[0_0_15px_rgba(251,146,60,0.5)]">
+                          10:45
+                        </div>
+                        <div className="mt-1 px-3 py-0.5 rounded-full bg-slate-900/80 border border-white/20 text-[10px] font-bold text-white shadow">
+                          Thursday, 18 October • 21°C Sunny
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Dedicated Night Mode Card */}

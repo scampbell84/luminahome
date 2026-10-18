@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppConfig } from '../../types/config';
-import { WALLPAPER_PRESETS } from '../../constants/defaultConfig';
+import { AppConfig, CountdownItem, ICloudPhoto } from '../../types/config';
+import { WALLPAPER_PRESETS, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
 import { ClockWidget } from '../widgets/ClockWidget';
 import { WeatherWidget } from '../widgets/WeatherWidget';
 import { CalendarWidget } from '../widgets/CalendarWidget';
@@ -8,9 +8,7 @@ import { CountdownWidget } from '../widgets/CountdownWidget';
 import { NewsWidget } from '../widgets/NewsWidget';
 import { NotesWidget } from '../widgets/NotesWidget';
 import { SystemWidget } from '../widgets/SystemWidget';
-import { Settings, Maximize2, Minimize2, RefreshCw, AlertCircle } from 'lucide-react';
-
-import { CountdownItem } from '../../types/config';
+import { Settings, Maximize2, Minimize2, RefreshCw, AlertCircle, Camera } from 'lucide-react';
 
 interface DisplayScreenProps {
   config: AppConfig;
@@ -30,6 +28,9 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   const [mouseActive, setMouseActive] = useState<boolean>(true);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [activeWallpaperIndex, setActiveWallpaperIndex] = useState<number>(0);
+  const [icloudPhotos, setIcloudPhotos] = useState<ICloudPhoto[]>(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+  const [activeICloudIndex, setActiveICloudIndex] = useState<number>(0);
+  const [albumInfo, setAlbumInfo] = useState<{ title?: string; owner?: string }>({});
   const mouseTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Self-healing Heartbeat checker
@@ -55,7 +56,58 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
     return () => clearInterval(interval);
   }, [config.general.heartbeatIntervalSeconds]);
 
-  // Wallpaper rotation
+  // Fetch Apple Photos iCloud Shared Album
+  useEffect(() => {
+    if (config.general.backgroundType !== 'icloud_album') return;
+
+    const albumUrl = (config.general.icloudAlbumUrl || '').trim();
+    if (!albumUrl) {
+      setIcloudPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+      return;
+    }
+
+    let isMounted = true;
+    const fetchAlbum = async () => {
+      try {
+        const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(albumUrl)}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted) {
+            if (data.photos && data.photos.length > 0) {
+              setIcloudPhotos(data.photos);
+            } else if (data.fallbackPhotos) {
+              setIcloudPhotos(data.fallbackPhotos);
+            }
+            if (data.streamName) {
+              setAlbumInfo({ title: data.streamName, owner: data.owner });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch iCloud shared album for wallpaper:', err);
+      }
+    };
+
+    fetchAlbum();
+    // Re-check album every 20 minutes for new photos
+    const refreshInterval = setInterval(fetchAlbum, 20 * 60 * 1000);
+    return () => {
+      isMounted = false;
+      clearInterval(refreshInterval);
+    };
+  }, [config.general.backgroundType, config.general.icloudAlbumUrl]);
+
+  // iCloud Photos cycling timer (1 min, 3 min, 5 min, etc.)
+  useEffect(() => {
+    if (config.general.backgroundType !== 'icloud_album' || icloudPhotos.length <= 1) return;
+    const cycleMinutes = Math.max(1, config.general.icloudCycleMinutes || 3);
+    const interval = setInterval(() => {
+      setActiveICloudIndex((prev) => (prev + 1) % icloudPhotos.length);
+    }, cycleMinutes * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [config.general.backgroundType, config.general.icloudCycleMinutes, icloudPhotos.length]);
+
+  // Standard wallpaper preset rotation
   useEffect(() => {
     if (config.general.backgroundType !== 'preset' || !config.general.rotateBackgroundInterval) return;
     const intervalMs = Math.max(1, config.general.rotateBackgroundInterval) * 60 * 1000;
@@ -117,6 +169,7 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
 
   // Determine current wallpaper URL
   let backgroundImageUrl = '';
+  let activeICloudPhoto: ICloudPhoto | null = null;
   if (config.general.backgroundType === 'preset') {
     const preset = WALLPAPER_PRESETS.find(p => p.id === config.general.presetWallpaper) || WALLPAPER_PRESETS[activeWallpaperIndex % WALLPAPER_PRESETS.length];
     backgroundImageUrl = preset.url;
@@ -125,6 +178,11 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
     backgroundImageUrl = `https://images.unsplash.com/featured/?${keyword}&auto=format&fit=crop&w=2560&q=80`;
   } else if (config.general.backgroundType === 'custom_url') {
     backgroundImageUrl = config.general.customBackgroundUrl;
+  } else if (config.general.backgroundType === 'icloud_album') {
+    if (icloudPhotos.length > 0) {
+      activeICloudPhoto = icloudPhotos[activeICloudIndex % icloudPhotos.length];
+      backgroundImageUrl = `/api/icloud-photo-proxy?url=${encodeURIComponent(activeICloudPhoto.url)}`;
+    }
   }
 
   const isPortrait = config.general.orientation === 'portrait';
@@ -186,10 +244,15 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
       {/* Background Wallpaper Layer with smooth transition */}
       {backgroundImageUrl && (
         <div
-          className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 ease-in-out"
+          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
           style={{
             backgroundImage: `url('${backgroundImageUrl}')`,
-            filter: config.general.backgroundBlur ? `blur(${config.general.backgroundBlur}px)` : undefined,
+            filter: config.general.backgroundType === 'icloud_album'
+              ? `brightness(${Math.max(10, Math.min(100, config.general.icloudBrightness ?? 50))}%) blur(${config.general.icloudBlur ?? 0}px)`
+              : config.general.backgroundBlur ? `blur(${config.general.backgroundBlur}px)` : undefined,
+            transform: ((config.general.backgroundType === 'icloud_album' ? config.general.icloudBlur : config.general.backgroundBlur) || 0) > 0
+              ? 'scale(1.05)'
+              : undefined,
           }}
         />
       )}
@@ -199,12 +262,29 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
         className="absolute inset-0 transition-opacity duration-500"
         style={{
           backgroundColor: '#05070e',
-          opacity: config.general.backgroundDim,
+          opacity: config.general.backgroundType === 'icloud_album'
+            ? Math.max(0.1, config.general.backgroundDim * 0.7) // Slightly lighter if user controls brightness directly
+            : config.general.backgroundDim,
         }}
       />
 
       {/* Gradient Vignette Layer */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/60 pointer-events-none" />
+
+      {/* Optional Photo Badge for iCloud Shared Album */}
+      {config.general.backgroundType === 'icloud_album' && activeICloudPhoto && mouseActive && (
+        <div className="absolute bottom-20 left-6 z-20 flex items-center gap-2 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md border border-white/10 text-white/80 text-[11px] font-mono pointer-events-none transition-opacity">
+          <Camera className="w-3.5 h-3.5 text-sky-300" />
+          <span>
+            {albumInfo.title || 'iCloud Photos'} • {activeICloudIndex + 1}/{icloudPhotos.length}
+          </span>
+          {activeICloudPhoto.caption && (
+            <span className="hidden sm:inline text-white/60 border-l border-white/20 pl-2 max-w-[200px] truncate">
+              {activeICloudPhoto.caption}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Main Kiosk Layout Container */}
       <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 md:p-6 lg:p-8 pb-28 md:pb-32 overflow-hidden">

@@ -111,17 +111,31 @@ export interface CountdownItem {
   annual?: boolean; // Toggles 'Annual' recurring events (birthdays, anniversaries)
 }
 
+export interface ICloudPhoto {
+  id: string;
+  url: string;
+  thumbnailUrl?: string;
+  width: number;
+  height: number;
+  caption?: string;
+  dateCreated?: string;
+}
+
 export interface AppConfig {
   general: {
     orientation: 'landscape' | 'portrait';
     theme: 'dark' | 'midnight' | 'slate' | 'oled-black' | 'woodland';
-    backgroundType: 'preset' | 'unsplash' | 'custom_url' | 'solid';
+    backgroundType: 'preset' | 'unsplash' | 'custom_url' | 'solid' | 'icloud_album';
     presetWallpaper: string;
     unsplashKeyword: string;
     customBackgroundUrl: string;
     backgroundDim: number; // 0.0 to 0.9
     backgroundBlur: number; // 0 to 10
     rotateBackgroundInterval: number; // minutes, 0 = disabled
+    icloudAlbumUrl?: string; // Apple Photos iCloud Shared Album URL
+    icloudCycleMinutes?: number; // 1, 3, 5, 10, 15, 30, etc.
+    icloudBrightness?: number; // 10 to 100 percent
+    icloudBlur?: number; // 0 to 25 px
     kioskHideCursor: boolean;
     heartbeatIntervalSeconds: number;
     fontSizeScale: 'sm' | 'md' | 'lg' | 'xl';
@@ -227,6 +241,11 @@ export interface AppConfig {
     nightModePixelShift?: boolean; // Subtle anti-burn-in micro-drift for OLED/LCD screens
     weatherWidgetView?: 'current' | 'humidity' | 'forecast'; // Default view for HomeView Weather Widget
     showWeatherWidget?: boolean; // Enable/disable dedicated weather widget in screensaver
+    backgroundType?: 'liquid-glow' | 'icloud_album' | 'solid'; // Background style for screensaver
+    icloudAlbumUrl?: string; // Dedicated screensaver album URL (falls back to general.icloudAlbumUrl)
+    icloudCycleMinutes?: number; // 1, 3, 5, 10, 15, 30 min
+    photoBrightness?: number; // 10 to 100 percent (default 40%)
+    photoBlur?: number; // 0 to 25 px (default 4px)
   };
 }
 

@@ -11,6 +11,10 @@ export const DEFAULT_CONFIG: AppConfig = {
     backgroundDim: 0.45,
     backgroundBlur: 0,
     rotateBackgroundInterval: 30,
+    icloudAlbumUrl: '',
+    icloudCycleMinutes: 3,
+    icloudBrightness: 50,
+    icloudBlur: 0,
     kioskHideCursor: true,
     heartbeatIntervalSeconds: 30,
     fontSizeScale: 'md',
@@ -173,8 +177,69 @@ export const DEFAULT_CONFIG: AppConfig = {
     nightModePixelShift: true,
     weatherWidgetView: 'current',
     showWeatherWidget: true,
+    backgroundType: 'liquid-glow',
+    icloudAlbumUrl: '',
+    icloudCycleMinutes: 3,
+    photoBrightness: 40,
+    photoBlur: 4,
   },
 };
+
+export const DEFAULT_ICLOUD_SAMPLE_PHOTOS: Array<{
+  id: string;
+  url: string;
+  thumbnailUrl: string;
+  width: number;
+  height: number;
+  caption: string;
+  dateCreated: string;
+}> = [
+  {
+    id: 'demo-photo-1',
+    url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=2560&q=85',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=70',
+    width: 2560,
+    height: 1440,
+    caption: 'Alpine Lake Twilight Reflections',
+    dateCreated: '2026-08-15T18:24:00Z',
+  },
+  {
+    id: 'demo-photo-2',
+    url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=2560&q=85',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=400&q=70',
+    width: 2560,
+    height: 1440,
+    caption: 'Emerald Mountain Pass',
+    dateCreated: '2026-07-22T11:05:00Z',
+  },
+  {
+    id: 'demo-photo-3',
+    url: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=2560&q=85',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=400&q=70',
+    width: 2560,
+    height: 1440,
+    caption: 'Misty Redwood Forest Cathedral',
+    dateCreated: '2026-09-03T09:40:00Z',
+  },
+  {
+    id: 'demo-photo-4',
+    url: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=2560&q=85',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=400&q=70',
+    width: 2560,
+    height: 1440,
+    caption: 'Sunset Dunes & Whispering Sands',
+    dateCreated: '2026-05-18T19:50:00Z',
+  },
+  {
+    id: 'demo-photo-5',
+    url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=2560&q=85',
+    thumbnailUrl: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=400&q=70',
+    width: 2560,
+    height: 1440,
+    caption: 'Starry Mountain Night & Galactic Arc',
+    dateCreated: '2026-08-30T23:12:00Z',
+  },
+];
 
 export interface ScreenSaverArtItem {
   id: string;
