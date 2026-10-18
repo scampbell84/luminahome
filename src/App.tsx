@@ -154,12 +154,29 @@ export default function App() {
       setLoading(false);
     });
 
-    // Auto-refresh calendar periodically
+    // Auto-refresh calendar periodically and strictly on midnight date turnover
+    let lastDateStr = new Date().toDateString();
     const interval = setInterval(() => {
+      const nowDateStr = new Date().toDateString();
+      if (nowDateStr !== lastDateStr) {
+        lastDateStr = nowDateStr;
+      }
       loadCalendar();
     }, 60 * 1000);
 
-    return () => clearInterval(interval);
+    // Instant midnight detector to reload calendar at 00:00:00 sharp
+    const midnightInterval = setInterval(() => {
+      const nowDateStr = new Date().toDateString();
+      if (nowDateStr !== lastDateStr) {
+        lastDateStr = nowDateStr;
+        loadCalendar();
+      }
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(midnightInterval);
+    };
   }, []);
 
   // Save updated config to backend

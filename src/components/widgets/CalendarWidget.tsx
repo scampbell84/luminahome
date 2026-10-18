@@ -10,6 +10,7 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ config }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [view, setView] = useState<'split' | 'agenda' | 'month'>(config.view || 'split');
+  const [todayDate, setTodayDate] = useState<Date>(() => new Date());
 
   useEffect(() => {
     setView(config.view || 'split');
@@ -36,6 +37,25 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ config }) => {
     return () => clearInterval(interval);
   }, [config.refreshIntervalMinutes, config.feeds]);
 
+  // Synchronize calendar precisely across midnight so the highlight moves immediately
+  useEffect(() => {
+    const checkMidnight = () => {
+      const now = new Date();
+      setTodayDate((prev) => {
+        if (prev.toDateString() !== now.toDateString()) {
+          // Midnight has arrived! Fetch fresh calendar data and advance date state
+          fetchCalendar();
+          return now;
+        }
+        return prev;
+      });
+    };
+
+    // Check every second to switch at 00:00:00 without delay
+    const midnightInterval = setInterval(checkMidnight, 1000);
+    return () => clearInterval(midnightInterval);
+  }, []);
+
 function parseLocalDate(dateStr: string, isEnd = false): Date {
   if (!dateStr) return new Date();
   const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}):(\d{2}))?/);
@@ -56,7 +76,7 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
 
   // Group events for agenda view with full multi-day support
   const groupedEvents = useMemo(() => {
-    const today = new Date();
+    const today = new Date(todayDate);
     today.setHours(0, 0, 0, 0);
 
     const tomorrow = new Date(today);
@@ -98,11 +118,11 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
       tomorrow: tomorrowEvents,
       upcoming: upcomingEvents.slice(0, Math.max(config.maxAgendaItems || 15, 30)),
     };
-  }, [events, config.maxAgendaItems]);
+  }, [events, todayDate, config.maxAgendaItems]);
 
   // Generate Month Grid Data including multi-day spanning events
   const monthData = useMemo(() => {
-    const now = new Date();
+    const now = todayDate;
     const year = now.getFullYear();
     const month = now.getMonth();
     const monthName = now.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
@@ -148,7 +168,7 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
       currentDay: now.getDate(),
       eventsByDay,
     };
-  }, [events, config.startOfWeek]);
+  }, [events, todayDate, config.startOfWeek]);
 
   const formatEventTime = (ev: CalendarEvent) => {
     if (ev.allDay) {
@@ -184,10 +204,13 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
         {/* Today Section */}
         {groupedEvents.today.length > 0 && (
           <div>
-            <div className="text-xs uppercase tracking-wider font-bold text-sky-400 mb-1.5 flex items-center gap-1.5">
-              <span>Today</span>
-              <span className="text-[10px] bg-sky-500/20 px-1.5 py-0.5 rounded text-sky-300 font-mono">
-                {groupedEvents.today.length}
+            <div className="text-xs uppercase tracking-wider font-extrabold text-sky-300 mb-1.5 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 ring-2 ring-sky-300/40 animate-pulse shadow-sm" />
+                <span>Today's Schedule</span>
+              </span>
+              <span className="text-[10px] bg-gradient-to-r from-sky-500 to-blue-600 text-white px-2 py-0.5 rounded-full font-mono font-bold shadow-md ring-1 ring-sky-300/40">
+                {groupedEvents.today.length} {groupedEvents.today.length === 1 ? 'event' : 'events'}
               </span>
             </div>
             <div className="space-y-1.5">
@@ -287,9 +310,9 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
             return (
               <div
                 key={day}
-                className={`h-8 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center relative text-xs lg:text-sm transition-colors ${
+                className={`h-8 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center relative text-xs lg:text-sm transition-all ${
                   isToday
-                    ? 'bg-sky-500 font-bold text-white shadow-sm'
+                    ? 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 font-black text-white shadow-lg shadow-sky-500/40 ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 scale-105 z-10'
                     : isPassed
                     ? 'text-white/35 opacity-50'
                     : hasEvents
@@ -297,14 +320,22 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
                     : 'text-white/70'
                 }`}
               >
-                <span>{day}</span>
-                {hasEvents && !isToday && (
-                  <div className={`flex items-center gap-0.5 mt-0.5 ${isPassed ? 'opacity-40' : ''}`}>
+                <div className="flex items-center justify-center relative w-full">
+                  <span className="leading-none">{day}</span>
+                  {isToday && (
+                    <span
+                      className="absolute -top-1 -right-0.5 w-2 h-2 rounded-full bg-amber-300 ring-2 ring-blue-700 shadow-sm"
+                      title="Today"
+                    />
+                  )}
+                </div>
+                {hasEvents && (
+                  <div className={`flex items-center gap-0.5 mt-0.5 ${isPassed && !isToday ? 'opacity-40' : ''}`}>
                     {dayEvents.slice(0, 3).map((ev, idx) => (
                       <span
                         key={idx}
-                        className="w-1 h-1 rounded-full"
-                        style={{ backgroundColor: ev.color || '#38bdf8' }}
+                        className={`w-1 h-1 rounded-full ${isToday ? 'bg-white ring-[0.5px] ring-white/60' : ''}`}
+                        style={{ backgroundColor: isToday ? '#ffffff' : (ev.color || '#38bdf8') }}
                       />
                     ))}
                   </div>

@@ -124,6 +124,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
   events,
   feeds,
   config,
+  onRefresh,
 }) => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'year' | 'columns'>('month');
@@ -140,13 +141,45 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
     setActiveFeedIds(new Set(feeds.map((f) => f.id)));
   }, [feeds]);
 
-  // Today reference normalized to midnight
-  const today = useMemo(() => new Date(), []);
+  // Today reference with 1-second midnight listener for instant refresh when the day changes
+  const [nowDate, setNowDate] = useState<Date>(() => new Date());
+
+  useEffect(() => {
+    const checkMidnight = () => {
+      const now = new Date();
+      setNowDate((prev) => {
+        if (prev.toDateString() !== now.toDateString()) {
+          if (onRefresh) {
+            onRefresh();
+          }
+          return now;
+        }
+        return prev;
+      });
+    };
+
+    const interval = setInterval(checkMidnight, 1000);
+    return () => clearInterval(interval);
+  }, [onRefresh]);
+
+  const today = nowDate;
   const startOfToday = useMemo(() => {
-    const d = new Date();
+    const d = new Date(nowDate);
     d.setHours(0, 0, 0, 0);
     return d;
-  }, []);
+  }, [nowDate]);
+
+  // If the view was showing yesterday before midnight, automatically advance currentDate to the new today
+  useEffect(() => {
+    setCurrentDate((prev) => {
+      const prevMidnight = new Date(prev.getFullYear(), prev.getMonth(), prev.getDate(), 0, 0, 0);
+      const yesterdayMidnight = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() - 1, 0, 0, 0);
+      if (prevMidnight.getTime() === yesterdayMidnight.getTime()) {
+        return new Date(nowDate);
+      }
+      return prev;
+    });
+  }, [nowDate]);
 
   const startOfWeekPreference = config?.startOfWeek || 'monday';
 
@@ -173,7 +206,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-900/35 backdrop-blur-3xl border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]',
           header: 'bg-black/40 border-white/10 text-slate-300',
           activeButton: 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30',
-          todayBadge: 'bg-indigo-500 text-white ring-2 ring-indigo-400/40',
+          todayBadge: 'bg-gradient-to-br from-cyan-400 via-indigo-500 to-purple-600 text-white font-black shadow-lg shadow-cyan-400/50 ring-2 ring-cyan-200 ring-offset-2 ring-offset-slate-950 scale-105',
         };
       case 'minimal':
         return {
@@ -181,7 +214,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-950/80 border-slate-800/40 backdrop-blur-none',
           header: 'bg-slate-950 border-slate-800/40 text-slate-400',
           activeButton: 'bg-slate-700 text-white shadow-sm',
-          todayBadge: 'bg-slate-600 text-white ring-1 ring-slate-400',
+          todayBadge: 'bg-sky-500 text-white font-black shadow-md ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 scale-105',
         };
       case 'vibrant':
         return {
@@ -189,7 +222,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-900/90 border-sky-500/30 shadow-[0_0_30px_rgba(14,165,233,0.12)]',
           header: 'bg-indigo-950/80 border-slate-800 text-sky-300',
           activeButton: 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/30',
-          todayBadge: 'bg-gradient-to-tr from-sky-400 to-indigo-500 text-white shadow-md ring-2 ring-sky-300/40',
+          todayBadge: 'bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 text-white font-black shadow-lg shadow-pink-500/50 ring-2 ring-amber-200 ring-offset-2 ring-offset-slate-950 scale-105',
         };
       case 'monochrome':
         return {
@@ -197,7 +230,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-black border-neutral-800 text-neutral-200',
           header: 'bg-neutral-950 border-neutral-800 text-neutral-400',
           activeButton: 'bg-white text-black font-bold shadow-md',
-          todayBadge: 'bg-white text-black font-bold ring-2 ring-neutral-400',
+          todayBadge: 'bg-white text-black font-black shadow-xl ring-2 ring-white/90 ring-offset-2 ring-offset-neutral-950 scale-105',
         };
       case 'warm':
         return {
@@ -205,7 +238,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-[#120f0d]/90 border-amber-900/30 text-amber-100',
           header: 'bg-[#1a1411]/90 border-amber-900/30 text-amber-300',
           activeButton: 'bg-amber-600 text-white shadow-md shadow-amber-600/20',
-          todayBadge: 'bg-amber-500 text-slate-950 font-bold ring-2 ring-amber-300/40',
+          todayBadge: 'bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 text-slate-950 font-black shadow-lg shadow-amber-500/50 ring-2 ring-amber-200 ring-offset-2 ring-offset-[#120f0d] scale-105',
         };
       case 'nordic':
         return {
@@ -213,7 +246,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-[#060b14]/90 border-cyan-900/40 text-cyan-100',
           header: 'bg-[#0a1220]/90 border-cyan-900/40 text-cyan-300',
           activeButton: 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30',
-          todayBadge: 'bg-cyan-500 text-slate-950 font-bold ring-2 ring-cyan-300/50',
+          todayBadge: 'bg-gradient-to-br from-cyan-300 via-sky-400 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-400/50 ring-2 ring-cyan-200 ring-offset-2 ring-offset-[#060b14] scale-105',
         };
       case 'forest':
         return {
@@ -221,7 +254,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-[#040f0a]/90 border-emerald-900/40 text-emerald-100',
           header: 'bg-[#081a12]/90 border-emerald-900/40 text-emerald-300',
           activeButton: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30',
-          todayBadge: 'bg-emerald-500 text-slate-950 font-bold ring-2 ring-emerald-300/50',
+          todayBadge: 'bg-gradient-to-br from-emerald-300 via-emerald-400 to-teal-600 text-slate-950 font-black shadow-lg shadow-emerald-400/50 ring-2 ring-emerald-200 ring-offset-2 ring-offset-[#040f0a] scale-105',
         };
       case 'default':
       default:
@@ -230,7 +263,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-900/80 backdrop-blur-xl border-slate-800 shadow-2xl',
           header: 'bg-slate-950/80 border-slate-800 text-slate-400',
           activeButton: 'bg-sky-600 text-white shadow-md shadow-sky-600/20',
-          todayBadge: 'bg-sky-500 text-white shadow-md ring-2 ring-sky-400/40',
+          todayBadge: 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 text-white font-black shadow-lg shadow-sky-500/50 ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 scale-105',
         };
     }
   }, [config?.theme]);
@@ -1004,7 +1037,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                         key={dIdx}
                         className={`h-full transition-opacity ${
                           day.isToday 
-                            ? 'bg-sky-950/25 ring-1 ring-inset ring-sky-500/30' 
+                            ? 'bg-sky-500/15 ring-2 ring-inset ring-sky-400/50 shadow-[inset_0_0_24px_rgba(56,189,248,0.18)]' 
                             : day.isPassed
                             ? 'opacity-40 bg-slate-950/40'
                             : !day.isCurrentMonth 
@@ -1025,27 +1058,40 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                         return (
                           <div
                             key={dIdx}
-                            className={`flex items-center justify-between px-1.5 cursor-pointer ${
-                              day.isPassed && !day.isToday ? 'opacity-50 hover:opacity-100 transition-opacity' : ''
+                            className={`flex items-center justify-between px-1.5 py-0.5 cursor-pointer rounded-lg transition-all ${
+                              day.isToday
+                                ? 'bg-sky-400/15 ring-1 ring-sky-400/40'
+                                : day.isPassed && !day.isToday
+                                ? 'opacity-50 hover:opacity-100 transition-opacity'
+                                : ''
                             }`}
                             onClick={() => handleOpenDayModal(day.date)}
                           >
-                            <span
-                              className={`text-[11px] lg:text-xs font-bold w-5 h-5 lg:w-6 lg:h-6 flex items-center justify-center rounded-full transition-transform hover:scale-110 ${
-                                day.isToday
-                                  ? themeClasses.todayBadge
-                                  : day.isPassed
-                                  ? 'text-slate-500 font-normal'
-                                  : day.isCurrentMonth
-                                  ? 'text-slate-200'
-                                  : 'text-slate-600'
-                              }`}
-                            >
-                              {day.dayNumber}
-                            </span>
+                            <div className="flex items-center gap-1 min-w-0">
+                              <span
+                                className={`text-xs sm:text-sm font-black flex items-center justify-center rounded-full transition-transform hover:scale-110 ${
+                                  day.isToday
+                                    ? `${themeClasses.todayBadge} w-6 h-6 lg:w-7 lg:h-7`
+                                    : day.isPassed
+                                    ? 'text-slate-500 font-normal w-5 h-5 lg:w-6 lg:h-6'
+                                    : day.isCurrentMonth
+                                    ? 'text-slate-200 w-5 h-5 lg:w-6 lg:h-6'
+                                    : 'text-slate-600 w-5 h-5 lg:w-6 lg:h-6'
+                                }`}
+                              >
+                                {day.dayNumber}
+                              </span>
+
+                              {day.isToday && (
+                                <span className="text-[8px] font-black uppercase tracking-wider bg-sky-400/25 text-sky-200 border border-sky-300/40 px-1 py-0.2 rounded-full hidden sm:inline-flex items-center gap-0.5 shadow-sm">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
+                                  <span>Today</span>
+                                </span>
+                              )}
+                            </div>
 
                             {hasEvents && (
-                              <span className="text-[9px] text-slate-400 font-mono hidden md:inline">
+                              <span className={`text-[9px] font-mono hidden md:inline ${day.isToday ? 'text-sky-300 font-bold' : 'text-slate-400'}`}>
                                 {timedEvents.length}
                               </span>
                             )}
@@ -1149,19 +1195,42 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
         {viewMode === 'week' && (
           <div className="flex-1 h-full min-h-0 flex flex-col">
             {/* Weekday & Date Header */}
-            <div className={`grid grid-cols-7 border-b ${themeClasses.header} text-center py-2.5 shrink-0 divide-x divide-slate-800/80`}>
+            <div className={`grid grid-cols-7 border-b ${themeClasses.header} text-center py-2 shrink-0 divide-x divide-slate-800/80`}>
               {weekInfo.days.map((day, idx) => (
-                <div key={idx} className={`px-2 ${day.isPassed && !day.isToday ? 'opacity-50' : ''}`}>
-                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block">
-                    {day.dayName}
-                  </span>
+                <div
+                  key={idx}
+                  className={`px-1 sm:px-2 flex flex-col items-center justify-center transition-all ${
+                    day.isToday
+                      ? 'bg-sky-500/15 ring-2 ring-inset ring-sky-400/50'
+                      : day.isPassed && !day.isToday
+                      ? 'opacity-50'
+                      : ''
+                  }`}
+                >
                   <span
-                    className={`text-lg md:text-xl font-black inline-block mt-0.5 ${
-                      day.isToday ? 'text-sky-400' : 'text-white'
+                    className={`text-[10px] sm:text-[11px] font-extrabold uppercase tracking-wider block ${
+                      day.isToday ? 'text-sky-300' : 'text-slate-400'
                     }`}
                   >
-                    {day.dayNum}
+                    {day.dayName}
                   </span>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span
+                      className={`inline-flex items-center justify-center rounded-full transition-all ${
+                        day.isToday
+                          ? `${themeClasses.todayBadge} w-7 h-7 sm:w-8 sm:h-8 text-sm sm:text-base font-black shadow-lg scale-105`
+                          : 'text-lg md:text-xl font-black text-white w-7 h-7'
+                      }`}
+                    >
+                      {day.dayNum}
+                    </span>
+                    {day.isToday && (
+                      <span className="text-[8px] font-black uppercase tracking-wider bg-sky-400/25 text-sky-200 border border-sky-300/40 px-1 py-0.2 rounded-full hidden lg:inline-flex items-center gap-0.5 shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
+                        <span>Today</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -1221,9 +1290,9 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                 return (
                   <div
                     key={idx}
-                    className={`flex flex-col h-full min-h-0 p-2.5 overflow-hidden transition-opacity ${
+                    className={`flex flex-col h-full min-h-0 p-2.5 overflow-hidden transition-all ${
                       day.isToday
-                        ? 'bg-sky-950/20'
+                        ? 'bg-sky-500/10 ring-2 ring-inset ring-sky-400/40 shadow-[inset_0_0_24px_rgba(56,189,248,0.12)]'
                         : isDimmed
                         ? 'bg-slate-950/60 opacity-55 hover:opacity-100'
                         : 'bg-slate-900/40'
@@ -1278,14 +1347,15 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
             {/* Day Header Banner */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
               <div className="flex items-center gap-3">
-                <div className={`px-3 py-1.5 rounded-xl font-bold text-xs uppercase tracking-wider ${
+                <div className={`px-3.5 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md ${
                   dayInfo.isToday
-                    ? 'bg-sky-500/20 text-sky-300 border border-sky-400/30'
+                    ? 'bg-gradient-to-r from-sky-400 via-sky-500 to-blue-600 text-white ring-2 ring-sky-300/70 shadow-lg shadow-sky-500/40'
                     : dayInfo.isPassed
                     ? 'bg-slate-800 text-slate-400'
                     : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
                 }`}>
-                  {dayInfo.isToday ? 'Today' : dayInfo.isPassed ? 'Past Day' : 'Upcoming'}
+                  {dayInfo.isToday && <span className="w-2 h-2 rounded-full bg-amber-300 ring-1 ring-white animate-pulse" />}
+                  <span>{dayInfo.isToday ? 'Today' : dayInfo.isPassed ? 'Past Day' : 'Upcoming'}</span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-black text-white">
                   {currentDate.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -1457,7 +1527,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                           }}
                           className={`h-6 rounded-md flex flex-col items-center justify-center relative cursor-pointer transition-all hover:scale-110 ${
                             cell.isToday
-                              ? 'bg-sky-500 text-white font-black shadow-sm'
+                              ? 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 text-white font-black shadow-md shadow-sky-500/50 ring-2 ring-sky-300 scale-110 z-10'
                               : cell.isPassed
                               ? 'text-slate-600 font-normal hover:text-slate-300'
                               : 'text-slate-300 hover:bg-slate-800 font-medium'
