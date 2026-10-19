@@ -44,86 +44,7 @@ interface UpdateState {
   branch: string;
 }
 
-interface ReleaseNote {
-  version: string;
-  releaseDate: string;
-  title: string;
-  isCurrent?: boolean;
-  highlights: string[];
-  details: string[];
-}
-
-const RELEASE_NOTES: ReleaseNote[] = [
-  {
-    version: 'v2.6.0',
-    releaseDate: 'October 2026',
-    title: 'Core Kiosk Streamline & Liquid Glass Ambient Screen Saver',
-    isCurrent: true,
-    highlights: [
-      'Ultra-Dim Red Night Mode for screensaver with on-screen & scheduled toggle',
-      'Anti-burn-in micro-drift pixel shift for all-night displays',
-      'Apple Liquid Glass screensaver with pulsing seconds colon',
-      'Weather single-degree symbol fix & dynamic location auto-detect',
-      'Git update engine & remote fetch fix',
-    ],
-    details: [
-      'Night Mode StandBy: Ultra-dim pure crimson red monochrome night clock on pitch black background to eliminate blue light, preserve night vision, and prevent sleep disruption in bedrooms.',
-      'Circadian Schedule & Quick Toggle: Includes an unobtrusive on-screen Moon toggle button and optional time-based schedule (e.g. 10 PM to 7 AM) with customizable dimming (50% to 95%).',
-      'Anti-Burn-In Micro-Drift: Automatic 2-4px pixel shifting every 3 minutes prevents OLED burn-in and LCD image retention during overnight displays.',
-      'Core Streamline: Streamlined UI down to essential kiosk features (Calendar, Weather, Clock, Notes, Countdown, News, and Hardware Telemetry) for maximum speed and rock-solid stability.',
-      'Liquid Glass Screen Saver: Minimalist full-screen Apple liquid glass digital clock with rhythmic seconds-pulsing colon and compact date/weather complication.',
-      'Weather Accuracy: Resolved duplicate degree symbol formatting glitch, ensuring consistent single-degree readout.',
-    ],
-  },
-  {
-    version: 'v2.5.0',
-    releaseDate: 'October 2026',
-    title: 'Lumina Home Core Streamline & System Health Monitor',
-    highlights: [
-      'Core display streamline & performance optimization',
-      'Hardware & device telemetry dashboard',
-      'Smart weather caching & 503 fault tolerance',
-      'Automated divergent-branch updater',
-    ],
-    details: [
-      'Streamlined Core: Focused on essential wall kiosk functions — clock, high-contrast weather, multi-feed calendar, notes, event countdowns, and news ticker.',
-      'New System Menu: Added real-time CPU load, CPU temperature thermal monitoring, RAM utilization, root storage breakdown, and system uptime.',
-      'One-Click Update Engine: Modernized with automated Git stash, fetch, and hard-reset sync, preventing divergent branch pull locks.',
-      'Weather Resilience: In-memory stale-while-revalidate caching and custom user-agent headers to prevent Open-Meteo 503 and rate limit disruptions.',
-      'Service Management: Added one-click service restart and Raspberry Pi host reboot triggers directly from the web interface.',
-    ],
-  },
-  {
-    version: 'v2.4.0',
-    releaseDate: 'October 2026',
-    title: 'Apple HomeView Ambient StandBy & Typography',
-    highlights: [
-      'Ambient StandBy dual-panel screensaver',
-      'Curated 4K wallpaper presets & Unsplash rotation',
-      'Automated red night mode and touch wake',
-    ],
-    details: [
-      'Ambient StandBy Mode: Apple-style dual widget clocks, weather dials, and photo complications with night-mode red tint.',
-      'Touch Wake: Instant responsiveness when touching anywhere on screen to return to the active kiosk display.',
-      'Dynamic Wallpapers: Ultra-wide landscape presets with custom dimming and blur controls for optimal text legibility.',
-    ],
-  },
-  {
-    version: 'v2.3.0',
-    releaseDate: 'October 2026',
-    title: 'Drag-and-Drop Visual Grid & Multi-Feed Calendar',
-    highlights: [
-      'Interactive 12-column widget grid layout',
-      'Multi-feed iCal / ICS calendar aggregator',
-      'Live news ticker & sticky family reminders',
-    ],
-    details: [
-      'Visual Grid Customizer: Resize and position clock, weather, calendar, countdown, and news widgets freely.',
-      'Multi-Feed Calendar: Aggregate family iCloud, Google, Outlook, and webcal feeds with recurring event expansion.',
-      'Notes & Reminders: Inspirational daily quotes and interactive household reminders widget.',
-    ],
-  },
-];
+import { APP_VERSION, RELEASE_NOTES, ReleaseNote } from '../../constants/version';
 
 export const SystemSettings: React.FC = () => {
   const [system, setSystem] = useState<SystemInfo | null>(null);
@@ -146,7 +67,7 @@ export const SystemSettings: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [reconnectCountdown, setReconnectCountdown] = useState<number | null>(null);
-  const [expandedRelease, setExpandedRelease] = useState<string>('v2.6.0');
+  const [expandedRelease, setExpandedRelease] = useState<string>(RELEASE_NOTES[0].version);
 
   // System Action Modals
   const [confirmAction, setConfirmAction] = useState<'restart-service' | 'reboot' | null>(null);
@@ -333,7 +254,7 @@ export const SystemSettings: React.FC = () => {
               <div className="flex items-center gap-2.5 flex-wrap">
                 <h2 className="text-xl md:text-2xl font-bold text-white tracking-tight">Lumina Home OS</h2>
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-300 border border-sky-500/30 font-mono">
-                  {system?.appVersion || 'v2.6.0'}
+                  {system?.appVersion || `v${APP_VERSION}`}
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -599,7 +520,7 @@ export const SystemSettings: React.FC = () => {
                 <div>
                   <h4 className="text-sm font-semibold text-slate-200">Lumina Home is up to date</h4>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Running version <span className="font-mono text-slate-300 font-semibold">{system?.appVersion || 'v2.6.0'}</span> on branch <span className="font-mono text-slate-300">{updateState.branch || 'main'}</span>
+                    Running version <span className="font-mono text-slate-300 font-semibold">{system?.appVersion || `v${APP_VERSION}`}</span> on branch <span className="font-mono text-slate-300">{updateState.branch || 'main'}</span>
                     {updateState.currentCommit && ` (${updateState.currentCommit.hash})`}
                   </p>
                 </div>
@@ -675,6 +596,7 @@ export const SystemSettings: React.FC = () => {
         <div className="space-y-3">
           {RELEASE_NOTES.map((note) => {
             const isExpanded = expandedRelease === note.version;
+            const isInstalled = (system?.appVersion ? note.version === system.appVersion : note.version === `v${APP_VERSION}`) || note.isCurrent;
             return (
               <div
                 key={note.version}
@@ -696,7 +618,7 @@ export const SystemSettings: React.FC = () => {
                     <div>
                       <h4 className="text-sm font-semibold text-white flex items-center gap-2">
                         <span>{note.title}</span>
-                        {note.isCurrent && (
+                        {isInstalled && (
                           <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono uppercase">
                             Installed
                           </span>

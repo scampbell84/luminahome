@@ -359,7 +359,7 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
               Today is the day! Enjoy every single moment!
             </p>
           </div>
-        ) : (
+        ) : config.displayMode === 'full' ? (
           <div className="grid grid-cols-4 gap-1.5 text-center">
             <div className="bg-white/10 rounded-lg py-1.5 px-1 border border-white/10 shadow-sm">
               <span className="text-xl md:text-2xl font-black tracking-tight text-white block">
@@ -387,6 +387,17 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
                 {pad(single.seconds)}
               </span>
               <span className="text-[10px] font-medium text-white/60 uppercase">Secs</span>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-2">
+            <div className="bg-white/10 rounded-xl px-6 py-2 border border-white/15 text-center shadow-md flex items-baseline gap-2">
+              <span className="text-3xl md:text-4xl font-black tracking-tight text-white block">
+                {single.days}
+              </span>
+              <span className="text-xs font-bold text-sky-200/80 uppercase tracking-widest">
+                {single.days === 1 ? 'Day to go' : 'Days to go'}
+              </span>
             </div>
           </div>
         )}
@@ -490,36 +501,47 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
                 </div>
               </div>
 
-              {/* Countdown Digits */}
-              <div className="flex items-center gap-1 shrink-0">
-                <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[36px] sm:min-w-[40px] border border-white/10">
-                  <span className="text-xs md:text-sm font-black text-white block leading-tight">
+              {/* Countdown Digits - by default just show number of days */}
+              {config.displayMode === 'full' ? (
+                <div className="flex items-center gap-1 shrink-0">
+                  <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[36px] sm:min-w-[40px] border border-white/10">
+                    <span className="text-xs md:text-sm font-black text-white block leading-tight">
+                      {days}
+                    </span>
+                    <span className="text-[8px] text-white/50 uppercase font-bold">Days</span>
+                  </div>
+
+                  <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[34px] sm:min-w-[38px] border border-white/10">
+                    <span className="text-xs md:text-sm font-black text-white block leading-tight">
+                      {pad(hours)}
+                    </span>
+                    <span className="text-[8px] text-white/50 uppercase font-bold">Hrs</span>
+                  </div>
+
+                  <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[34px] sm:min-w-[38px] border border-white/10">
+                    <span className="text-xs md:text-sm font-black text-white block leading-tight">
+                      {pad(minutes)}
+                    </span>
+                    <span className="text-[8px] text-white/50 uppercase font-bold">Min</span>
+                  </div>
+
+                  <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[34px] sm:min-w-[38px] border border-white/10">
+                    <span className="text-xs md:text-sm font-black text-cyan-300 block leading-tight">
+                      {pad(seconds)}
+                    </span>
+                    <span className="text-[8px] text-white/50 uppercase font-bold">Sec</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white/10 rounded-xl px-3 py-1.5 text-center min-w-[54px] sm:min-w-[62px] border border-white/15 shrink-0 flex flex-col items-center justify-center shadow-sm">
+                  <span className="text-sm md:text-base font-black text-white block leading-tight">
                     {days}
                   </span>
-                  <span className="text-[8px] text-white/50 uppercase font-bold">Days</span>
-                </div>
-
-                <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[34px] sm:min-w-[38px] border border-white/10">
-                  <span className="text-xs md:text-sm font-black text-white block leading-tight">
-                    {pad(hours)}
+                  <span className="text-[8px] sm:text-[9px] text-sky-200/80 uppercase font-bold tracking-wider mt-0.5">
+                    {days === 1 ? 'Day' : 'Days'}
                   </span>
-                  <span className="text-[8px] text-white/50 uppercase font-bold">Hrs</span>
                 </div>
-
-                <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[34px] sm:min-w-[38px] border border-white/10">
-                  <span className="text-xs md:text-sm font-black text-white block leading-tight">
-                    {pad(minutes)}
-                  </span>
-                  <span className="text-[8px] text-white/50 uppercase font-bold">Min</span>
-                </div>
-
-                <div className="bg-white/10 rounded-lg px-2 py-1 text-center min-w-[34px] sm:min-w-[38px] border border-white/10">
-                  <span className="text-xs md:text-sm font-black text-cyan-300 block leading-tight">
-                    {pad(seconds)}
-                  </span>
-                  <span className="text-[8px] text-white/50 uppercase font-bold">Sec</span>
-                </div>
-              </div>
+              )}
             </div>
           );
         })}

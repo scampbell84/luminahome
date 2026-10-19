@@ -1,0 +1,173 @@
+export interface ReleaseNote {
+  version: string;
+  releaseDate: string;
+  title: string;
+  isCurrent?: boolean;
+  highlights: string[];
+  details: string[];
+}
+
+export const APP_VERSION = '2.9.2';
+
+export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v2.9.2',
+    releaseDate: 'October 2026',
+    title: 'Kiosk Navigation Streamline & System Tray Refresh',
+    isCurrent: true,
+    highlights: [
+      'Removed redundant floating Admin Settings, Full Screen, and Refresh buttons from top right',
+      'Added dedicated Refresh button down next to live clock in bottom system tray area',
+      'Completely unobstructed display view preventing widget overlap',
+    ],
+    details: [
+      'Streamlined Controls: Eliminated redundant floating top-right buttons, preventing overlap with weather complications and location banners.',
+      'System Tray Refresh: Added a responsive refresh button next to the bottom live clock that syncs dashboard config and calendar feeds on demand with smooth spin feedback.',
+    ],
+  },
+  {
+    version: 'v2.9.1',
+    releaseDate: 'October 2026',
+    title: 'Streamlined Event Countdowns & Expanded Agenda Schedule',
+    highlights: [
+      'Event Countdowns by default show clean number-of-days counter',
+      'Agenda Schedule expands into freed space with fixed calendar size',
+      'Calendar feed badges/legend hidden by default in header for distraction-free view',
+      'Configurable countdown display format toggle in Admin Dashboard (Days vs Full)',
+    ],
+    details: [
+      'Days-Only Default: Countdown cards now feature a compact, high-contrast days-to-go pill counter by default, removing cluttered hours, minutes, and seconds while preserving annual rollover and celebratory completion banners.',
+      'Expanded Agenda Grid: Freed horizontal space is redirected into the Agenda Schedule list, allowing event titles and time ranges to render with exceptional clarity.',
+      'Fixed Month Calendar Width: The mini-month calendar grid maintains its ideal fixed compact width, ensuring no disproportionate stretching occurs.',
+      'Distraction-Free Header: Removed static feed category tags from the Schedule & Events widget header by default, with an optional toggle in Calendar settings.',
+    ],
+  },
+  {
+    version: 'v2.9.0',
+    releaseDate: 'October 2026',
+    title: 'Apple Photos iCloud Shared Stream & Centralized Release Sync',
+    highlights: [
+      'Apple Photos iCloud Shared Album background & screensaver live stream',
+      'Real-time Apple webstream/webasseturls handshake & high-res image proxy',
+      'Configurable photo cycle timer (1–60 mins) with custom backdrop brightness & blur',
+      'Unified single-source-of-truth versioning and synchronized changelog system',
+      'Admin album tester, thumbnail gallery preview, and instant background sync',
+    ],
+    details: [
+      'iCloud Shared Album Stream: Connect any public Apple Photos iCloud Shared Album URL to turn your smart kiosk into an ambient digital photo frame. Works across both wallpaper background and screensaver modes.',
+      'Server-Side Handshake & Proxy: Automatically decodes Apple base62 token redirects, discovers the closest cluster base URL, queries webasseturls for the highest-resolution derivative, and proxies image assets securely with in-memory caching.',
+      'Legibility Backdrop Controls: Fine-tune photo brightness (10% to 100%) and gaussian blur (0px to 20px) independently for wallpaper and screensaver, keeping clocks and calendar widgets razor sharp.',
+      'Centralized Release Sync: Single source of truth for version number and changelog history across package.json, server hardware telemetry, admin navigation badges, and system update states.',
+      'Interactive Album Inspector: Validate iCloud shared album URLs directly within the Admin Dashboard with instant photo count readout and responsive thumbnail preview grid.',
+    ],
+  },
+  {
+    version: 'v2.8.0',
+    releaseDate: 'October 2026',
+    title: 'Calendar Month Grid & High-Contrast Visual Indicators',
+    highlights: [
+      'High-contrast day-cell active date rings & today emphasis',
+      'Multi-feed event indicators and colored dot complication tags',
+      'Expanded responsive month view grid navigation and agenda sync',
+      'Micro-animations for calendar month transitions and quick-jump picker',
+    ],
+    details: [
+      'Visual Day Markers: Distinct high-contrast rings and background fills for current day, active events, and multi-day spans across Month, Agenda, and Year views.',
+      'Multi-Feed Legend: Clearly identify event sources with configurable color tags and category markers across family calendars.',
+      'Rapid Navigation: Seamlessly navigate between months and jump back to Today with one tap from any screen mode.',
+    ],
+  },
+  {
+    version: 'v2.7.0',
+    releaseDate: 'October 2026',
+    title: 'Multi-Item Countdown Widget & Milestone Celebrations',
+    highlights: [
+      'Multiple concurrent scrollable event countdowns in a single widget',
+      'Automatic celebratory completion message upon reaching milestone date/time',
+      'Custom icon selector and color accents per countdown item',
+      'High-visibility pill timers with days, hours, and minutes breakdown',
+    ],
+    details: [
+      'Multi-Countdown Grid: Track birthdays, vacations, holidays, and family milestones concurrently in an elegant scrollable agenda container.',
+      'Milestone Completion Banner: When the target time is reached, the widget dynamically displays your personalized celebration banner (e.g. "🎉 Happy Birthday!", "🌴 Vacation Time!").',
+      'Custom Iconography & Accents: Assign dedicated Lucide icons and vibrant color accents to distinct countdown cards.',
+      'Compact & Dense Options: Smooth scrollbar styling and touch-friendly controls optimized for wall-mounted kiosks.',
+    ],
+  },
+  {
+    version: 'v2.6.0',
+    releaseDate: 'October 2026',
+    title: 'Core Kiosk Streamline & Liquid Glass Ambient Screen Saver',
+    highlights: [
+      'Ultra-Dim Red Night Mode for screensaver with on-screen & scheduled toggle',
+      'Anti-burn-in micro-drift pixel shift for all-night displays',
+      'Apple Liquid Glass screensaver with pulsing seconds colon',
+      'Weather single-degree symbol fix & dynamic location auto-detect',
+      'Git update engine & remote fetch fix',
+    ],
+    details: [
+      'Night Mode StandBy: Ultra-dim pure crimson red monochrome night clock on pitch black background to eliminate blue light, preserve night vision, and prevent sleep disruption in bedrooms.',
+      'Circadian Schedule & Quick Toggle: Includes an unobtrusive on-screen Moon toggle button and optional time-based schedule (e.g. 10 PM to 7 AM) with customizable dimming (50% to 95%).',
+      'Anti-Burn-In Micro-Drift: Automatic 2-4px pixel shifting every 3 minutes prevents OLED burn-in and LCD image retention during overnight displays.',
+      'Core Streamline: Streamlined UI down to essential kiosk features (Calendar, Weather, Clock, Notes, Countdown, News, and Hardware Telemetry) for maximum speed and rock-solid stability.',
+      'Liquid Glass Screen Saver: Minimalist full-screen Apple liquid glass digital clock with rhythmic seconds-pulsing colon and compact date/weather complication.',
+      'Weather Accuracy: Resolved duplicate degree symbol formatting glitch, ensuring consistent single-degree readout.',
+    ],
+  },
+  {
+    version: 'v2.5.0',
+    releaseDate: 'October 2026',
+    title: 'Lumina Home Core Streamline & System Health Monitor',
+    highlights: [
+      'Core display streamline & performance optimization',
+      'Hardware & device telemetry dashboard',
+      'Smart weather caching & 503 fault tolerance',
+      'Automated divergent-branch updater',
+    ],
+    details: [
+      'Streamlined Core: Focused on essential wall kiosk functions — clock, high-contrast weather, multi-feed calendar, notes, event countdowns, and news ticker.',
+      'New System Menu: Added real-time CPU load, CPU temperature thermal monitoring, RAM utilization, root storage breakdown, and system uptime.',
+      'One-Click Update Engine: Modernized with automated Git stash, fetch, and hard-reset sync, preventing divergent branch pull locks.',
+      'Weather Resilience: In-memory stale-while-revalidate caching and custom user-agent headers to prevent Open-Meteo 503 and rate limit disruptions.',
+      'Service Management: Added one-click service restart and Raspberry Pi host reboot triggers directly from the web interface.',
+    ],
+  },
+  {
+    version: 'v2.4.0',
+    releaseDate: 'October 2026',
+    title: 'Apple HomeView Ambient StandBy & Typography',
+    highlights: [
+      'Ambient StandBy dual-panel screensaver',
+      'Curated 4K wallpaper presets & Unsplash rotation',
+      'Automated red night mode and touch wake',
+    ],
+    details: [
+      'Ambient StandBy Mode: Apple-style dual widget clocks, weather dials, and photo complications with night-mode red tint.',
+      'Touch Wake: Instant responsiveness when touching anywhere on screen to return to the active kiosk display.',
+      'Dynamic Wallpapers: Ultra-wide landscape presets with custom dimming and blur controls for optimal text legibility.',
+    ],
+  },
+  {
+    version: 'v2.3.0',
+    releaseDate: 'October 2026',
+    title: 'Drag-and-Drop Visual Grid & Multi-Feed Calendar',
+    highlights: [
+      'Interactive 12-column widget grid layout',
+      'Multi-feed iCal / ICS calendar aggregator',
+      'Live news ticker & sticky family reminders',
+    ],
+    details: [
+      'Visual Grid Customizer: Resize and position clock, weather, calendar, countdown, and news widgets freely.',
+      'Multi-Feed Calendar: Aggregate family iCloud, Google, Outlook, and webcal feeds with recurring event expansion.',
+      'Notes & Reminders: Inspirational daily quotes and interactive household reminders widget.',
+    ],
+  },
+];
+
+export function getCurrentRelease(): ReleaseNote {
+  return RELEASE_NOTES[0];
+}
+
+export function getAppVersion(): string {
+  return APP_VERSION;
+}

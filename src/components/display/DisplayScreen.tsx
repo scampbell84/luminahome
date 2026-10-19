@@ -8,7 +8,7 @@ import { CountdownWidget } from '../widgets/CountdownWidget';
 import { NewsWidget } from '../widgets/NewsWidget';
 import { NotesWidget } from '../widgets/NotesWidget';
 import { SystemWidget } from '../widgets/SystemWidget';
-import { Settings, Maximize2, Minimize2, RefreshCw, AlertCircle, Camera } from 'lucide-react';
+import { AlertCircle, Camera } from 'lucide-react';
 
 interface DisplayScreenProps {
   config: AppConfig;
@@ -383,37 +383,6 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
         </div>
       )}
 
-      {/* Subtle Floating Kiosk Control Pill (reveals on mouse move) */}
-      <div
-        className={`fixed top-4 right-4 z-50 transition-opacity duration-300 flex items-center gap-2 ${
-          mouseActive ? 'opacity-90' : 'opacity-0 pointer-events-none'
-        }`}
-      >
-        <button
-          onClick={onRefreshConfig}
-          className="p-2 bg-black/60 hover:bg-black/90 backdrop-blur-md rounded-full text-white/80 hover:text-white border border-white/20 transition-all shadow-lg"
-          title="Reload Dashboard Config"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
-
-        <button
-          onClick={toggleFullscreen}
-          className="p-2 bg-black/60 hover:bg-black/90 backdrop-blur-md rounded-full text-white/80 hover:text-white border border-white/20 transition-all shadow-lg"
-          title="Toggle Fullscreen (F)"
-        >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
-
-        <button
-          onClick={onOpenAdmin}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded-full text-xs font-semibold shadow-lg transition-all border border-sky-400/30"
-          title="Open Admin Settings (A)"
-        >
-          <Settings className="w-3.5 h-3.5" />
-          <span>Admin Settings</span>
-        </button>
-      </div>
 
       {/* Network dropout silent indicator badge (only if disconnected) */}
       {!isOnline && (

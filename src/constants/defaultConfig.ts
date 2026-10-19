@@ -33,9 +33,9 @@ export const DEFAULT_CONFIG: AppConfig = {
     gridItems: [
       { i: 'clock', x: 0, y: 0, w: 6, h: 3, minW: 3, minH: 2 },
       { i: 'weather', x: 6, y: 0, w: 6, h: 3, minW: 3, minH: 2 },
-      { i: 'calendar', x: 0, y: 3, w: 7, h: 6, minW: 4, minH: 3 },
-      { i: 'countdown', x: 7, y: 3, w: 5, h: 2, minW: 3, minH: 1 },
-      { i: 'notes', x: 7, y: 5, w: 5, h: 4, minW: 3, minH: 2 },
+      { i: 'calendar', x: 0, y: 3, w: 8, h: 6, minW: 4, minH: 3 },
+      { i: 'countdown', x: 8, y: 3, w: 4, h: 6, minW: 3, minH: 1 },
+      { i: 'notes', x: 8, y: 5, w: 4, h: 4, minW: 3, minH: 2 },
       { i: 'news', x: 0, y: 9, w: 12, h: 2, minW: 4, minH: 1 },
     ],
   },
@@ -94,6 +94,7 @@ export const DEFAULT_CONFIG: AppConfig = {
       },
     ],
     refreshIntervalMinutes: 15,
+    showLegend: false,
   },
   news: {
     enabled: true,
@@ -106,6 +107,7 @@ export const DEFAULT_CONFIG: AppConfig = {
   },
   countdown: {
     enabled: true,
+    displayMode: 'days',
     title: 'Summer Vacation & Road Trip',
     targetDate: '2026-11-26T00:00:00',
     icon: 'plane',

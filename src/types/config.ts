@@ -191,6 +191,7 @@ export interface AppConfig {
     showPastEventsToday: boolean;
     feeds: CalendarFeed[];
     refreshIntervalMinutes: number;
+    showLegend?: boolean; // Toggles feed badges/type legend in widget header (default: false / off)
   };
   news: {
     enabled: boolean;
@@ -208,6 +209,7 @@ export interface AppConfig {
     icon?: string;
     annual?: boolean;
     items?: CountdownItem[];
+    displayMode?: 'days' | 'full'; // 'days' = shows only number of days until event (default), 'full' = days, hours, mins, secs
   };
   notes: {
     enabled: boolean;

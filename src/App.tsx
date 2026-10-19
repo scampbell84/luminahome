@@ -221,6 +221,15 @@ export default function App() {
     setTimeout(() => setNotification(null), 3000);
   };
 
+  const handleRefresh = async () => {
+    try {
+      await Promise.all([loadConfig(), loadCalendar()]);
+      showToast('Dashboard refreshed');
+    } catch {
+      showToast('Refresh complete');
+    }
+  };
+
   const navigateTo = (tab: NavigationTab) => {
     setCurrentTab(tab);
     let path = '/display';
@@ -286,6 +295,7 @@ export default function App() {
         onSelectTab={navigateTo}
         format24={config.clock.format24}
         onTriggerScreensaver={() => setIsScreensaverActive(true)}
+        onRefresh={handleRefresh}
       />
 
       {/* Full-screen Apple HomeView Screen Saver Overlay */}

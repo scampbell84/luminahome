@@ -357,28 +357,30 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
           <h2 className="text-base font-semibold tracking-wide">Schedule & Events</h2>
         </div>
 
-        {/* Feeds legend */}
-        <div className="flex items-center gap-2 text-xs">
-          {config.feeds.filter(f => f.enabled).map((feed) => (
-            <div key={feed.id} className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: feed.color }} />
-              <span className="text-white/80 text-[11px] font-medium hidden sm:inline">
-                {feed.name}
-              </span>
-            </div>
-          ))}
-        </div>
+        {/* Feeds legend - off by default, not shown here unless showLegend is true */}
+        {config.showLegend && (
+          <div className="flex items-center gap-2 text-xs">
+            {config.feeds.filter(f => f.enabled).map((feed) => (
+              <div key={feed.id} className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: feed.color }} />
+                <span className="text-white/80 text-[11px] font-medium hidden sm:inline">
+                  {feed.name}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Content according to view */}
       {view === 'agenda' && renderAgendaList()}
       {view === 'month' && renderMonthGrid()}
       {view === 'split' && (
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-start">
-          <div className="md:col-span-5">
+        <div className="flex flex-col md:flex-row gap-3.5 items-start">
+          <div className="w-full md:w-[250px] lg:w-[260px] shrink-0">
             {renderMonthGrid()}
           </div>
-          <div className="md:col-span-7">
+          <div className="flex-1 min-w-0 w-full">
             {renderAgendaList()}
           </div>
         </div>

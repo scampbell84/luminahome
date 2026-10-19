@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto } from '../../types/config';
 import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
+import { APP_VERSION } from '../../constants/version';
 import { SystemSettings } from '../system/SystemSettings';
 import { GridVisualEditor } from './GridVisualEditor';
 import {
@@ -598,7 +599,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <Activity className="w-4 h-4 text-emerald-400" />
             <span>System & Updates</span>
             <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded font-mono">
-              v2.6
+              v{APP_VERSION}
             </span>
           </button>
         </div>
@@ -1292,6 +1293,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     Automatic background iCal sync rate
                   </span>
                 </div>
+
+                {/* Feeds Legend in Header Toggle */}
+                <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800 sm:col-span-3">
+                  <div>
+                    <span className="text-xs font-semibold text-white block">Show Feeds Legend in Header</span>
+                    <span className="text-[11px] text-slate-400">
+                      Display feed category colored badges at the top of the Schedule & Events widget (default: Off).
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={!!config.calendar.showLegend}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        calendar: { ...prev.calendar, showLegend: e.target.checked },
+                      }))
+                    }
+                    className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1824,7 +1846,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
 
               {config.countdown.enabled && (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Countdown Timer Display Mode */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 bg-slate-950 rounded-xl border border-slate-800">
+                    <div>
+                      <span className="text-xs font-semibold text-white block">Countdown Display Format</span>
+                      <span className="text-[11px] text-slate-400">
+                        Choose whether to show just the number of days (default) or the full countdown timer with hours, minutes, and seconds.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 p-1 bg-slate-900 rounded-lg border border-slate-800 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            countdown: { ...prev.countdown, displayMode: 'days' },
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          (config.countdown.displayMode || 'days') === 'days'
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Days Only (Default)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            countdown: { ...prev.countdown, displayMode: 'full' },
+                          }))
+                        }
+                        className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          config.countdown.displayMode === 'full'
+                            ? 'bg-amber-600 text-white shadow-sm'
+                            : 'text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        Full (D : H : M : S)
+                      </button>
+                    </div>
+                  </div>
+
                   {getCountdownItems().length === 0 ? (
                     <div className="p-6 text-center bg-slate-950/60 rounded-xl border border-slate-800/80 space-y-2">
                       <Hourglass className="w-8 h-8 text-slate-600 mx-auto" />

@@ -8,6 +8,7 @@ import { promisify } from 'util';
 import ical from 'node-ical';
 import Parser from 'rss-parser';
 import { DEFAULT_CONFIG, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from './src/constants/defaultConfig.js';
+import { APP_VERSION } from './src/constants/version.js';
 import { AppConfig, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto } from './src/types/config.js';
 
 const app = express();
@@ -456,7 +457,7 @@ app.get('/api/system', async (_req: Request, res: Response) => {
     platform: `${os.type()} ${os.release()} (${os.arch()})`,
     uptimeSeconds: Math.floor(os.uptime()),
     nodeVersion: process.version,
-    appVersion: 'v2.6.0',
+    appVersion: `v${APP_VERSION}`,
     memoryMb: {
       free: Math.round(freeMem / (1024 * 1024)),
       total: Math.round(totalMem / (1024 * 1024)),
@@ -1433,9 +1434,9 @@ app.get('/api/system/update/check', async (_req: Request, res: Response) => {
 
   if (!isGit) {
     updateState.currentCommit = {
-      hash: 'pi-v2.6',
+      hash: `v${APP_VERSION}`,
       date: new Date().toLocaleDateString(),
-      message: 'Lumina Home v2.6.0 (Active Installation)',
+      message: `Lumina Home v${APP_VERSION} (Active Installation)`,
     };
     updateState.hasUpdate = false;
     updateState.message = 'Running in standalone / cloud preview mode. On your Raspberry Pi, install via Git to enable live updates!';

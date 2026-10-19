@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, Settings, Maximize2, Minimize2, Sparkles } from 'lucide-react';
+import { Home, Calendar, Settings, Maximize2, Minimize2, Sparkles, RefreshCw } from 'lucide-react';
 
 export type NavigationTab = 'home' | 'calendar' | 'settings';
 
@@ -8,6 +8,7 @@ interface BottomMenuBarProps {
   onSelectTab: (tab: NavigationTab) => void;
   format24?: boolean;
   onTriggerScreensaver?: () => void;
+  onRefresh?: () => void;
 }
 
 export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
@@ -15,9 +16,11 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
   onSelectTab,
   format24 = false,
   onTriggerScreensaver,
+  onRefresh,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -41,6 +44,17 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
       if (document.exitFullscreen) {
         document.exitFullscreen().catch(() => {});
         setIsFullscreen(false);
+      }
+    }
+  };
+
+  const handleRefreshClick = async () => {
+    if (onRefresh && !isRefreshing) {
+      setIsRefreshing(true);
+      try {
+        await Promise.resolve(onRefresh());
+      } finally {
+        setTimeout(() => setIsRefreshing(false), 700);
       }
     }
   };
@@ -95,7 +109,7 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
         })}
       </div>
 
-      {/* Right Side: Live Clock, Screensaver & Fullscreen Toggle */}
+      {/* Right Side: Live Clock, Refresh, Screensaver & Fullscreen Toggle */}
       <div className="flex items-center gap-2.5 shrink-0 ml-4 border-l border-white/15 pl-4">
         {onTriggerScreensaver && (
           <button
@@ -112,6 +126,18 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
           <span className="text-sm md:text-base font-bold font-mono text-white/90 tracking-tight text-kiosk-shadow hidden md:inline">
             {timeStr}
           </span>
+        )}
+
+        {onRefresh && (
+          <button
+            onClick={handleRefreshClick}
+            disabled={isRefreshing}
+            className="p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all active:scale-95 disabled:opacity-50"
+            title="Refresh Dashboard & Feeds"
+            aria-label="Refresh Dashboard & Feeds"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-sky-400' : ''}`} />
+          </button>
         )}
 
         <button
