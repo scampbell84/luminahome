@@ -274,16 +274,6 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
           <span className="text-sm font-semibold text-white tracking-wide">
             {monthData.monthName}
           </span>
-          <div className="flex items-center gap-1.5">
-            {config.feeds.filter(f => f.enabled).map(feed => (
-              <span 
-                key={feed.id} 
-                className="w-2 h-2 rounded-full" 
-                style={{ backgroundColor: feed.color }}
-                title={feed.name}
-              />
-            ))}
-          </div>
         </div>
 
         {/* Day of Week Header */}
@@ -304,42 +294,19 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
           {dayNumbers.map((day) => {
             const isToday = day === monthData.currentDay;
             const isPassed = day < monthData.currentDay;
-            const dayEvents = monthData.eventsByDay[day] || [];
-            const hasEvents = dayEvents.length > 0;
 
             return (
               <div
                 key={day}
-                className={`h-8 lg:h-9 w-full rounded-lg flex flex-col items-center justify-center relative text-xs lg:text-sm transition-all ${
+                className={`h-8 lg:h-9 w-full rounded-lg flex items-center justify-center text-xs lg:text-sm transition-all ${
                   isToday
                     ? 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 font-black text-white shadow-lg shadow-sky-500/40 ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 scale-105 z-10'
                     : isPassed
-                    ? 'text-white/35 opacity-50'
-                    : hasEvents
-                    ? 'bg-white/10 text-white font-medium hover:bg-white/20'
-                    : 'text-white/70'
+                    ? 'text-white/35 opacity-40'
+                    : 'text-white/80 hover:text-white'
                 }`}
               >
-                <div className="flex items-center justify-center relative w-full">
-                  <span className="leading-none">{day}</span>
-                  {isToday && (
-                    <span
-                      className="absolute -top-1 -right-0.5 w-2 h-2 rounded-full bg-amber-300 ring-2 ring-blue-700 shadow-sm"
-                      title="Today"
-                    />
-                  )}
-                </div>
-                {hasEvents && (
-                  <div className={`flex items-center gap-0.5 mt-0.5 ${isPassed && !isToday ? 'opacity-40' : ''}`}>
-                    {dayEvents.slice(0, 3).map((ev, idx) => (
-                      <span
-                        key={idx}
-                        className={`w-1 h-1 rounded-full ${isToday ? 'bg-white ring-[0.5px] ring-white/60' : ''}`}
-                        style={{ backgroundColor: isToday ? '#ffffff' : (ev.color || '#38bdf8') }}
-                      />
-                    ))}
-                  </div>
-                )}
+                <span className="leading-none">{day}</span>
               </div>
             );
           })}
