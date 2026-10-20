@@ -95,6 +95,7 @@ export const DEFAULT_CONFIG: AppConfig = {
     ],
     refreshIntervalMinutes: 15,
     showLegend: false,
+    allowTouchCreation: true,
   },
   news: {
     enabled: true,
@@ -153,6 +154,18 @@ export const DEFAULT_CONFIG: AppConfig = {
       { id: '3', text: 'Trash day tomorrow morning', completed: true },
     ],
     quoteCategory: 'inspirational',
+  },
+  briefing: {
+    enabled: true,
+    morningStartHour: 5,
+    eveningStartHour: 17,
+    showInHeader: false, // Displays as a popup/overlay on the home screen
+    enableVoicePlayback: true,
+    useAiSynthesis: true,
+    autoPopup: true,
+    morningTime: '07:00', // 7:00 AM default
+    afternoonTime: '12:00', // 12:00 PM default
+    eveningTime: '16:30', // 4:30 PM default
   },
   system: {
     enabled: true,

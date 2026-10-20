@@ -6,7 +6,6 @@ import {
   ChevronRight, 
   Clock, 
   MapPin, 
-  Users, 
   X,
   CalendarRange,
   LayoutGrid,
@@ -15,7 +14,11 @@ import {
   ChevronUp,
   Sparkles,
   Layers,
+  Plus,
+  CheckSquare,
+  Edit3,
 } from 'lucide-react';
+import { CreateEventModal } from '../modals/CreateEventModal';
 
 interface BigCalendarViewProps {
   events: CalendarEvent[];
@@ -127,9 +130,13 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
   onRefresh,
 }) => {
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
-  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'year' | 'columns'>('month');
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month' | 'year'>('month');
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selectedDayEvents, setSelectedDayEvents] = useState<{ dayDate: Date; events: CalendarEvent[] } | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [createModalDate, setCreateModalDate] = useState<string>('');
+  const [createModalInitialMode, setCreateModalInitialMode] = useState<'event' | 'reminder'>('event');
+  const [editingCalendarEvent, setEditingCalendarEvent] = useState<CalendarEvent | null>(null);
   const [activeFeedIds, setActiveFeedIds] = useState<Set<string>>(
     new Set(feeds.map((f) => f.id))
   );
@@ -140,6 +147,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
   useEffect(() => {
     setActiveFeedIds(new Set(feeds.map((f) => f.id)));
   }, [feeds]);
+
 
   // Today reference with 1-second midnight listener for instant refresh when the day changes
   const [nowDate, setNowDate] = useState<Date>(() => new Date());
@@ -196,6 +204,21 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
     return events.filter((ev) => activeFeedIds.has(ev.calendarId));
   }, [events, activeFeedIds]);
 
+  // Keep selectedDayEvents in sync when activeEvents change (after create/edit/delete)
+  useEffect(() => {
+    if (selectedDayEvents) {
+      const dayMidnight = new Date(selectedDayEvents.dayDate.getFullYear(), selectedDayEvents.dayDate.getMonth(), selectedDayEvents.dayDate.getDate(), 0, 0, 0);
+      const dayEvents = activeEvents.filter((ev) => {
+        const { startDate, endDate } = normalizeEventDates(ev);
+        return dayMidnight.getTime() >= startDate.getTime() && dayMidnight.getTime() <= endDate.getTime();
+      });
+      setSelectedDayEvents({
+        dayDate: selectedDayEvents.dayDate,
+        events: dayEvents,
+      });
+    }
+  }, [activeEvents]);
+
   // Theme styling based on config.theme
   const themeClasses = useMemo(() => {
     const t = config?.theme || 'default';
@@ -206,7 +229,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-900/35 backdrop-blur-3xl border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)]',
           header: 'bg-black/40 border-white/10 text-slate-300',
           activeButton: 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30',
-          todayBadge: 'bg-gradient-to-br from-cyan-400 via-indigo-500 to-purple-600 text-white font-black shadow-lg shadow-cyan-400/50 ring-2 ring-cyan-200 ring-offset-2 ring-offset-slate-950 scale-105',
+          todayBadge: 'bg-indigo-600 text-white font-bold',
         };
       case 'minimal':
         return {
@@ -214,7 +237,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-950/80 border-slate-800/40 backdrop-blur-none',
           header: 'bg-slate-950 border-slate-800/40 text-slate-400',
           activeButton: 'bg-slate-700 text-white shadow-sm',
-          todayBadge: 'bg-sky-500 text-white font-black shadow-md ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 scale-105',
+          todayBadge: 'bg-sky-500 text-white font-bold',
         };
       case 'vibrant':
         return {
@@ -222,7 +245,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-900/90 border-sky-500/30 shadow-[0_0_30px_rgba(14,165,233,0.12)]',
           header: 'bg-indigo-950/80 border-slate-800 text-sky-300',
           activeButton: 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-lg shadow-sky-500/30',
-          todayBadge: 'bg-gradient-to-tr from-pink-500 via-rose-500 to-amber-400 text-white font-black shadow-lg shadow-pink-500/50 ring-2 ring-amber-200 ring-offset-2 ring-offset-slate-950 scale-105',
+          todayBadge: 'bg-rose-500 text-white font-bold',
         };
       case 'monochrome':
         return {
@@ -230,7 +253,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-black border-neutral-800 text-neutral-200',
           header: 'bg-neutral-950 border-neutral-800 text-neutral-400',
           activeButton: 'bg-white text-black font-bold shadow-md',
-          todayBadge: 'bg-white text-black font-black shadow-xl ring-2 ring-white/90 ring-offset-2 ring-offset-neutral-950 scale-105',
+          todayBadge: 'bg-white text-black font-bold',
         };
       case 'warm':
         return {
@@ -238,7 +261,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-[#120f0d]/90 border-amber-900/30 text-amber-100',
           header: 'bg-[#1a1411]/90 border-amber-900/30 text-amber-300',
           activeButton: 'bg-amber-600 text-white shadow-md shadow-amber-600/20',
-          todayBadge: 'bg-gradient-to-br from-amber-400 via-orange-500 to-amber-600 text-slate-950 font-black shadow-lg shadow-amber-500/50 ring-2 ring-amber-200 ring-offset-2 ring-offset-[#120f0d] scale-105',
+          todayBadge: 'bg-amber-500 text-slate-950 font-bold',
         };
       case 'nordic':
         return {
@@ -246,7 +269,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-[#060b14]/90 border-cyan-900/40 text-cyan-100',
           header: 'bg-[#0a1220]/90 border-cyan-900/40 text-cyan-300',
           activeButton: 'bg-cyan-600 text-white shadow-md shadow-cyan-600/30',
-          todayBadge: 'bg-gradient-to-br from-cyan-300 via-sky-400 to-blue-600 text-slate-950 font-black shadow-lg shadow-cyan-400/50 ring-2 ring-cyan-200 ring-offset-2 ring-offset-[#060b14] scale-105',
+          todayBadge: 'bg-cyan-500 text-slate-950 font-bold',
         };
       case 'forest':
         return {
@@ -254,7 +277,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-[#040f0a]/90 border-emerald-900/40 text-emerald-100',
           header: 'bg-[#081a12]/90 border-emerald-900/40 text-emerald-300',
           activeButton: 'bg-emerald-600 text-white shadow-md shadow-emerald-600/30',
-          todayBadge: 'bg-gradient-to-br from-emerald-300 via-emerald-400 to-teal-600 text-slate-950 font-black shadow-lg shadow-emerald-400/50 ring-2 ring-emerald-200 ring-offset-2 ring-offset-[#040f0a] scale-105',
+          todayBadge: 'bg-emerald-500 text-slate-950 font-bold',
         };
       case 'default':
       default:
@@ -263,7 +286,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           main: 'bg-slate-900/80 backdrop-blur-xl border-slate-800 shadow-2xl',
           header: 'bg-slate-950/80 border-slate-800 text-slate-400',
           activeButton: 'bg-sky-600 text-white shadow-md shadow-sky-600/20',
-          todayBadge: 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 text-white font-black shadow-lg shadow-sky-500/50 ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 scale-105',
+          todayBadge: 'bg-sky-500 text-white font-bold',
         };
     }
   }, [config?.theme]);
@@ -702,7 +725,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
     const next = new Date(currentDate);
     if (viewMode === 'day') {
       next.setDate(next.getDate() + 1);
-    } else if (viewMode === 'week' || viewMode === 'columns') {
+    } else if (viewMode === 'week') {
       next.setDate(next.getDate() + 7);
     } else if (viewMode === 'month') {
       next.setMonth(next.getMonth() + 1);
@@ -716,7 +739,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
     const prev = new Date(currentDate);
     if (viewMode === 'day') {
       prev.setDate(prev.getDate() - 1);
-    } else if (viewMode === 'week' || viewMode === 'columns') {
+    } else if (viewMode === 'week') {
       prev.setDate(prev.getDate() - 7);
     } else if (viewMode === 'month') {
       prev.setMonth(prev.getMonth() - 1);
@@ -762,7 +785,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
   };
 
   return (
-    <div className="flex h-screen w-full bg-slate-950 p-3 md:p-4 gap-3 md:gap-4 overflow-hidden select-none font-sans text-slate-100">
+    <div className="flex h-full w-full bg-slate-950 p-3 md:p-4 pb-20 md:pb-24 gap-3 md:gap-4 overflow-hidden select-none font-sans text-slate-100">
       {/* ============================================================ */}
       {/* LEFT-HAND SIDEBAR CONTROLS                                    */}
       {/* ============================================================ */}
@@ -783,7 +806,6 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                   {viewMode === 'day' && currentDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   {viewMode === 'week' && 'Week Schedule'}
                   {viewMode === 'year' && `${yearData.year} Year`}
-                  {viewMode === 'columns' && 'Columns'}
                 </h1>
               </div>
             </div>
@@ -828,6 +850,21 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
+
+            {/* Quick Add Event / Reminder Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setCreateModalDate(currentDate.toISOString().slice(0, 10));
+                setCreateModalInitialMode('event');
+                setEditingCalendarEvent(null);
+                setShowCreateModal(true);
+              }}
+              className="w-full mt-2.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-sky-500/25 transition-all cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Event or Reminder</span>
+            </button>
           </div>
 
           {/* View Mode Switcher: Day, Week, Month, Year, Columns */}
@@ -891,20 +928,27 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                 <LayoutGrid className="w-4 h-4 shrink-0" />
                 <span>Year View</span>
               </button>
+            </div>
+          </div>
 
-              {/* Family Columns */}
-              <button
-                type="button"
-                onClick={() => setViewMode('columns')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all cursor-pointer ${
-                  viewMode === 'columns'
-                    ? themeClasses.activeButton
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`}
-              >
-                <Users className="w-4 h-4 shrink-0" />
-                <span>Family Columns</span>
-              </button>
+          {/* Events Today & Stats Card - Moved Up */}
+          <div className="pt-2 border-t border-slate-800">
+            <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 shadow-sm">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-300 font-medium flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
+                  Events Today
+                </span>
+                <span className="font-bold text-sky-400 font-mono text-sm">
+                  {todayEventsCount}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs mt-1.5 pt-1.5 border-t border-slate-800/60">
+                <span className="text-slate-400 font-medium">Total Synced</span>
+                <span className="font-bold text-slate-200 font-mono">
+                  {events.length}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -985,24 +1029,6 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
             )}
           </div>
         </div>
-
-        {/* Sidebar Footer Stats */}
-        <div className="pt-3 border-t border-slate-800 space-y-2 mt-4">
-          <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-slate-400 font-medium">Events Today</span>
-              <span className="font-bold text-sky-400 font-mono text-sm">
-                {todayEventsCount}
-              </span>
-            </div>
-            <div className="flex items-center justify-between text-xs mt-1.5">
-              <span className="text-slate-400 font-medium">Total Synced</span>
-              <span className="font-bold text-slate-200 font-mono">
-                {events.length}
-              </span>
-            </div>
-          </div>
-        </div>
       </aside>
 
       {/* ============================================================ */}
@@ -1037,7 +1063,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                         key={dIdx}
                         className={`h-full transition-opacity ${
                           day.isToday 
-                            ? 'bg-sky-500/15 ring-2 ring-inset ring-sky-400/50 shadow-[inset_0_0_24px_rgba(56,189,248,0.18)]' 
+                            ? 'bg-sky-500/10' 
                             : day.isPassed
                             ? 'opacity-40 bg-slate-950/40'
                             : !day.isCurrentMonth 
@@ -1058,10 +1084,8 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                         return (
                           <div
                             key={dIdx}
-                            className={`flex items-center justify-between px-1.5 py-0.5 cursor-pointer rounded-lg transition-all ${
-                              day.isToday
-                                ? 'bg-sky-400/15 ring-1 ring-sky-400/40'
-                                : day.isPassed && !day.isToday
+                            className={`flex items-center justify-between px-1.5 py-0.5 cursor-pointer transition-all ${
+                              day.isPassed && !day.isToday
                                 ? 'opacity-50 hover:opacity-100 transition-opacity'
                                 : ''
                             }`}
@@ -1069,7 +1093,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                           >
                             <div className="flex items-center gap-1 min-w-0">
                               <span
-                                className={`text-xs sm:text-sm font-black flex items-center justify-center rounded-full transition-transform hover:scale-110 ${
+                                className={`text-xs sm:text-sm font-bold flex items-center justify-center rounded-full transition-transform ${
                                   day.isToday
                                     ? `${themeClasses.todayBadge} w-6 h-6 lg:w-7 lg:h-7`
                                     : day.isPassed
@@ -1081,13 +1105,6 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                               >
                                 {day.dayNumber}
                               </span>
-
-                              {day.isToday && (
-                                <span className="text-[8px] font-black uppercase tracking-wider bg-sky-400/25 text-sky-200 border border-sky-300/40 px-1 py-0.2 rounded-full hidden sm:inline-flex items-center gap-0.5 shadow-sm">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
-                                  <span>Today</span>
-                                </span>
-                              )}
                             </div>
 
                             {hasEvents && (
@@ -1201,7 +1218,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                   key={idx}
                   className={`px-1 sm:px-2 flex flex-col items-center justify-center transition-all ${
                     day.isToday
-                      ? 'bg-sky-500/15 ring-2 ring-inset ring-sky-400/50'
+                      ? 'bg-sky-500/10'
                       : day.isPassed && !day.isToday
                       ? 'opacity-50'
                       : ''
@@ -1214,22 +1231,16 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                   >
                     {day.dayName}
                   </span>
-                  <div className="flex items-center gap-1 mt-0.5">
+                  <div className="flex items-center justify-center gap-1 mt-0.5">
                     <span
                       className={`inline-flex items-center justify-center rounded-full transition-all ${
                         day.isToday
-                          ? `${themeClasses.todayBadge} w-7 h-7 sm:w-8 sm:h-8 text-sm sm:text-base font-black shadow-lg scale-105`
+                          ? `${themeClasses.todayBadge} w-7 h-7 sm:w-8 sm:h-8 text-sm sm:text-base font-bold`
                           : 'text-lg md:text-xl font-black text-white w-7 h-7'
                       }`}
                     >
                       {day.dayNum}
                     </span>
-                    {day.isToday && (
-                      <span className="text-[8px] font-black uppercase tracking-wider bg-sky-400/25 text-sky-200 border border-sky-300/40 px-1 py-0.2 rounded-full hidden lg:inline-flex items-center gap-0.5 shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-300 animate-pulse" />
-                        <span>Today</span>
-                      </span>
-                    )}
                   </div>
                 </div>
               ))}
@@ -1292,7 +1303,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                     key={idx}
                     className={`flex flex-col h-full min-h-0 p-2.5 overflow-hidden transition-all ${
                       day.isToday
-                        ? 'bg-sky-500/10 ring-2 ring-inset ring-sky-400/40 shadow-[inset_0_0_24px_rgba(56,189,248,0.12)]'
+                        ? 'bg-sky-500/10'
                         : isDimmed
                         ? 'bg-slate-950/60 opacity-55 hover:opacity-100'
                         : 'bg-slate-900/40'
@@ -1347,14 +1358,14 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
             {/* Day Header Banner */}
             <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
               <div className="flex items-center gap-3">
-                <div className={`px-3.5 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md ${
+                <div className={`px-3.5 py-1.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 ${
                   dayInfo.isToday
-                    ? 'bg-gradient-to-r from-sky-400 via-sky-500 to-blue-600 text-white ring-2 ring-sky-300/70 shadow-lg shadow-sky-500/40'
+                    ? 'bg-sky-500 text-white'
                     : dayInfo.isPassed
                     ? 'bg-slate-800 text-slate-400'
                     : 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/30'
                 }`}>
-                  {dayInfo.isToday && <span className="w-2 h-2 rounded-full bg-amber-300 ring-1 ring-white animate-pulse" />}
+                  {dayInfo.isToday && <span className="w-2 h-2 rounded-full bg-amber-300 animate-pulse" />}
                   <span>{dayInfo.isToday ? 'Today' : dayInfo.isPassed ? 'Past Day' : 'Upcoming'}</span>
                 </div>
                 <h2 className="text-xl md:text-2xl font-black text-white">
@@ -1525,9 +1536,9 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                               setViewMode('day');
                             }
                           }}
-                          className={`h-6 rounded-md flex flex-col items-center justify-center relative cursor-pointer transition-all hover:scale-110 ${
+                          className={`h-6 rounded-md flex flex-col items-center justify-center relative cursor-pointer transition-all ${
                             cell.isToday
-                              ? 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 text-white font-black shadow-md shadow-sky-500/50 ring-2 ring-sky-300 scale-110 z-10'
+                              ? 'bg-sky-500 text-white font-bold z-10'
                               : cell.isPassed
                               ? 'text-slate-600 font-normal hover:text-slate-300'
                               : 'text-slate-300 hover:bg-slate-800 font-medium'
@@ -1549,73 +1560,6 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* ============================================================ */}
-        {/* VIEW 5: FAMILY COLUMNS                                       */}
-        {/* ============================================================ */}
-        {viewMode === 'columns' && (
-          <div className="flex-1 h-full min-h-0 grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-slate-800">
-            {feeds.map((feed) => {
-              const feedEvents = activeEvents.filter((ev) => ev.calendarId === feed.id);
-              return (
-                <div key={feed.id} className="flex flex-col h-full min-h-0 p-4 overflow-hidden">
-                  {/* Column Header */}
-                  <div className="flex items-center gap-2.5 pb-3 mb-3 border-b border-slate-800 shrink-0">
-                    <span
-                      className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs shadow-md shrink-0"
-                      style={{ backgroundColor: feed.color }}
-                    >
-                      {feed.name.slice(0, 1)}
-                    </span>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-bold text-white truncate">{feed.name}</h3>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {feedEvents.length} events
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Events List */}
-                  <div className="flex-1 overflow-y-auto space-y-2 agenda-scroll pr-1">
-                    {feedEvents.length === 0 ? (
-                      <div className="text-xs text-slate-600 text-center pt-8">
-                        No events for this calendar
-                      </div>
-                    ) : (
-                      feedEvents.map((ev) => {
-                        const { isAllDayOrMultiDay, endDate } = normalizeEventDates(ev);
-                        const isPassed = endDate.getTime() < startOfToday.getTime();
-                        return (
-                          <div
-                            key={ev.id}
-                            onClick={() => setSelectedEvent(ev)}
-                            className={`p-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800/60 transition-all cursor-pointer shadow-sm hover:border-slate-700 ${
-                              isPassed ? 'opacity-45 hover:opacity-100 transition-opacity' : ''
-                            }`}
-                            style={{ borderLeft: `3px solid ${feed.color}` }}
-                          >
-                            <span className="text-[10px] font-mono text-sky-300 font-semibold block">
-                              {formatTime(ev.start, isAllDayOrMultiDay)}
-                            </span>
-                            <h4 className="text-xs font-bold text-white mt-0.5 break-words whitespace-normal leading-tight">
-                              {ev.title}
-                            </h4>
-                            {ev.location && (
-                              <div className="flex items-center gap-1 text-[10px] text-slate-400 mt-1 truncate">
-                                <MapPin className="w-3 h-3 text-amber-400 shrink-0" />
-                                <span className="truncate">{ev.location}</span>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
       </main>
@@ -1641,44 +1585,146 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                   {selectedDayEvents.dayDate.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}
                 </h3>
               </div>
-              <button
-                type="button"
-                onClick={() => setSelectedDayEvents(null)}
-                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const dateStr = selectedDayEvents.dayDate.toISOString().slice(0, 10);
+                    setCreateModalDate(dateStr);
+                    setCreateModalInitialMode('event');
+                    setEditingCalendarEvent(null);
+                    setShowCreateModal(true);
+                  }}
+                  className="h-8 px-3 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 flex items-center gap-1.5 text-xs font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
+                  title="Add Event or Reminder on this date"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDayEvents(null)}
+                  className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-1 agenda-scroll">
               {selectedDayEvents.events.length === 0 ? (
-                <div className="text-xs text-slate-500 text-center py-8">
-                  No events on this date
+                <div className="text-center py-8 space-y-4">
+                  <p className="text-xs text-slate-400">No events on this date</p>
+                  <div className="flex items-center justify-center gap-2.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dateStr = selectedDayEvents.dayDate.toISOString().slice(0, 10);
+                        setCreateModalDate(dateStr);
+                        setCreateModalInitialMode('event');
+                        setEditingCalendarEvent(null);
+                        setShowCreateModal(true);
+                      }}
+                      className="h-10 px-4 rounded-xl bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 text-xs font-bold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shadow-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Add Event</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dateStr = selectedDayEvents.dayDate.toISOString().slice(0, 10);
+                        setCreateModalDate(dateStr);
+                        setCreateModalInitialMode('reminder');
+                        setEditingCalendarEvent(null);
+                        setShowCreateModal(true);
+                      }}
+                      className="h-10 px-4 rounded-xl bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-400/30 text-xs font-bold flex items-center gap-2 active:scale-95 transition-all cursor-pointer shadow-sm"
+                    >
+                      <CheckSquare className="w-4 h-4" />
+                      <span>Add Reminder</span>
+                    </button>
+                  </div>
                 </div>
               ) : (
-                selectedDayEvents.events.map((ev) => (
-                  <div
-                    key={ev.id}
-                    onClick={() => {
-                      setSelectedDayEvents(null);
-                      setSelectedEvent(ev);
-                    }}
-                    className="p-3 rounded-xl border border-slate-800 bg-slate-950/80 hover:bg-slate-800/80 cursor-pointer transition-all flex items-center justify-between"
-                    style={{ borderLeft: `4px solid ${ev.color}` }}
-                  >
-                    <div className="min-w-0 flex-1">
-                      <span className="text-xs font-mono text-sky-300 font-semibold block">
-                        {formatTime(ev.start, ev.allDay)}
-                      </span>
-                      <h4 className="text-sm font-bold text-white break-words whitespace-normal mt-0.5 leading-snug">
-                        {ev.title}
-                      </h4>
-                      {ev.location && (
-                        <span className="text-xs text-slate-400 block truncate mt-0.5">{ev.location}</span>
+                <>
+                  {selectedDayEvents.events.map((ev) => (
+                    <div
+                      key={ev.id}
+                      onClick={() => {
+                        if (ev.isLocal) {
+                          setCreateModalDate(new Date(ev.start).toISOString().slice(0, 10));
+                          setEditingCalendarEvent(ev);
+                          setShowCreateModal(true);
+                        } else {
+                          setSelectedDayEvents(null);
+                          setSelectedEvent(ev);
+                        }
+                      }}
+                      className="p-3 rounded-xl border border-slate-800 bg-slate-950/80 hover:bg-slate-800/80 cursor-pointer transition-all flex items-center justify-between group"
+                      style={{ borderLeft: `4px solid ${ev.color}` }}
+                      title={ev.isLocal ? 'Tap to edit or delete local event' : undefined}
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-mono text-sky-300 font-semibold block">
+                            {formatTime(ev.start, ev.allDay)}
+                          </span>
+                          {ev.isLocal && (
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                              Kiosk
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="text-sm font-bold text-white break-words whitespace-normal mt-0.5 leading-snug">
+                          {ev.title}
+                        </h4>
+                        {ev.location && (
+                          <span className="text-xs text-slate-400 block truncate mt-0.5">{ev.location}</span>
+                        )}
+                      </div>
+                      {ev.isLocal && (
+                        <div className="flex items-center gap-1 text-xs text-sky-400 opacity-70 group-hover:opacity-100 transition-opacity ml-2">
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </div>
                       )}
                     </div>
+                  ))}
+
+                  {/* Quick Add Buttons at bottom of day list */}
+                  <div className="pt-2 flex items-center gap-2 border-t border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dateStr = selectedDayEvents.dayDate.toISOString().slice(0, 10);
+                        setCreateModalDate(dateStr);
+                        setCreateModalInitialMode('event');
+                        setEditingCalendarEvent(null);
+                        setShowCreateModal(true);
+                      }}
+                      className="flex-1 h-9 px-3 rounded-lg bg-sky-500/15 hover:bg-sky-500/25 text-sky-300 border border-sky-400/25 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Event</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const dateStr = selectedDayEvents.dayDate.toISOString().slice(0, 10);
+                        setCreateModalDate(dateStr);
+                        setCreateModalInitialMode('reminder');
+                        setEditingCalendarEvent(null);
+                        setShowCreateModal(true);
+                      }}
+                      className="flex-1 h-9 px-3 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-400/25 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <CheckSquare className="w-3.5 h-3.5" />
+                      <span>+ Reminder</span>
+                    </button>
                   </div>
-                ))
+                </>
               )}
             </div>
           </div>
@@ -1793,6 +1839,25 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Interactive Create / Edit Event & Reminder Modal */}
+      <CreateEventModal
+        isOpen={showCreateModal}
+        initialDate={createModalDate}
+        initialMode={createModalInitialMode}
+        editingEvent={editingCalendarEvent}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingCalendarEvent(null);
+        }}
+        onSaved={() => {
+          setShowCreateModal(false);
+          setEditingCalendarEvent(null);
+          if (onRefresh) {
+            onRefresh();
+          }
+        }}
+      />
     </div>
   );
 };

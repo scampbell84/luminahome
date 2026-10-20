@@ -17,6 +17,7 @@ export interface CalendarEvent {
   calendarId: string;
   calendarName: string;
   color: string;
+  isLocal?: boolean;
 }
 
 export interface WeatherAlert {
@@ -192,6 +193,7 @@ export interface AppConfig {
     feeds: CalendarFeed[];
     refreshIntervalMinutes: number;
     showLegend?: boolean; // Toggles feed badges/type legend in widget header (default: false / off)
+    allowTouchCreation?: boolean; // Allows adding events directly via touch screen (default: true)
   };
   news: {
     enabled: boolean;
@@ -217,6 +219,18 @@ export interface AppConfig {
     customNote: string;
     checklist: ChecklistItem[];
     quoteCategory: 'inspirational' | 'stoic' | 'wisdom' | 'tech';
+  };
+  briefing: {
+    enabled: boolean;
+    morningStartHour?: number; // e.g. 5 (5:00 AM)
+    eveningStartHour?: number; // e.g. 17 (5:00 PM)
+    showInHeader: boolean;
+    enableVoicePlayback: boolean;
+    useAiSynthesis: boolean;
+    autoPopup?: boolean; // Auto-display briefing overlay at scheduled times (default: true)
+    morningTime?: string; // e.g. "07:00" (default: 7:00 AM)
+    afternoonTime?: string; // e.g. "12:00" (default: 12:00 PM)
+    eveningTime?: string; // e.g. "16:30" (default: 4:30 PM)
   };
   system: {
     enabled: boolean;

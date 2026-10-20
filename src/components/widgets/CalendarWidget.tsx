@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { CalendarEvent, AppConfig } from '../../types/config';
-import { Calendar as CalendarIcon, Clock, MapPin, ChevronRight } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, MapPin, ChevronRight, Plus, Edit3 } from 'lucide-react';
+import { CreateEventModal } from '../modals/CreateEventModal';
 
 interface CalendarWidgetProps {
   config: AppConfig['calendar'];
@@ -11,6 +12,9 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ config }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [view, setView] = useState<'split' | 'agenda' | 'month'>(config.view || 'split');
   const [todayDate, setTodayDate] = useState<Date>(() => new Date());
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
+  const [selectedDateForModal, setSelectedDateForModal] = useState<string | undefined>(undefined);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
   useEffect(() => {
     setView(config.view || 'split');
@@ -166,6 +170,8 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
       firstDayIndex,
       daysInMonth,
       currentDay: now.getDate(),
+      currentMonth: month,
+      currentYear: year,
       eventsByDay,
     };
   }, [events, todayDate, config.startOfWeek]);
@@ -215,7 +221,16 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
             </div>
             <div className="space-y-1.5">
               {groupedEvents.today.map((ev) => (
-                <AgendaItem key={ev.id} event={ev} formatTime={formatEventTime} />
+                <AgendaItem 
+                  key={ev.id} 
+                  event={ev} 
+                  formatTime={formatEventTime} 
+                  onEdit={ev.isLocal ? (target) => {
+                    setEditingEvent(target);
+                    setSelectedDateForModal(new Date(target.start).toISOString().slice(0, 10));
+                    setShowCreateModal(true);
+                  } : undefined}
+                />
               ))}
             </div>
           </div>
@@ -232,7 +247,16 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
             </div>
             <div className="space-y-1.5">
               {groupedEvents.tomorrow.map((ev) => (
-                <AgendaItem key={ev.id} event={ev} formatTime={formatEventTime} />
+                <AgendaItem 
+                  key={ev.id} 
+                  event={ev} 
+                  formatTime={formatEventTime} 
+                  onEdit={ev.isLocal ? (target) => {
+                    setEditingEvent(target);
+                    setSelectedDateForModal(new Date(target.start).toISOString().slice(0, 10));
+                    setShowCreateModal(true);
+                  } : undefined}
+                />
               ))}
             </div>
           </div>
@@ -251,6 +275,11 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
                   event={ev} 
                   formatTime={formatEventTime} 
                   dateHeader={formatUpcomingDateHeader(ev.start)}
+                  onEdit={ev.isLocal ? (target) => {
+                    setEditingEvent(target);
+                    setSelectedDateForModal(new Date(target.start).toISOString().slice(0, 10));
+                    setShowCreateModal(true);
+                  } : undefined}
                 />
               ))}
             </div>
@@ -295,19 +324,33 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
             const isToday = day === monthData.currentDay;
             const isPassed = day < monthData.currentDay;
 
+            const handleDayClick = () => {
+              if (config.allowTouchCreation !== false) {
+                const padMonth = String(monthData.currentMonth + 1).padStart(2, '0');
+                const padDay = String(day).padStart(2, '0');
+                const targetDate = `${monthData.currentYear}-${padMonth}-${padDay}`;
+                setSelectedDateForModal(targetDate);
+                setEditingEvent(null);
+                setShowCreateModal(true);
+              }
+            };
+
             return (
-              <div
+              <button
+                type="button"
                 key={day}
-                className={`h-8 lg:h-9 w-full rounded-lg flex items-center justify-center text-xs lg:text-sm transition-all ${
+                onClick={handleDayClick}
+                className={`h-8 lg:h-9 w-full rounded-lg flex items-center justify-center text-xs lg:text-sm transition-all active:scale-90 ${
                   isToday
-                    ? 'bg-gradient-to-br from-sky-400 via-sky-500 to-blue-600 font-black text-white shadow-lg shadow-sky-500/40 ring-2 ring-sky-300 ring-offset-2 ring-offset-slate-950 scale-105 z-10'
+                    ? 'bg-sky-500 font-bold text-white z-10'
                     : isPassed
-                    ? 'text-white/35 opacity-40'
-                    : 'text-white/80 hover:text-white'
+                    ? 'text-white/35 opacity-40 hover:opacity-80'
+                    : 'text-white/80 hover:text-white hover:bg-white/10'
                 }`}
+                title="Tap to view or add event on this day"
               >
                 <span className="leading-none">{day}</span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -317,11 +360,26 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
 
   return (
     <div className="flex flex-col text-white select-none text-kiosk-shadow">
-      {/* Widget Header with Feeds badges */}
+      {/* Widget Header with Touch Add Event button */}
       <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-white/10">
         <div className="flex items-center gap-2">
           <CalendarIcon className="w-5 h-5 text-sky-400" />
           <h2 className="text-base font-semibold tracking-wide">Schedule & Events</h2>
+          {config.allowTouchCreation !== false && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditingEvent(null);
+                setSelectedDateForModal(new Date().toISOString().slice(0, 10));
+                setShowCreateModal(true);
+              }}
+              className="ml-2 h-7 px-2.5 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-400/30 flex items-center gap-1 text-xs font-semibold active:scale-95 transition-all shadow-sm"
+              title="Add Event Directly on Touch Screen"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Event</span>
+            </button>
+          )}
         </div>
 
         {/* Feeds legend - off by default, not shown here unless showLegend is true */}
@@ -352,6 +410,18 @@ function parseLocalDate(dateStr: string, isEnd = false): Date {
           </div>
         </div>
       )}
+
+      {/* Interactive Create / Edit Event Modal */}
+      <CreateEventModal
+        isOpen={showCreateModal}
+        onClose={() => {
+          setShowCreateModal(false);
+          setEditingEvent(null);
+        }}
+        onSaved={fetchCalendar}
+        initialDate={selectedDateForModal}
+        editingEvent={editingEvent}
+      />
     </div>
   );
 };
@@ -361,23 +431,42 @@ interface AgendaItemProps {
   event: CalendarEvent;
   formatTime: (e: CalendarEvent) => string;
   dateHeader?: string;
+  onEdit?: (event: CalendarEvent) => void;
 }
 
-const AgendaItem: React.FC<AgendaItemProps> = ({ event, formatTime, dateHeader }) => {
+const AgendaItem: React.FC<AgendaItemProps> = ({ event, formatTime, dateHeader, onEdit }) => {
+  const isEditable = event.isLocal && Boolean(onEdit);
+
   return (
     <div 
-      className="bg-black/35 backdrop-blur-md rounded-lg p-2.5 border border-white/10 flex items-start gap-2.5 transition-all hover:bg-black/45"
+      onClick={isEditable ? () => onEdit?.(event) : undefined}
+      className={`bg-black/35 backdrop-blur-md rounded-lg p-2.5 border border-white/10 flex items-start gap-2.5 transition-all ${
+        isEditable ? 'cursor-pointer hover:bg-black/55 hover:border-sky-400/30 group active:scale-[0.99]' : 'hover:bg-black/45'
+      }`}
       style={{ borderLeftColor: event.color, borderLeftWidth: '4px' }}
+      title={isEditable ? 'Tap to edit or delete local event' : undefined}
     >
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
-          <h4 className="text-xs md:text-sm font-semibold text-white break-words leading-snug">
-            {event.title}
-          </h4>
-          <span className="text-xs font-mono font-medium text-sky-200 shrink-0 flex items-center gap-1 mt-0.5">
-            <Clock className="w-3 h-3 opacity-70" />
-            {dateHeader ? `${dateHeader} • ` : ''}{formatTime(event)}
-          </span>
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <h4 className="text-xs md:text-sm font-semibold text-white break-words leading-snug">
+              {event.title}
+            </h4>
+            {event.isLocal && (
+              <span className="shrink-0 text-[9px] font-mono font-bold px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                Kiosk
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+            <span className="text-xs font-mono font-medium text-sky-200 shrink-0 flex items-center gap-1">
+              <Clock className="w-3 h-3 opacity-70" />
+              {dateHeader ? `${dateHeader} • ` : ''}{formatTime(event)}
+            </span>
+            {isEditable && (
+              <Edit3 className="w-3 h-3 text-sky-400/60 group-hover:text-sky-300 transition-colors" />
+            )}
+          </div>
         </div>
 
         {event.location && (

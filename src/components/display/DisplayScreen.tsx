@@ -8,7 +8,9 @@ import { CountdownWidget } from '../widgets/CountdownWidget';
 import { NewsWidget } from '../widgets/NewsWidget';
 import { NotesWidget } from '../widgets/NotesWidget';
 import { SystemWidget } from '../widgets/SystemWidget';
-import { AlertCircle, Camera } from 'lucide-react';
+import { SmartBriefingWidget } from '../widgets/SmartBriefingWidget';
+import { SmartBriefingModal } from '../modals/SmartBriefingModal';
+import { AlertCircle, Camera, Sparkles } from 'lucide-react';
 
 interface DisplayScreenProps {
   config: AppConfig;
@@ -31,7 +33,67 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   const [icloudPhotos, setIcloudPhotos] = useState<ICloudPhoto[]>(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
   const [activeICloudIndex, setActiveICloudIndex] = useState<number>(0);
   const [albumInfo, setAlbumInfo] = useState<{ title?: string; owner?: string }>({});
+  const [isBriefingOpen, setIsBriefingOpen] = useState<boolean>(false);
+  const [briefingSlotLabel, setBriefingSlotLabel] = useState<string>('Household Briefing');
   const mouseTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-display Briefing Overlay at scheduled times (Default: 7:00 AM morning, 12:00 PM afternoon, 4:30 PM evening)
+  useEffect(() => {
+    if (config.briefing?.enabled === false || config.briefing?.autoPopup === false) {
+      return;
+    }
+
+    const morningTarget = config.briefing?.morningTime || '07:00';
+    const afternoonTarget = config.briefing?.afternoonTime || '12:00';
+    const eveningTarget = config.briefing?.eveningTime || '16:30';
+
+    const parseTimeToMinutes = (t: string) => {
+      const [h, m] = t.split(':').map((x) => parseInt(x, 10));
+      return (isNaN(h) ? 0 : h) * 60 + (isNaN(m) ? 0 : m);
+    };
+
+    const morningMin = parseTimeToMinutes(morningTarget);
+    const afternoonMin = parseTimeToMinutes(afternoonTarget);
+    const eveningMin = parseTimeToMinutes(eveningTarget);
+
+    const checkBriefingSchedule = () => {
+      const now = new Date();
+      const currentMin = now.getHours() * 60 + now.getMinutes();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+      type SlotType = 'morning' | 'afternoon' | 'evening';
+      let activeSlot: { slot: SlotType; label: string } | null = null;
+
+      // Check slot trigger windows: triggers once scheduled time is reached, and remains active for up to 60 mins
+      if (currentMin >= morningMin && currentMin < morningMin + 60 && currentMin < afternoonMin) {
+        activeSlot = { slot: 'morning', label: 'Morning Briefing' };
+      } else if (currentMin >= afternoonMin && currentMin < afternoonMin + 60 && currentMin < eveningMin) {
+        activeSlot = { slot: 'afternoon', label: 'Afternoon Briefing' };
+      } else if (currentMin >= eveningMin && currentMin < eveningMin + 60) {
+        activeSlot = { slot: 'evening', label: 'Evening Briefing' };
+      }
+
+      if (activeSlot) {
+        const storageKey = `lumina_briefing_seen_${todayStr}_${activeSlot.slot}`;
+        const hasTriggered = sessionStorage.getItem(storageKey);
+        if (!hasTriggered) {
+          sessionStorage.setItem(storageKey, 'true');
+          setBriefingSlotLabel(activeSlot.label);
+          setIsBriefingOpen(true);
+        }
+      }
+    };
+
+    checkBriefingSchedule();
+    const interval = setInterval(checkBriefingSchedule, 5000);
+    return () => clearInterval(interval);
+  }, [
+    config.briefing?.enabled,
+    config.briefing?.autoPopup,
+    config.briefing?.morningTime,
+    config.briefing?.afternoonTime,
+    config.briefing?.eveningTime,
+  ]);
 
   // Self-healing Heartbeat checker
   useEffect(() => {
@@ -230,6 +292,10 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
         return config.news.enabled ? (
           <NewsWidget config={config.news} />
         ) : null;
+      case 'briefing':
+        return config.briefing?.enabled !== false ? (
+          <SmartBriefingWidget onEventCreated={onRefreshConfig} />
+        ) : null;
       default:
         return null;
     }
@@ -288,6 +354,36 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
 
       {/* Main Kiosk Layout Container */}
       <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 md:p-6 lg:p-8 pb-28 md:pb-32 overflow-hidden">
+        {/* Daily Smart Summary Briefing Banner or Ambient Trigger Pill */}
+        {config.briefing?.enabled !== false && (
+          config.briefing?.showInHeader ? (
+            <div className="w-full mb-3 shrink-0">
+              <SmartBriefingWidget onEventCreated={onRefreshConfig} />
+            </div>
+          ) : (
+            <div className="w-full flex justify-end mb-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const hour = now.getHours();
+                  let label = 'Household Briefing';
+                  if (hour >= 5 && hour < 12) label = 'Morning Briefing';
+                  else if (hour >= 12 && hour < 17) label = 'Afternoon Briefing';
+                  else if (hour >= 17) label = 'Evening Briefing';
+                  setBriefingSlotLabel(label);
+                  setIsBriefingOpen(true);
+                }}
+                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white/90 hover:text-white border border-white/15 backdrop-blur-xl shadow-lg transition-all active:scale-95 cursor-pointer text-xs font-semibold"
+                title="Open Daily Summary Briefing Overlay"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Daily Briefing</span>
+              </button>
+            </div>
+          )
+        )}
+
         {gridItems && gridItems.length > 0 ? (
           <div 
             className={`w-full h-full grid grid-cols-12 gap-4 items-start ${
@@ -391,6 +487,14 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
           <span>Reconnecting to Lumina Home Server...</span>
         </div>
       )}
+
+      {/* Daily Smart Summary Briefing Popup Overlay */}
+      <SmartBriefingModal
+        isOpen={isBriefingOpen}
+        onClose={() => setIsBriefingOpen(false)}
+        onEventCreated={onRefreshConfig}
+        slotLabel={briefingSlotLabel}
+      />
     </div>
   );
 };

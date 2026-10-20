@@ -10,6 +10,7 @@ import Parser from 'rss-parser';
 import { DEFAULT_CONFIG, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from './src/constants/defaultConfig.js';
 import { APP_VERSION } from './src/constants/version.js';
 import { AppConfig, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto } from './src/types/config.js';
+import { GoogleGenAI } from '@google/genai';
 
 const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
@@ -81,6 +82,7 @@ function loadConfig(): AppConfig {
             : (DEFAULT_CONFIG.countdown.items || []),
         },
         notes: { ...DEFAULT_CONFIG.notes, ...(parsed.notes || {}) },
+        briefing: { ...DEFAULT_CONFIG.briefing, ...(parsed.briefing || {}) },
         system: { ...DEFAULT_CONFIG.system, ...(parsed.system || {}) },
         screensaver: { ...DEFAULT_CONFIG.screensaver, ...(parsed.screensaver || {}) },
       };
@@ -100,6 +102,62 @@ function saveConfig(config: AppConfig): void {
     console.error('Failed to save config:', err);
   }
 }
+
+// -------------------------------------------------------------
+// Two-Way Local Calendar Events Storage (~/.luminahome/local_events.json)
+// -------------------------------------------------------------
+const LOCAL_EVENTS_FILE = path.join(path.dirname(CONFIG_FILE), 'local_events.json');
+
+interface StoredLocalEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  location?: string;
+  description?: string;
+  color?: string;
+  createdAt: string;
+}
+
+function loadLocalEvents(): StoredLocalEvent[] {
+  try {
+    if (fs.existsSync(LOCAL_EVENTS_FILE)) {
+      const data = fs.readFileSync(LOCAL_EVENTS_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err: any) {
+    console.warn('[Calendar] Error reading local events:', err.message);
+  }
+  return [];
+}
+
+function saveLocalEvents(events: StoredLocalEvent[]): void {
+  try {
+    fs.writeFileSync(LOCAL_EVENTS_FILE, JSON.stringify(events, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.error('[Calendar] Failed to save local events:', err.message);
+  }
+}
+
+interface BriefingData {
+  briefing: string;
+  greeting: string;
+  period: 'morning' | 'afternoon' | 'evening' | 'night';
+  highlights: string[];
+  weatherAlert: string | null;
+  weatherSummary: string | null;
+  eventCount: number;
+  firstEvent: { title: string; time: string; location?: string } | null;
+  activeRemindersCount: number;
+  nearestCountdown: { title: string; days: number } | null;
+  cachedAt: string;
+  isAiGenerated: boolean;
+}
+
+let cachedBriefing: { data: BriefingData; timestamp: number } | null = null;
+const BRIEFING_CACHE_TTL_MS = 20 * 60 * 1000; // 20 minutes fresh
 
 // Middleware
 app.use(express.json());
@@ -784,6 +842,24 @@ app.get('/api/calendar', async (req: Request, res: Response) => {
     );
   }
 
+  // Load and merge directly created local events from kiosk touch screen
+  const localEvents = loadLocalEvents();
+  for (const le of localEvents) {
+    allEvents.push({
+      id: le.id,
+      title: le.title,
+      start: le.start,
+      end: le.end,
+      allDay: Boolean(le.allDay),
+      location: le.location,
+      description: le.description,
+      calendarId: 'feed-local',
+      calendarName: 'Household & Kiosk',
+      color: le.color || '#38bdf8',
+      isLocal: true,
+    });
+  }
+
   // Sort chronologically
   allEvents.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
@@ -792,6 +868,341 @@ app.get('/api/calendar', async (req: Request, res: Response) => {
     count: allEvents.length,
     feedsStatus: feedResults,
   });
+});
+
+// Create new local event directly from kiosk touch screen
+app.post('/api/calendar/events', (req: Request, res: Response) => {
+  try {
+    const { title, start, end, allDay, location, description, color } = req.body;
+    if (!title || !start) {
+      res.status(400).json({ ok: false, error: 'Title and start time are required' });
+      return;
+    }
+
+    const events = loadLocalEvents();
+    const newEvent: StoredLocalEvent = {
+      id: `local-evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      title: String(title).trim(),
+      start: String(start),
+      end: end ? String(end) : String(start),
+      allDay: Boolean(allDay),
+      location: location ? String(location).trim() : undefined,
+      description: description ? String(description).trim() : undefined,
+      color: color || '#38bdf8',
+      createdAt: new Date().toISOString(),
+    };
+
+    events.push(newEvent);
+    saveLocalEvents(events);
+
+    // Invalidate briefing cache so new event is reflected immediately
+    cachedBriefing = null;
+
+    res.json({ ok: true, event: newEvent });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Update local event
+app.put('/api/calendar/events/:id', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, start, end, allDay, location, description, color } = req.body;
+    let events = loadLocalEvents();
+    const idx = events.findIndex(e => e.id === id);
+    if (idx === -1) {
+      res.status(404).json({ ok: false, error: 'Event not found' });
+      return;
+    }
+    events[idx] = {
+      ...events[idx],
+      title: title !== undefined ? String(title).trim() : events[idx].title,
+      start: start !== undefined ? String(start) : events[idx].start,
+      end: end !== undefined ? String(end) : events[idx].end,
+      allDay: allDay !== undefined ? Boolean(allDay) : events[idx].allDay,
+      location: location !== undefined ? String(location).trim() : events[idx].location,
+      description: description !== undefined ? String(description).trim() : events[idx].description,
+      color: color || events[idx].color,
+    };
+    saveLocalEvents(events);
+    cachedBriefing = null;
+    res.json({ ok: true, event: events[idx] });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Delete local event
+app.delete('/api/calendar/events/:id', (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    let events = loadLocalEvents();
+    const initialLen = events.length;
+    events = events.filter(e => e.id !== id);
+    saveLocalEvents(events);
+    cachedBriefing = null;
+    res.json({ ok: true, deleted: events.length < initialLen });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Toggle checklist item from kiosk touch screen
+app.post('/api/notes/toggle', (req: Request, res: Response) => {
+  try {
+    const { itemId } = req.body;
+    const config = loadConfig();
+    if (config.notes && Array.isArray(config.notes.checklist)) {
+      config.notes.checklist = config.notes.checklist.map(item =>
+        item.id === itemId ? { ...item, completed: !item.completed } : item
+      );
+      saveConfig(config);
+      cachedBriefing = null;
+      res.json({ ok: true, checklist: config.notes.checklist });
+      return;
+    }
+    res.status(400).json({ ok: false, error: 'Checklist not found' });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Add checklist item from kiosk touch screen
+app.post('/api/notes/add', (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+    if (!text || !String(text).trim()) {
+      res.status(400).json({ ok: false, error: 'Task text is required' });
+      return;
+    }
+    const config = loadConfig();
+    const newItem = {
+      id: String(Date.now()),
+      text: String(text).trim(),
+      completed: false,
+    };
+    config.notes.checklist = [...(config.notes.checklist || []), newItem];
+    saveConfig(config);
+    cachedBriefing = null;
+    res.json({ ok: true, item: newItem, checklist: config.notes.checklist });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Smart Morning & Evening Circadian Briefing Synthesizer
+app.get('/api/briefing', async (req: Request, res: Response) => {
+  try {
+    const forceRefresh = req.query.force === 'true';
+    const now = Date.now();
+
+    if (!forceRefresh && cachedBriefing && now - cachedBriefing.timestamp < BRIEFING_CACHE_TTL_MS) {
+      res.json(cachedBriefing.data);
+      return;
+    }
+
+    const config = loadConfig();
+    const currentDate = new Date();
+    const hour = currentDate.getHours();
+
+    const morningHour = config.briefing?.morningStartHour ?? 5;
+    const eveningHour = config.briefing?.eveningStartHour ?? 17;
+    let period: 'morning' | 'afternoon' | 'evening' | 'night' = 'morning';
+    let greeting = 'Good morning';
+
+    if (hour >= morningHour && hour < 12) {
+      period = 'morning';
+      greeting = 'Good morning';
+    } else if (hour >= 12 && hour < eveningHour) {
+      period = 'afternoon';
+      greeting = 'Good afternoon';
+    } else if (hour >= eveningHour && hour < 22) {
+      period = 'evening';
+      greeting = 'Good evening';
+    } else {
+      period = 'night';
+      greeting = 'Good night';
+    }
+
+    // 1. Weather Info
+    let weatherSummary: string | null = null;
+    let weatherAlert: string | null = null;
+    let currentTemp = config.weather?.units === 'imperial' ? 66 : 18;
+    let currentCondition = 'Partly Cloudy';
+    let tempUnit = config.weather?.units === 'imperial' ? '°F' : '°C';
+    let maxTemp = config.weather?.units === 'imperial' ? 70 : 20;
+    let precipProb = 10;
+
+    for (const cached of weatherCache.values()) {
+      if (cached?.data) {
+        currentTemp = cached.data.temp;
+        currentCondition = cached.data.condition;
+        tempUnit = cached.data.tempUnit;
+        if (cached.data.daily && cached.data.daily.length > 0) {
+          maxTemp = cached.data.daily[0].maxTemp;
+          precipProb = cached.data.daily[0].precipitationProb;
+        }
+        if (cached.data.activeAlert) {
+          weatherAlert = `${cached.data.activeAlert.headline || cached.data.activeAlert.event}`;
+        }
+        weatherSummary = `${currentTemp}${tempUnit}, ${currentCondition}`;
+        break;
+      }
+    }
+
+    // 2. Events Today
+    const localEvents = loadLocalEvents();
+    const todayStr = currentDate.toISOString().slice(0, 10);
+    const todayEvents = localEvents.filter(e => e.start.slice(0, 10) === todayStr);
+
+    const todayEventCount = todayEvents.length;
+    let firstEvent: { title: string; time: string; location?: string } | null = null;
+    if (todayEvents.length > 0) {
+      const sorted = [...todayEvents].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      const first = sorted[0];
+      const timeStr = first.allDay
+        ? 'All Day'
+        : new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: !config.clock?.format24 });
+      firstEvent = {
+        title: first.title,
+        time: timeStr,
+        location: first.location,
+      };
+    }
+
+    // 3. Reminders & Tasks
+    const checklist = config.notes?.checklist || [];
+    const activeReminders = checklist.filter(item => !item.completed);
+    const activeRemindersCount = activeReminders.length;
+
+    // 4. Closest Countdown
+    let nearestCountdown: { title: string; days: number } | null = null;
+    const countdownItems = config.countdown?.items || [];
+    if (countdownItems.length > 0) {
+      let minDiffDays = Infinity;
+      for (const item of countdownItems) {
+        const target = new Date(item.targetDate).getTime();
+        const diffDays = Math.ceil((target - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays >= 0 && diffDays < minDiffDays) {
+          minDiffDays = diffDays;
+          nearestCountdown = {
+            title: item.title,
+            days: diffDays,
+          };
+        }
+      }
+    }
+
+    // 5. Highlights Array
+    const highlights: string[] = [];
+    if (weatherAlert) {
+      highlights.push(`Advisory: ${weatherAlert}`);
+    } else {
+      highlights.push(`${currentTemp}${tempUnit} ${currentCondition} (High ${maxTemp}${tempUnit}${precipProb > 30 ? `, ${precipProb}% rain` : ''})`);
+    }
+
+    if (todayEventCount > 0 && firstEvent) {
+      highlights.push(`${todayEventCount} event${todayEventCount > 1 ? 's' : ''} today • Next: ${firstEvent.title} (${firstEvent.time})`);
+    } else {
+      highlights.push(`Schedule clear today`);
+    }
+
+    if (activeRemindersCount > 0) {
+      highlights.push(`${activeRemindersCount} active task${activeRemindersCount > 1 ? 's' : ''}`);
+    }
+
+    if (nearestCountdown) {
+      highlights.push(`${nearestCountdown.title}: ${nearestCountdown.days === 0 ? 'Today!' : `${nearestCountdown.days}d away`}`);
+    }
+
+    // 6. Gemini Synthesis with Template Fallback
+    let briefingText = '';
+    let isAiGenerated = false;
+
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    if (apiKey && config.briefing?.useAiSynthesis !== false) {
+      try {
+        const ai = new GoogleGenAI();
+        const prompt = `You are Lumina Home, a warm, ambient family display assistant.
+Generate a concise, natural daily briefing (2 to 3 sentences maximum, under 50 words) for the household.
+Context:
+- Period: ${period} (${greeting})
+- City: ${config.weather?.cityName || 'Home'}
+- Weather: ${currentCondition}, ${currentTemp}${tempUnit}, high ${maxTemp}${tempUnit}, precipitation probability ${precipProb}%
+${weatherAlert ? `- Weather alert: ${weatherAlert}` : ''}
+- Schedule: ${todayEventCount > 0 && firstEvent ? `${todayEventCount} events today, starting with ${firstEvent.title} at ${firstEvent.time}` : 'No events scheduled on the calendar today'}
+- Tasks: ${activeRemindersCount} active reminder(s)${activeReminders.length > 0 ? ` (e.g. ${activeReminders[0].text})` : ''}
+- Milestone: ${nearestCountdown ? `${nearestCountdown.title} in ${nearestCountdown.days} days` : 'None'}
+
+Rules:
+1. Speak in a warm, welcoming tone.
+2. If rain or chill, gently suggest an umbrella or warm layer.
+3. Output plain text only (no asterisks, quotes, markdown, or lists) so it reads smoothly via voice text-to-speech.`;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-3.8-flash',
+          contents: prompt,
+        });
+
+        const text = response.text?.trim();
+        if (text && text.length > 15) {
+          briefingText = text;
+          isAiGenerated = true;
+        }
+      } catch (err: any) {
+        console.warn('[Briefing] AI synthesis fallback:', err.message);
+      }
+    }
+
+    if (!briefingText) {
+      if (period === 'morning') {
+        const weatherBit = precipProb > 40
+          ? `Expect ${currentCondition.toLowerCase()} with a high of ${maxTemp}${tempUnit} and rain showers—take an umbrella.`
+          : `Clear skies ahead with a comfortable high of ${maxTemp}${tempUnit}.`;
+        const scheduleBit = todayEventCount > 0 && firstEvent
+          ? `You have ${todayEventCount} event${todayEventCount > 1 ? 's' : ''} today, beginning with ${firstEvent.title} at ${firstEvent.time}.`
+          : `Your calendar is open today.`;
+        const reminderBit = activeRemindersCount > 0
+          ? ` You have ${activeRemindersCount} pending household task${activeRemindersCount > 1 ? 's' : ''}.`
+          : '';
+        briefingText = `${greeting}! ${weatherBit} ${scheduleBit}${reminderBit}`;
+      } else if (period === 'afternoon') {
+        const scheduleBit = todayEventCount > 0
+          ? `${todayEventCount} event${todayEventCount > 1 ? 's' : ''} scheduled today.`
+          : `Everything is smooth on the schedule.`;
+        briefingText = `${greeting}! Currently ${currentTemp}${tempUnit} and ${currentCondition.toLowerCase()}. ${scheduleBit}${activeRemindersCount > 0 ? ` ${activeRemindersCount} pending reminder${activeRemindersCount > 1 ? 's' : ''} remaining.` : ''}`;
+      } else if (period === 'evening') {
+        const reminderBit = activeRemindersCount > 0
+          ? `${activeRemindersCount} task${activeRemindersCount > 1 ? 's' : ''} remaining.`
+          : `All household tasks are completed.`;
+        const countdownBit = nearestCountdown ? ` ${nearestCountdown.title} is coming up in ${nearestCountdown.days} days.` : '';
+        briefingText = `${greeting}! Winding down at ${currentTemp}${tempUnit}. ${reminderBit}${countdownBit} Have a wonderful evening.`;
+      } else {
+        briefingText = `${greeting}! The house is peaceful at ${currentTemp}${tempUnit}. Night mode is active for restful sleep.`;
+      }
+    }
+
+    const payload: BriefingData = {
+      briefing: briefingText,
+      greeting,
+      period,
+      highlights,
+      weatherAlert,
+      weatherSummary,
+      eventCount: todayEventCount,
+      firstEvent,
+      activeRemindersCount,
+      nearestCountdown,
+      cachedAt: new Date().toISOString(),
+      isAiGenerated,
+    };
+
+    cachedBriefing = { data: payload, timestamp: now };
+    res.json(payload);
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // Test an individual calendar URL from the admin UI

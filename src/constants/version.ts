@@ -7,14 +7,34 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '2.9.2';
+export const APP_VERSION = '3.0.0';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.0.0',
+    releaseDate: 'October 2026',
+    title: 'Daily Smart Briefings & Interactive Two-Way Kiosk',
+    isCurrent: true,
+    highlights: [
+      'Daily morning and evening smart summary briefings synthesized from weather, schedule, reminders, and countdowns',
+      'Web Speech API audio voice narration with real-time waveform visualizer',
+      'Direct two-way calendar event creation and editing right on the wall touch screen',
+      'Interactive household checklist tasks with tap-to-complete check-off',
+      'Touch-friendly 48px+ targets and quick event category presets (School Run, Dinner, Doctor, Chores)',
+      'Gemini AI-powered circadian synthesis with offline local template engine',
+    ],
+    details: [
+      'Daily Circadian Briefings: Proactively greets the household with contextual morning and evening summaries. Morning mode highlights high temperatures, rain alerts, and the first event of the day; evening mode provides tomorrow preparation and milestone countdowns.',
+      'Voice Read-Aloud Narration: Tap the "Listen" button on any wall screen to hear the day\'s briefing read aloud with friendly natural speech synthesis and an animated audio waveform indicator.',
+      'Direct Two-Way Event Creation: Create, modify, and delete calendar events directly from the kiosk display without needing a smartphone or computer. Tap any day on the month grid or the header "+" button to open the touch-friendly event sheet.',
+      'Interactive Household Reminders: Tap any checklist item directly on the dashboard to toggle task completion with instant server synchronization. Add new reminders with the quick-entry bar.',
+      'Gemini AI & Offline Synthesizer: Powered by Google GenAI (gemini-3.8-flash) for warm, natural phrasing, with an ultra-reliable local template engine when offline.',
+    ],
+  },
   {
     version: 'v2.9.2',
     releaseDate: 'October 2026',
     title: 'Kiosk Navigation Streamline & System Tray Refresh',
-    isCurrent: true,
     highlights: [
       'Removed redundant floating Admin Settings, Full Screen, and Refresh buttons from top right',
       'Added dedicated Refresh button down next to live clock in bottom system tray area',

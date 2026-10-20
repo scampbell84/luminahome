@@ -49,6 +49,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
+import { SmartBriefingModal } from '../modals/SmartBriefingModal';
+
 interface AdminDashboardProps {
   initialConfig: AppConfig;
   onSave: (config: AppConfig) => Promise<void>;
@@ -69,6 +71,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [saving, setSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showBriefingPreview, setShowBriefingPreview] = useState<boolean>(false);
 
   const handleToggleWidget = (key: keyof AppConfig) => {
     setConfig((prev) => {
@@ -1314,6 +1317,32 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     className="w-4 h-4 rounded text-sky-600 cursor-pointer"
                   />
                 </div>
+
+                {/* Direct Touch Event Creation Toggle */}
+                <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800 sm:col-span-3">
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold text-white block">Direct Two-Way Touch Event Creation</span>
+                      <span className="text-[10px] bg-sky-500/20 text-sky-300 font-mono px-1.5 py-0.2 rounded font-bold">
+                        v3.0.0
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-400">
+                      Allow family members to tap '+' or calendar days on the wall display to create, edit, and delete events directly without an admin computer.
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={config.calendar.allowTouchCreation !== false}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        calendar: { ...prev.calendar, allowTouchCreation: e.target.checked },
+                      }))
+                    }
+                    className="w-4 h-4 rounded text-sky-600 cursor-pointer"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1756,6 +1785,235 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Tab 4: Widgets & Content */}
         {activeTab === 'widgets' && (
           <div className="space-y-6">
+            {/* Daily Smart Summary Briefing Settings (v3.0.0 Headline Feature) */}
+            <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <span>Daily Smart Summary Briefings</span>
+                      <span className="text-[10px] bg-indigo-500/20 text-indigo-300 font-mono font-bold px-1.5 py-0.5 rounded border border-indigo-400/30">
+                        v3.0.0
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      Proactive morning and evening household briefings synthesizing weather, schedule, reminders, and countdowns.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-400 font-medium">Briefing Enabled</span>
+                  <input
+                    type="checkbox"
+                    checked={config.briefing?.enabled !== false}
+                    onChange={(e) =>
+                      setConfig((prev) => ({
+                        ...prev,
+                        briefing: {
+                          ...(prev.briefing || {
+                            enabled: true,
+                            morningStartHour: 5,
+                            eveningStartHour: 17,
+                            showInHeader: true,
+                            enableVoicePlayback: true,
+                            useAiSynthesis: true,
+                          }),
+                          enabled: e.target.checked,
+                        },
+                      }))
+                    }
+                    className="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {config.briefing?.enabled !== false && (
+                <div className="space-y-4 pt-1">
+                  {/* Mode Toggles */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* Auto-Popup Overlay */}
+                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
+                      <div>
+                        <span className="text-xs font-semibold text-white block">Auto-Popup Overlay</span>
+                        <span className="text-[10px] text-slate-500">Pop up dismissable summary at scheduled times</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.briefing?.autoPopup !== false}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            briefing: { ...prev.briefing, autoPopup: e.target.checked },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Show in Header Banner */}
+                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
+                      <div>
+                        <span className="text-xs font-semibold text-white block">Header Ambient Widget</span>
+                        <span className="text-[10px] text-slate-500">Display summary card at the top of the kiosk</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.briefing?.showInHeader === true}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            briefing: { ...prev.briefing, showInHeader: e.target.checked },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Voice Text-to-Speech Playback */}
+                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
+                      <div>
+                        <span className="text-xs font-semibold text-white block">Voice Read-Aloud (TTS)</span>
+                        <span className="text-[10px] text-slate-500">Enable touch 'Listen' button on wall screen</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.briefing?.enableVoicePlayback !== false}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            briefing: { ...prev.briefing, enableVoicePlayback: e.target.checked },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Gemini AI Synthesis */}
+                    <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
+                      <div>
+                        <span className="text-xs font-semibold text-white block">Gemini AI Synthesis</span>
+                        <span className="text-[10px] text-slate-500">Natural phrasing with offline template fallback</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={config.briefing?.useAiSynthesis !== false}
+                        onChange={(e) =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            briefing: { ...prev.briefing, useAiSynthesis: e.target.checked },
+                          }))
+                        }
+                        className="w-4 h-4 rounded text-indigo-600 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Scheduled Overlay Popup Times */}
+                  <div className="p-4 bg-slate-950/70 rounded-xl border border-slate-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-sky-400" />
+                          <span>Configurable Briefing Popup Schedule</span>
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Configure exact times for the dismissable summary briefing to pop up on the home screen.
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowBriefingPreview(true)}
+                        className="h-8 px-3 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-400/30 flex items-center gap-1.5 text-xs font-bold transition-all active:scale-95 shadow-sm cursor-pointer shrink-0"
+                        title="Test how the Briefing popup appears on screen"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>Preview Briefing Popup</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      {/* Morning Briefing Time */}
+                      <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                        <label className="text-xs text-amber-300 font-semibold block mb-1">
+                          Morning Briefing Time
+                        </label>
+                        <input
+                          type="time"
+                          value={config.briefing?.morningTime || '07:00'}
+                          onChange={(e) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              briefing: {
+                                ...prev.briefing,
+                                morningTime: e.target.value || '07:00',
+                              },
+                            }))
+                          }
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-400 font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500 mt-1 block">
+                          Default: 7:00 AM (07:00)
+                        </span>
+                      </div>
+
+                      {/* Afternoon Briefing Time */}
+                      <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                        <label className="text-xs text-sky-300 font-semibold block mb-1">
+                          Afternoon Briefing Time
+                        </label>
+                        <input
+                          type="time"
+                          value={config.briefing?.afternoonTime || '12:00'}
+                          onChange={(e) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              briefing: {
+                                ...prev.briefing,
+                                afternoonTime: e.target.value || '12:00',
+                              },
+                            }))
+                          }
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-400 font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500 mt-1 block">
+                          Default: 12:00 PM (12:00)
+                        </span>
+                      </div>
+
+                      {/* Evening Briefing Time */}
+                      <div className="p-3 bg-slate-900 rounded-lg border border-slate-800">
+                        <label className="text-xs text-indigo-300 font-semibold block mb-1">
+                          Evening Briefing Time
+                        </label>
+                        <input
+                          type="time"
+                          value={config.briefing?.eveningTime || '16:30'}
+                          onChange={(e) =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              briefing: {
+                                ...prev.briefing,
+                                eveningTime: e.target.value || '16:30',
+                              },
+                            }))
+                          }
+                          className="w-full bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-400 font-mono"
+                        />
+                        <span className="text-[10px] text-slate-500 mt-1 block">
+                          Default: 4:30 PM (16:30)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* Clock Widget Settings */}
             <div className="bg-slate-900/80 border border-slate-800 rounded-xl p-5 shadow-lg">
               <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
@@ -2865,6 +3123,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         {/* Tab: System & Updates */}
         {activeTab === 'system' && <SystemSettings />}
       </div>
+
+      {/* Briefing Preview Modal */}
+      <SmartBriefingModal
+        isOpen={showBriefingPreview}
+        onClose={() => setShowBriefingPreview(false)}
+        slotLabel="Briefing Preview"
+      />
     </div>
   );
 };
