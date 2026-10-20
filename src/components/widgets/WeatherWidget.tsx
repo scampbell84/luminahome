@@ -124,9 +124,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
           </div>
         </div>
 
-        <div className="text-right text-xs md:text-sm text-white/80 space-y-1 text-kiosk-shadow pt-1">
+        <div className="text-right text-xs md:text-sm text-white/80 space-y-1 text-kiosk-shadow pt-1 max-w-[55%]">
           <div className="flex items-center justify-end gap-1.5">
-            <span className="font-semibold text-white truncate max-w-[130px]">
+            <span className="font-semibold text-white text-right break-words leading-tight">
               {weather.city}
             </span>
             {activeAlert && (

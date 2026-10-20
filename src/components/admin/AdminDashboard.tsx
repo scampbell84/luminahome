@@ -13,6 +13,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  ArrowRightLeft,
   Newspaper,
   CheckSquare,
   Hourglass,
@@ -79,33 +80,61 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const tabsContainerRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
   const [canScrollRight, setCanScrollRight] = useState<boolean>(false);
+  const [hasOverflow, setHasOverflow] = useState<boolean>(false);
+  const isDraggingTabsRef = useRef<boolean>(false);
+  const dragStartXRef = useRef<number>(0);
+  const dragScrollLeftRef = useRef<number>(0);
 
   const checkTabScroll = () => {
     const el = tabsContainerRef.current;
     if (!el) return;
-    const hasScrollLeft = el.scrollLeft > 6;
-    const hasScrollRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 6;
-    setCanScrollLeft(hasScrollLeft);
-    setCanScrollRight(hasScrollRight);
+    const scrollLeft = el.scrollLeft;
+    const clientWidth = el.clientWidth;
+    const scrollWidth = el.scrollWidth;
+
+    if (clientWidth > 0 && scrollWidth > 0) {
+      const overflow = scrollWidth > clientWidth + 4;
+      setHasOverflow(overflow);
+      setCanScrollLeft(scrollLeft > 6);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+    }
   };
 
   useEffect(() => {
     const el = tabsContainerRef.current;
     if (!el) return;
+
     checkTabScroll();
+
+    let resizeObserver: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        checkTabScroll();
+      });
+      resizeObserver.observe(el);
+    }
+
     el.addEventListener('scroll', checkTabScroll, { passive: true });
     window.addEventListener('resize', checkTabScroll);
 
-    const timer = setTimeout(checkTabScroll, 200);
+    const t1 = setTimeout(checkTabScroll, 100);
+    const t2 = setTimeout(checkTabScroll, 350);
+    const t3 = setTimeout(checkTabScroll, 750);
+
     return () => {
+      if (resizeObserver) resizeObserver.disconnect();
       el.removeEventListener('scroll', checkTabScroll);
       window.removeEventListener('resize', checkTabScroll);
-      clearTimeout(timer);
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
     };
   }, []);
 
   useEffect(() => {
     checkTabScroll();
+    const t = setTimeout(checkTabScroll, 150);
+    return () => clearTimeout(t);
   }, [activeTab]);
 
   const scrollTabs = (direction: 'left' | 'right') => {
@@ -114,6 +143,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       tabsContainerRef.current.scrollBy({ left: offset, behavior: 'smooth' });
       setTimeout(checkTabScroll, 320);
     }
+  };
+
+  const handleTabsWheel = (e: React.WheelEvent) => {
+    const el = tabsContainerRef.current;
+    if (el && e.deltaY !== 0) {
+      el.scrollLeft += e.deltaY;
+      checkTabScroll();
+    }
+  };
+
+  const handleTabsMouseDown = (e: React.MouseEvent) => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    isDraggingTabsRef.current = true;
+    dragStartXRef.current = e.pageX - el.offsetLeft;
+    dragScrollLeftRef.current = el.scrollLeft;
+  };
+
+  const handleTabsMouseMove = (e: React.MouseEvent) => {
+    if (!isDraggingTabsRef.current) return;
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - dragStartXRef.current) * 1.5;
+    el.scrollLeft = dragScrollLeftRef.current - walk;
+    checkTabScroll();
+  };
+
+  const handleTabsMouseUpOrLeave = () => {
+    isDraggingTabsRef.current = false;
   };
 
   const handleToggleWidget = (key: keyof AppConfig) => {
@@ -556,12 +616,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <div className="relative mb-6">
           {/* Left Scroll Indicator & Button */}
           {canScrollLeft && (
-            <div className="absolute left-0 top-0 bottom-2 z-10 flex items-center pr-8 pl-0.5 bg-gradient-to-r from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
+            <div className="absolute left-0 top-0 bottom-2 z-20 flex items-center pr-10 pl-1 bg-gradient-to-r from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
               <button
                 type="button"
                 onClick={() => scrollTabs('left')}
                 aria-label="Scroll left to see previous menu options"
-                className="pointer-events-auto p-1.5 rounded-full bg-slate-800/95 hover:bg-slate-700 text-sky-400 hover:text-white border border-slate-700 shadow-xl active:scale-90 transition-all flex items-center justify-center cursor-pointer"
+                className="pointer-events-auto p-1.5 rounded-full bg-slate-850 hover:bg-slate-750 text-sky-400 hover:text-white border border-sky-500/40 shadow-xl active:scale-90 transition-all flex items-center justify-center cursor-pointer"
                 title="Scroll left"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -571,12 +631,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {/* Right Scroll Indicator & "More" Button */}
           {canScrollRight && (
-            <div className="absolute right-0 top-0 bottom-2 z-10 flex items-center pl-10 pr-0.5 bg-gradient-to-l from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
+            <div className="absolute right-0 top-0 bottom-2 z-20 flex items-center pl-10 pr-1 bg-gradient-to-l from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
               <button
                 type="button"
                 onClick={() => scrollTabs('right')}
                 aria-label="Scroll right to see more menu options"
-                className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/25 hover:bg-sky-500/40 border border-sky-400/60 text-sky-300 hover:text-white shadow-xl active:scale-95 transition-all text-xs font-bold cursor-pointer group animate-pulse"
+                className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/20 hover:bg-sky-500/35 border border-sky-400/50 text-sky-300 hover:text-white shadow-xl active:scale-95 transition-all text-xs font-bold cursor-pointer group animate-pulse"
                 title="Swipe or click to see more tabs"
               >
                 <span className="tracking-wide">More</span>
@@ -588,7 +648,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           {/* Scrollable Tabs Row */}
           <div
             ref={tabsContainerRef}
-            className="flex items-center gap-1.5 border-b border-slate-800 pb-2 overflow-x-auto scrollbar-none scroll-smooth select-none"
+            onWheel={handleTabsWheel}
+            onMouseDown={handleTabsMouseDown}
+            onMouseMove={handleTabsMouseMove}
+            onMouseUp={handleTabsMouseUpOrLeave}
+            onMouseLeave={handleTabsMouseUpOrLeave}
+            className="flex items-center gap-1.5 border-b border-slate-800 pb-2 overflow-x-auto scrollbar-none scroll-smooth select-none cursor-grab active:cursor-grabbing touch-pan-x"
           >
             <button
               onClick={(e) => {
@@ -704,6 +769,38 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </span>
             </button>
           </div>
+
+          {/* Persistent Overflow & Swipe Guide Indicator */}
+          {hasOverflow && (
+            <div className="flex items-center justify-between text-xs text-slate-400 mt-2 px-1">
+              <div className="flex items-center gap-1.5 text-[11px] text-sky-400 font-medium select-none">
+                <ArrowRightLeft className="w-3.5 h-3.5 text-sky-400 shrink-0 animate-pulse" />
+                <span>Swipe or scroll horizontally to view all menu options</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => scrollTabs('left')}
+                  disabled={!canScrollLeft}
+                  className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-0.5 cursor-pointer"
+                  title="Scroll tabs left"
+                >
+                  <ChevronLeft className="w-3 h-3" />
+                  <span>Prev</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => scrollTabs('right')}
+                  disabled={!canScrollRight}
+                  className="px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-900 border border-slate-800 text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 disabled:pointer-events-none transition-colors flex items-center gap-0.5 cursor-pointer"
+                  title="Scroll tabs right"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Tab 1: Screen & Wallpaper */}

@@ -785,7 +785,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
   };
 
   return (
-    <div className="flex h-[calc(100vh-3.75rem)] w-full bg-slate-950 p-2.5 md:p-3.5 gap-3 md:gap-4 overflow-hidden select-none font-sans text-slate-100">
+    <div className="flex h-full w-full bg-slate-950 p-2.5 md:p-3.5 gap-3 md:gap-4 overflow-hidden select-none font-sans text-slate-100">
       {/* ============================================================ */}
       {/* LEFT-HAND SIDEBAR CONTROLS                                    */}
       {/* ============================================================ */}
@@ -998,7 +998,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               </div>
 
               {/* ONLY this feeds list itself scrolls! */}
-              <div className="space-y-1 flex-1 min-h-0 overflow-y-auto scrollbar-thin pr-1">
+              <div className="space-y-1 flex-1 min-h-0 overflow-y-auto overscroll-contain scrollbar-thin pr-1">
                 {feeds.map((feed) => {
                   const active = activeFeedIds.has(feed.id);
                   const count = events.filter((e) => e.calendarId === feed.id).length;

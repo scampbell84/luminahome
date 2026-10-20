@@ -266,7 +266,7 @@ export default function App() {
         )}
 
         {visitedTabs.has('calendar') && (
-          <div className={currentTab === 'calendar' ? 'w-full h-full overflow-hidden' : 'hidden'}>
+          <div className={currentTab === 'calendar' ? 'w-full h-full overflow-hidden pb-14 md:pb-16' : 'hidden'}>
             <BigCalendarView
               events={calendarEvents}
               feeds={config.calendar.feeds}
