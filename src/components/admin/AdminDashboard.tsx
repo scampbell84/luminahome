@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto } from '../../types/config';
 import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
 import { APP_VERSION } from '../../constants/version';
@@ -11,6 +11,8 @@ import {
   Calendar,
   CloudSun,
   Clock,
+  ChevronLeft,
+  ChevronRight,
   Newspaper,
   CheckSquare,
   Hourglass,
@@ -72,6 +74,47 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [showBriefingPreview, setShowBriefingPreview] = useState<boolean>(false);
+
+  // Tab strip horizontal scroll indicators and controls
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState<boolean>(false);
+  const [canScrollRight, setCanScrollRight] = useState<boolean>(false);
+
+  const checkTabScroll = () => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    const hasScrollLeft = el.scrollLeft > 6;
+    const hasScrollRight = el.scrollLeft + el.clientWidth < el.scrollWidth - 6;
+    setCanScrollLeft(hasScrollLeft);
+    setCanScrollRight(hasScrollRight);
+  };
+
+  useEffect(() => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    checkTabScroll();
+    el.addEventListener('scroll', checkTabScroll, { passive: true });
+    window.addEventListener('resize', checkTabScroll);
+
+    const timer = setTimeout(checkTabScroll, 200);
+    return () => {
+      el.removeEventListener('scroll', checkTabScroll);
+      window.removeEventListener('resize', checkTabScroll);
+      clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    checkTabScroll();
+  }, [activeTab]);
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsContainerRef.current) {
+      const offset = direction === 'left' ? -260 : 260;
+      tabsContainerRef.current.scrollBy({ left: offset, behavior: 'smooth' });
+      setTimeout(checkTabScroll, 320);
+    }
+  };
 
   const handleToggleWidget = (key: keyof AppConfig) => {
     setConfig((prev) => {
@@ -509,102 +552,158 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       {/* Main Layout */}
       <div className="flex-1 max-w-6xl w-full mx-auto px-4 md:px-8 py-6 pb-28">
-        {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 border-b border-slate-800 pb-2 mb-6 overflow-x-auto scrollbar-none">
-          <button
-            onClick={() => setActiveTab('display')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'display'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
+        {/* Navigation Tabs with Swipe / Scroll Indicators */}
+        <div className="relative mb-6">
+          {/* Left Scroll Indicator & Button */}
+          {canScrollLeft && (
+            <div className="absolute left-0 top-0 bottom-2 z-10 flex items-center pr-8 pl-0.5 bg-gradient-to-r from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
+              <button
+                type="button"
+                onClick={() => scrollTabs('left')}
+                aria-label="Scroll left to see previous menu options"
+                className="pointer-events-auto p-1.5 rounded-full bg-slate-800/95 hover:bg-slate-700 text-sky-400 hover:text-white border border-slate-700 shadow-xl active:scale-90 transition-all flex items-center justify-center cursor-pointer"
+                title="Scroll left"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Right Scroll Indicator & "More" Button */}
+          {canScrollRight && (
+            <div className="absolute right-0 top-0 bottom-2 z-10 flex items-center pl-10 pr-0.5 bg-gradient-to-l from-slate-950 via-slate-950/95 to-transparent pointer-events-none">
+              <button
+                type="button"
+                onClick={() => scrollTabs('right')}
+                aria-label="Scroll right to see more menu options"
+                className="pointer-events-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-sky-500/25 hover:bg-sky-500/40 border border-sky-400/60 text-sky-300 hover:text-white shadow-xl active:scale-95 transition-all text-xs font-bold cursor-pointer group animate-pulse"
+                title="Swipe or click to see more tabs"
+              >
+                <span className="tracking-wide">More</span>
+                <ChevronRight className="w-4 h-4 text-sky-400 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </div>
+          )}
+
+          {/* Scrollable Tabs Row */}
+          <div
+            ref={tabsContainerRef}
+            className="flex items-center gap-1.5 border-b border-slate-800 pb-2 overflow-x-auto scrollbar-none scroll-smooth select-none"
           >
-            <ImageIcon className="w-4 h-4" />
-            <span>Screen & Wallpaper</span>
-          </button>
+            <button
+              onClick={(e) => {
+                setActiveTab('display');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'display'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <ImageIcon className="w-4 h-4" />
+              <span>Screen & Wallpaper</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('layout')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'layout'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <LayoutGrid className="w-4 h-4 text-amber-400" />
-            <span>Drag & Drop Grid</span>
-            <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">
-              Visual
-            </span>
-          </button>
+            <button
+              onClick={(e) => {
+                setActiveTab('layout');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'layout'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4 text-amber-400" />
+              <span>Drag & Drop Grid</span>
+              <span className="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-mono">
+                Visual
+              </span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'calendar'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Calendar className="w-4 h-4" />
-            <span>Calendar</span>
-            <span className="text-[10px] bg-sky-950 text-sky-300 px-1.5 py-0.5 rounded-full font-mono border border-sky-400/30">
-              {config.calendar.feeds.length}
-            </span>
-          </button>
+            <button
+              onClick={(e) => {
+                setActiveTab('calendar');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'calendar'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Calendar className="w-4 h-4" />
+              <span>Calendar</span>
+              <span className="text-[10px] bg-sky-950 text-sky-300 px-1.5 py-0.5 rounded-full font-mono border border-sky-400/30">
+                {config.calendar.feeds.length}
+              </span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('weather')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'weather'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <CloudSun className="w-4 h-4" />
-            <span>Weather & Location</span>
-          </button>
+            <button
+              onClick={(e) => {
+                setActiveTab('weather');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'weather'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <CloudSun className="w-4 h-4" />
+              <span>Weather & Location</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('widgets')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'widgets'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Sliders className="w-4 h-4" />
-            <span>Widgets & Content</span>
-          </button>
+            <button
+              onClick={(e) => {
+                setActiveTab('widgets');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'widgets'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Sliders className="w-4 h-4" />
+              <span>Widgets & Content</span>
+            </button>
 
+            <button
+              onClick={(e) => {
+                setActiveTab('screensaver');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'screensaver'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span>Screen Saver</span>
+            </button>
 
-
-          <button
-            onClick={() => setActiveTab('screensaver')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'screensaver'
-                ? 'bg-sky-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Screen Saver</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('system')}
-            className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
-              activeTab === 'system'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
-            }`}
-          >
-            <Activity className="w-4 h-4 text-emerald-400" />
-            <span>System & Updates</span>
-            <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded font-mono">
-              v{APP_VERSION}
-            </span>
-          </button>
+            <button
+              onClick={(e) => {
+                setActiveTab('system');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'system'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Activity className="w-4 h-4 text-emerald-400" />
+              <span>System & Updates</span>
+              <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded font-mono">
+                v{APP_VERSION}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Tab 1: Screen & Wallpaper */}

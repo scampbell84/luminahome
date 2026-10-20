@@ -785,23 +785,24 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
   };
 
   return (
-    <div className="flex h-full w-full bg-slate-950 p-3 md:p-4 pb-20 md:pb-24 gap-3 md:gap-4 overflow-hidden select-none font-sans text-slate-100">
+    <div className="flex h-[calc(100vh-3.75rem)] w-full bg-slate-950 p-2.5 md:p-3.5 gap-3 md:gap-4 overflow-hidden select-none font-sans text-slate-100">
       {/* ============================================================ */}
       {/* LEFT-HAND SIDEBAR CONTROLS                                    */}
       {/* ============================================================ */}
-      <aside className={`w-64 md:w-72 lg:w-80 shrink-0 h-full flex flex-col justify-between ${themeClasses.aside} rounded-2xl p-4 md:p-5 overflow-y-auto scrollbar-none`}>
-        <div className="space-y-4">
+      <aside className={`w-64 md:w-72 lg:w-80 shrink-0 h-full flex flex-col ${themeClasses.aside} rounded-2xl p-3 md:p-4 overflow-hidden select-none`}>
+        {/* Top Fixed Area */}
+        <div className="shrink-0 space-y-3">
           {/* Calendar Month & Navigation */}
           <div>
-            <div className="flex items-center gap-2.5 mb-2">
-              <div className="w-9 h-9 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 shadow-md shrink-0">
-                <CalendarIcon className="w-5 h-5" />
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="w-8 h-8 rounded-xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center text-sky-400 shadow-md shrink-0">
+                <CalendarIcon className="w-4 h-4" />
               </div>
               <div className="min-w-0">
-                <span className="text-[11px] font-mono tracking-widest text-sky-400 uppercase font-semibold block">
+                <span className="text-[10px] font-mono tracking-widest text-sky-400 uppercase font-semibold block">
                   {currentDate.getFullYear()}
                 </span>
-                <h1 className="text-lg md:text-xl font-black tracking-tight text-white leading-none truncate">
+                <h1 className="text-base md:text-lg font-black tracking-tight text-white leading-none truncate">
                   {viewMode === 'month' && monthData.monthName}
                   {viewMode === 'day' && currentDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                   {viewMode === 'week' && 'Week Schedule'}
@@ -823,11 +824,11 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
             )}
 
             {/* Previous / Today / Next Navigation */}
-            <div className="grid grid-cols-4 gap-1.5 mt-2.5 pt-2.5 border-t border-slate-800">
+            <div className="grid grid-cols-4 gap-1.5 mt-2 pt-2 border-t border-slate-800">
               <button
                 type="button"
                 onClick={prevPeriod}
-                className="col-span-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-colors border border-slate-700 flex items-center justify-center active:scale-95 shadow-sm cursor-pointer"
+                className="col-span-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-colors border border-slate-700 flex items-center justify-center active:scale-95 shadow-sm cursor-pointer"
                 title="Previous Period"
               >
                 <ChevronLeft className="w-4 h-4" />
@@ -836,7 +837,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               <button
                 type="button"
                 onClick={goToToday}
-                className="col-span-2 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 hover:text-sky-200 rounded-xl transition-colors border border-slate-700 flex items-center justify-center active:scale-95 shadow-sm cursor-pointer"
+                className="col-span-2 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs font-bold text-sky-300 hover:text-sky-200 rounded-xl transition-colors border border-slate-700 flex items-center justify-center active:scale-95 shadow-sm cursor-pointer"
               >
                 Today
               </button>
@@ -844,7 +845,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               <button
                 type="button"
                 onClick={nextPeriod}
-                className="col-span-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-colors border border-slate-700 flex items-center justify-center active:scale-95 shadow-sm cursor-pointer"
+                className="col-span-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl transition-colors border border-slate-700 flex items-center justify-center active:scale-95 shadow-sm cursor-pointer"
                 title="Next Period"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -860,14 +861,14 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                 setEditingCalendarEvent(null);
                 setShowCreateModal(true);
               }}
-              className="w-full mt-2.5 py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-sky-500/25 transition-all cursor-pointer"
+              className="w-full mt-2 py-2 px-3 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 active:scale-95 shadow-md shadow-sky-500/25 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add Event or Reminder</span>
             </button>
           </div>
 
-          {/* View Mode Switcher: Day, Week, Month, Year, Columns */}
+          {/* View Mode Switcher: Day, Week, Month, Year */}
           <div className="space-y-1 pt-2 border-t border-slate-800">
             <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400 block px-1 mb-1">
               View Layout
@@ -877,7 +878,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewMode('day')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   viewMode === 'day'
                     ? themeClasses.activeButton
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
@@ -891,7 +892,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewMode('week')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   viewMode === 'week'
                     ? themeClasses.activeButton
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
@@ -905,7 +906,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewMode('month')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   viewMode === 'month'
                     ? themeClasses.activeButton
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
@@ -919,7 +920,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewMode('year')}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs md:text-sm font-semibold transition-all cursor-pointer ${
+                className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                   viewMode === 'year'
                     ? themeClasses.activeButton
                     : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
@@ -931,9 +932,9 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
             </div>
           </div>
 
-          {/* Events Today & Stats Card - Moved Up */}
+          {/* Events Today & Stats Card */}
           <div className="pt-2 border-t border-slate-800">
-            <div className="p-3 bg-slate-950/70 rounded-xl border border-slate-800/80 shadow-sm">
+            <div className="p-2.5 bg-slate-950/70 rounded-xl border border-slate-800/80 shadow-sm">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-slate-300 font-medium flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-sky-400 animate-pulse" />
@@ -943,7 +944,7 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
                   {todayEventsCount}
                 </span>
               </div>
-              <div className="flex items-center justify-between text-xs mt-1.5 pt-1.5 border-t border-slate-800/60">
+              <div className="flex items-center justify-between text-xs mt-1 pt-1 border-t border-slate-800/60">
                 <span className="text-slate-400 font-medium">Total Synced</span>
                 <span className="font-bold text-slate-200 font-mono">
                   {events.length}
@@ -951,83 +952,84 @@ export const BigCalendarView: React.FC<BigCalendarViewProps> = ({
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Collapsible Calendars Section (Default is Hidden/Collapsed) */}
-          <div className="pt-2 border-t border-slate-800">
-            <button
-              type="button"
-              onClick={() => setIsCalendarsOpen(!isCalendarsOpen)}
-              className="w-full flex items-center justify-between p-2.5 rounded-xl bg-slate-950/70 hover:bg-slate-800/70 transition-colors border border-slate-800/80 group cursor-pointer"
-            >
-              <div className="flex items-center gap-2 min-w-0">
-                <CalendarDays className="w-4 h-4 text-sky-400 shrink-0" />
-                <span className="text-xs font-bold text-slate-200 group-hover:text-white truncate">
-                  Calendars ({feeds.length})
+        {/* Collapsible Calendars Section - Only Visible Feeds list scrolls */}
+        <div className="pt-2 mt-2 border-t border-slate-800 flex-1 min-h-0 flex flex-col overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setIsCalendarsOpen(!isCalendarsOpen)}
+            className="w-full shrink-0 flex items-center justify-between p-2 rounded-xl bg-slate-950/70 hover:bg-slate-800/70 transition-colors border border-slate-800/80 group cursor-pointer"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <CalendarDays className="w-4 h-4 text-sky-400 shrink-0" />
+              <span className="text-xs font-bold text-slate-200 group-hover:text-white truncate">
+                Calendars ({feeds.length})
+              </span>
+              <span className="text-[10px] text-slate-500 font-mono">
+                {activeFeedIds.size} on
+              </span>
+            </div>
+            <div className="flex items-center gap-1 text-slate-400">
+              <span className="text-[10px] text-slate-500 group-hover:text-slate-400">
+                {isCalendarsOpen ? 'Hide' : 'Show'}
+              </span>
+              {isCalendarsOpen ? (
+                <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-white" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white" />
+              )}
+            </div>
+          </button>
+
+          {isCalendarsOpen && (
+            <div className="mt-2 flex-1 min-h-0 flex flex-col overflow-hidden animate-fadeIn">
+              <div className="flex items-center justify-between px-1 mb-1 shrink-0">
+                <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
+                  Visible Feeds
                 </span>
-                <span className="text-[10px] text-slate-500 font-mono">
-                  {activeFeedIds.size} on
-                </span>
+                <button
+                  type="button"
+                  onClick={selectAllFeeds}
+                  className="text-[10px] text-sky-400 hover:text-sky-300 font-semibold cursor-pointer"
+                >
+                  Select All
+                </button>
               </div>
-              <div className="flex items-center gap-1 text-slate-400">
-                <span className="text-[10px] text-slate-500 group-hover:text-slate-400">
-                  {isCalendarsOpen ? 'Hide' : 'Show'}
-                </span>
-                {isCalendarsOpen ? (
-                  <ChevronUp className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-white" />
-                )}
+
+              {/* ONLY this feeds list itself scrolls! */}
+              <div className="space-y-1 flex-1 min-h-0 overflow-y-auto scrollbar-thin pr-1">
+                {feeds.map((feed) => {
+                  const active = activeFeedIds.has(feed.id);
+                  const count = events.filter((e) => e.calendarId === feed.id).length;
+                  return (
+                    <button
+                      key={feed.id}
+                      type="button"
+                      onClick={() => toggleFeed(feed.id)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
+                        active
+                          ? 'bg-slate-800/80 text-white border border-slate-700/80'
+                          : 'text-slate-500 opacity-60 hover:opacity-80'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <span
+                          className="w-2.5 h-2.5 rounded-full shrink-0"
+                          style={{ backgroundColor: feed.color }}
+                        />
+                        <span className="truncate">{feed.name}</span>
+                      </div>
+
+                      <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-950/60 shrink-0">
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-            </button>
-
-            {isCalendarsOpen && (
-              <div className="mt-2 space-y-1.5 animate-fadeIn">
-                <div className="flex items-center justify-between px-1 mb-1">
-                  <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                    Visible Feeds
-                  </span>
-                  <button
-                    type="button"
-                    onClick={selectAllFeeds}
-                    className="text-[10px] text-sky-400 hover:text-sky-300 font-semibold cursor-pointer"
-                  >
-                    Select All
-                  </button>
-                </div>
-
-                <div className="space-y-1 max-h-56 overflow-y-auto scrollbar-thin pr-1">
-                  {feeds.map((feed) => {
-                    const active = activeFeedIds.has(feed.id);
-                    const count = events.filter((e) => e.calendarId === feed.id).length;
-                    return (
-                      <button
-                        key={feed.id}
-                        type="button"
-                        onClick={() => toggleFeed(feed.id)}
-                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all cursor-pointer ${
-                          active
-                            ? 'bg-slate-800/80 text-white border border-slate-700/80'
-                            : 'text-slate-500 opacity-60 hover:opacity-80'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
-                            style={{ backgroundColor: feed.color }}
-                          />
-                          <span className="truncate">{feed.name}</span>
-                        </div>
-
-                        <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-slate-950/60 shrink-0">
-                          {count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </aside>
 

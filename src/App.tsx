@@ -251,11 +251,11 @@ export default function App() {
   }
 
   return (
-    <div className="w-full h-full min-h-screen bg-slate-950 flex flex-col relative">
+    <div className={`w-full ${currentTab === 'settings' ? 'min-h-screen' : 'h-screen overflow-hidden'} bg-slate-950 flex flex-col relative`}>
       {/* Main View Area with Zero-Latency Tab Caching */}
-      <main className="flex-1 w-full relative">
+      <main className={`flex-1 w-full ${currentTab === 'settings' ? 'relative' : 'h-full overflow-hidden relative'}`}>
         {visitedTabs.has('home') && (
-          <div className={currentTab === 'home' ? 'w-full h-full' : 'hidden'}>
+          <div className={currentTab === 'home' ? 'w-full h-full overflow-hidden' : 'hidden'}>
             <DisplayScreen
               config={config}
               onOpenAdmin={() => navigateTo('settings')}
@@ -266,7 +266,7 @@ export default function App() {
         )}
 
         {visitedTabs.has('calendar') && (
-          <div className={currentTab === 'calendar' ? 'w-full h-full' : 'hidden'}>
+          <div className={currentTab === 'calendar' ? 'w-full h-full overflow-hidden' : 'hidden'}>
             <BigCalendarView
               events={calendarEvents}
               feeds={config.calendar.feeds}
