@@ -1,7 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { WeatherData, DetailedDailyForecast, HourlyPoint } from '../../types/config';
-import { WeatherIcon } from '../widgets/WeatherIcon';
-import { X, Cloud, Droplets, ArrowUp, ArrowDown, Info } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from "react";
+import {
+  WeatherData,
+  DetailedDailyForecast,
+  HourlyPoint,
+} from "../../types/config";
+import { WeatherIcon } from "../widgets/WeatherIcon";
+import { X, Cloud, Droplets, ArrowUp, ArrowDown, Info } from "lucide-react";
 
 interface WeatherDetailsModalProps {
   isOpen: boolean;
@@ -16,14 +20,17 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
   weather,
   initialDayIndex = 0,
 }) => {
-  const [selectedDayIndex, setSelectedDayIndex] = useState<number>(initialDayIndex);
-  const [tempMode, setTempMode] = useState<'actual' | 'feels_like'>('actual');
+  const [selectedDayIndex, setSelectedDayIndex] =
+    useState<number>(initialDayIndex);
+  const [tempMode, setTempMode] = useState<"actual" | "feels_like">("actual");
   const [activeScrubHour, setActiveScrubHour] = useState<number | null>(null);
 
   // Sync initialDayIndex if changed externally
   useEffect(() => {
     if (isOpen) {
-      setSelectedDayIndex(Math.min(initialDayIndex, (weather.daily?.length || 1) - 1));
+      setSelectedDayIndex(
+        Math.min(initialDayIndex, (weather.daily?.length || 1) - 1),
+      );
       setActiveScrubHour(null);
     }
   }, [isOpen, initialDayIndex, weather.daily?.length]);
@@ -32,12 +39,12 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         onClose();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
   const days: DetailedDailyForecast[] = weather.daily || [];
@@ -49,14 +56,14 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
 
   // Day formatted header (e.g. "Thursday, 22 October 2026")
   const fullDateTitle = useMemo(() => {
-    if (!selectedDay?.date) return 'Weather Details';
+    if (!selectedDay?.date) return "Weather Details";
     try {
-      const d = new Date(selectedDay.date + 'T00:00:00');
+      const d = new Date(selectedDay.date + "T00:00:00");
       return d.toLocaleDateString(undefined, {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
       });
     } catch {
       return selectedDay.dayName;
@@ -68,7 +75,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
     if (hourlyData.length === 0) {
       return { minGraphTemp: 0, maxGraphTemp: 25, yTicks: [0, 5, 10, 15, 20] };
     }
-    const temps = hourlyData.map((h) => (tempMode === 'actual' ? h.temp : h.apparentTemp));
+    const temps = hourlyData.map((h) =>
+      tempMode === "actual" ? h.temp : h.apparentTemp,
+    );
     const minVal = Math.min(...temps);
     const maxVal = Math.max(...temps);
     // Align to 5-degree increments with margin
@@ -79,7 +88,11 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
     for (let t = roundedMax; t >= roundedMin; t -= 5) {
       ticks.push(t);
     }
-    return { minGraphTemp: roundedMin, maxGraphTemp: roundedMax, yTicks: ticks };
+    return {
+      minGraphTemp: roundedMin,
+      maxGraphTemp: roundedMax,
+      yTicks: ticks,
+    };
   }, [hourlyData, tempMode]);
 
   // Calculate High (H) and Low (L) hour points for labels
@@ -88,23 +101,30 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
     let highIdx = 0;
     let lowIdx = 0;
     hourlyData.forEach((h, idx) => {
-      const val = tempMode === 'actual' ? h.temp : h.apparentTemp;
-      const curHigh = tempMode === 'actual' ? hourlyData[highIdx].temp : hourlyData[highIdx].apparentTemp;
-      const curLow = tempMode === 'actual' ? hourlyData[lowIdx].temp : hourlyData[lowIdx].apparentTemp;
+      const val = tempMode === "actual" ? h.temp : h.apparentTemp;
+      const curHigh =
+        tempMode === "actual"
+          ? hourlyData[highIdx].temp
+          : hourlyData[highIdx].apparentTemp;
+      const curLow =
+        tempMode === "actual"
+          ? hourlyData[lowIdx].temp
+          : hourlyData[lowIdx].apparentTemp;
       if (val > curHigh) highIdx = idx;
       if (val < curLow) lowIdx = idx;
     });
     return { highPoint: highIdx, lowPoint: lowIdx };
   }, [hourlyData, tempMode]);
 
-  // SVG Spline Math (ViewBox: 0 0 1000 200)
-  const chartWidth = 920;
-  const chartHeight = 160;
-  const paddingX = 40;
-  const paddingTop = 30;
-  const paddingBottom = 25;
+  // SVG Spline Math (ViewBox: 0 0 940 220)
+  const chartWidth = 940;
+  const chartHeight = 220;
+  const paddingLeft = 38;
+  const paddingRight = 78;
+  const paddingTop = 32;
+  const paddingBottom = 36;
   const innerHeight = chartHeight - paddingTop - paddingBottom;
-  const innerWidth = chartWidth - paddingX * 2;
+  const innerWidth = chartWidth - paddingLeft - paddingRight;
 
   const points = useMemo(() => {
     if (hourlyData.length === 0) return [];
@@ -112,73 +132,93 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
     const tempRange = Math.max(1, maxGraphTemp - minGraphTemp);
 
     return hourlyData.map((h, i) => {
-      const val = tempMode === 'actual' ? h.temp : h.apparentTemp;
-      const x = paddingX + (i / (count - 1)) * innerWidth;
-      const y = paddingTop + innerHeight - ((val - minGraphTemp) / tempRange) * innerHeight;
+      const val = tempMode === "actual" ? h.temp : h.apparentTemp;
+      const x = paddingLeft + (i / (count - 1)) * innerWidth;
+      const y =
+        paddingTop +
+        innerHeight -
+        ((val - minGraphTemp) / tempRange) * innerHeight;
       return { x, y, hour: h.hour, val, point: h };
     });
-  }, [hourlyData, tempMode, minGraphTemp, maxGraphTemp, innerWidth, innerHeight]);
+  }, [
+    hourlyData,
+    tempMode,
+    minGraphTemp,
+    maxGraphTemp,
+    innerWidth,
+    innerHeight,
+    paddingLeft,
+    paddingTop,
+  ]);
 
   // Build SVG cubic spline path
-  const { splinePath, areaPath, pastSplinePath, futureSplinePath } = useMemo(() => {
-    if (points.length === 0) {
-      return { splinePath: '', areaPath: '', pastSplinePath: '', futureSplinePath: '' };
-    }
+  const { splinePath, areaPath, pastSplinePath, futureSplinePath } =
+    useMemo(() => {
+      if (points.length === 0) {
+        return {
+          splinePath: "",
+          areaPath: "",
+          pastSplinePath: "",
+          futureSplinePath: "",
+        };
+      }
 
-    const dParts: string[] = [`M ${points[0].x} ${points[0].y}`];
-    for (let i = 0; i < points.length - 1; i++) {
-      const p0 = points[i === 0 ? 0 : i - 1];
-      const p1 = points[i];
-      const p2 = points[i + 1];
-      const p3 = points[i + 2 >= points.length ? points.length - 1 : i + 2];
+      const dParts: string[] = [`M ${points[0].x} ${points[0].y}`];
+      for (let i = 0; i < points.length - 1; i++) {
+        const p0 = points[i === 0 ? 0 : i - 1];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = points[i + 2 >= points.length ? points.length - 1 : i + 2];
 
-      const cp1x = p1.x + (p2.x - p0.x) / 6;
-      const cp1y = p1.y + (p2.y - p0.y) / 6;
-      const cp2x = p2.x - (p3.x - p1.x) / 6;
-      const cp2y = p2.y - (p3.y - p1.y) / 6;
+        const cp1x = p1.x + (p2.x - p0.x) / 6;
+        const cp1y = p1.y + (p2.y - p0.y) / 6;
+        const cp2x = p2.x - (p3.x - p1.x) / 6;
+        const cp2y = p2.y - (p3.y - p1.y) / 6;
 
-      dParts.push(`C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`);
-    }
+        dParts.push(
+          `C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`,
+        );
+      }
 
-    const fullSpline = dParts.join(' ');
-    const lastP = points[points.length - 1];
-    const firstP = points[0];
-    const baselineY = paddingTop + innerHeight;
-    const fullArea = `${fullSpline} L ${lastP.x} ${baselineY} L ${firstP.x} ${baselineY} Z`;
+      const fullSpline = dParts.join(" ");
+      const lastP = points[points.length - 1];
+      const firstP = points[0];
+      const baselineY = paddingTop + innerHeight;
+      const fullArea = `${fullSpline} L ${lastP.x} ${baselineY} L ${firstP.x} ${baselineY} Z`;
 
-    // If today, split into past (dotted) and future (solid)
-    let pastPath = '';
-    let futurePath = '';
-    if (isToday) {
-      const nowIdx = points.findIndex((p) => p.hour >= currentHour);
-      if (nowIdx > 0) {
-        pastPath = `M ${points[0].x} ${points[0].y}`;
-        for (let i = 0; i < nowIdx; i++) {
-          const p1 = points[i];
-          const p2 = points[i + 1];
-          pastPath += ` L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
-        }
+      // If today, split into past (dotted) and future (solid)
+      let pastPath = "";
+      let futurePath = "";
+      if (isToday) {
+        const nowIdx = points.findIndex((p) => p.hour >= currentHour);
+        if (nowIdx > 0) {
+          pastPath = `M ${points[0].x} ${points[0].y}`;
+          for (let i = 0; i < nowIdx; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            pastPath += ` L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+          }
 
-        futurePath = `M ${points[nowIdx].x} ${points[nowIdx].y}`;
-        for (let i = nowIdx; i < points.length - 1; i++) {
-          const p1 = points[i];
-          const p2 = points[i + 1];
-          futurePath += ` L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+          futurePath = `M ${points[nowIdx].x} ${points[nowIdx].y}`;
+          for (let i = nowIdx; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            futurePath += ` L ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+          }
+        } else {
+          futurePath = fullSpline;
         }
       } else {
         futurePath = fullSpline;
       }
-    } else {
-      futurePath = fullSpline;
-    }
 
-    return {
-      splinePath: fullSpline,
-      areaPath: fullArea,
-      pastSplinePath: pastPath,
-      futureSplinePath: futurePath,
-    };
-  }, [points, isToday, currentHour]);
+      return {
+        splinePath: fullSpline,
+        areaPath: fullArea,
+        pastSplinePath: pastPath,
+        futureSplinePath: futurePath,
+      };
+    }, [points, isToday, currentHour]);
 
   // Precipitation SVG Points & Path
   const precipPoints = useMemo(() => {
@@ -186,25 +226,27 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
     const count = hourlyData.length;
     return hourlyData.map((h, i) => {
       const prob = h.precipitationProb; // 0 to 100
-      const x = paddingX + (i / (count - 1)) * innerWidth;
+      const x = paddingLeft + (i / (count - 1)) * innerWidth;
       const y = paddingTop + innerHeight - (prob / 100) * innerHeight;
       return { x, y, prob, h };
     });
-  }, [hourlyData, innerWidth, innerHeight]);
+  }, [hourlyData, innerWidth, innerHeight, paddingLeft, paddingTop]);
 
   const precipAreaPath = useMemo(() => {
-    if (precipPoints.length === 0) return '';
+    if (precipPoints.length === 0) return "";
     const dParts: string[] = [`M ${precipPoints[0].x} ${precipPoints[0].y}`];
     for (let i = 0; i < precipPoints.length - 1; i++) {
       const p1 = precipPoints[i];
       const p2 = precipPoints[i + 1];
       const midX = (p1.x + p2.x) / 2;
-      dParts.push(`C ${midX.toFixed(1)} ${p1.y.toFixed(1)}, ${midX.toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`);
+      dParts.push(
+        `C ${midX.toFixed(1)} ${p1.y.toFixed(1)}, ${midX.toFixed(1)} ${p2.y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`,
+      );
     }
     const lastP = precipPoints[precipPoints.length - 1];
     const firstP = precipPoints[0];
     const baselineY = paddingTop + innerHeight;
-    return `${dParts.join(' ')} L ${lastP.x} ${baselineY} L ${firstP.x} ${baselineY} Z`;
+    return `${dParts.join(" ")} L ${lastP.x} ${baselineY} L ${firstP.x} ${baselineY} Z`;
   }, [precipPoints]);
 
   const hasAnyPrecipitation = useMemo(() => {
@@ -212,18 +254,27 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
   }, [hourlyData]);
 
   // Display temperature for hero header (follows scrub hour if user taps chart)
-  const displayPoint = activeScrubHour !== null ? hourlyData[activeScrubHour] : isToday ? hourlyData[currentHour] || hourlyData[0] : hourlyData[12] || hourlyData[0];
-  const displayTemp = displayPoint ? (tempMode === 'actual' ? displayPoint.temp : displayPoint.apparentTemp) : selectedDay?.maxTemp;
-  const displayIcon = displayPoint?.icon || selectedDay?.icon || 'cloud-sun';
+  const displayPoint =
+    activeScrubHour !== null
+      ? hourlyData[activeScrubHour]
+      : isToday
+        ? hourlyData[currentHour] || hourlyData[0]
+        : hourlyData[12] || hourlyData[0];
+  const displayTemp = displayPoint
+    ? tempMode === "actual"
+      ? displayPoint.temp
+      : displayPoint.apparentTemp
+    : selectedDay?.maxTemp;
+  const displayIcon = displayPoint?.icon || selectedDay?.icon || "cloud-sun";
 
   // Daily Comparison Prose
   const comparisonText = useMemo(() => {
     if (selectedDay?.yesterdayMaxTemp === undefined) {
-      return 'Temperature levels are typical for this time of year.';
+      return "Temperature levels are typical for this time of year.";
     }
     const diff = selectedDay.maxTemp - selectedDay.yesterdayMaxTemp;
     if (Math.abs(diff) <= 1) {
-      return 'The high temperature today is similar to yesterday.';
+      return "The high temperature today is similar to yesterday.";
     } else if (diff > 1) {
       return `The high temperature today is ${diff}° higher than yesterday.`;
     } else {
@@ -242,7 +293,7 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-xl max-h-[92vh] bg-slate-950/95 text-white rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden"
+        className="relative w-full max-w-2xl max-h-[92vh] bg-slate-950/95 text-white rounded-3xl border border-white/10 shadow-2xl flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ============================================================ */}
@@ -260,7 +311,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
 
           <div className="flex items-center gap-2">
             <Cloud className="w-4 h-4 text-white/90" />
-            <h2 className="text-sm font-bold tracking-wide text-white">Conditions</h2>
+            <h2 className="text-sm font-bold tracking-wide text-white">
+              Conditions
+            </h2>
           </div>
 
           <div className="w-8" />
@@ -284,21 +337,31 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                   }}
                   className="flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition-all cursor-pointer group"
                 >
-                  <span className={`text-[11px] font-medium transition-colors ${
-                    isSelected ? 'text-white font-bold' : isCurrentDay ? 'text-sky-400' : 'text-slate-400 group-hover:text-slate-200'
-                  }`}>
-                    {dayItem.dayInitial || (dayItem.dayName ? dayItem.dayName[0] : '')}
+                  <span
+                    className={`text-[11px] font-medium transition-colors ${
+                      isSelected
+                        ? "text-white font-bold"
+                        : isCurrentDay
+                          ? "text-sky-400"
+                          : "text-slate-400 group-hover:text-slate-200"
+                    }`}
+                  >
+                    {dayItem.dayInitial ||
+                      (dayItem.dayName ? dayItem.dayName[0] : "")}
                   </span>
                   <div
                     className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-all font-mono ${
                       isSelected
-                        ? 'bg-sky-400 text-slate-950 font-black shadow-md shadow-sky-400/30 scale-105'
+                        ? "bg-sky-400 text-slate-950 font-black shadow-md shadow-sky-400/30 scale-105"
                         : isCurrentDay
-                        ? 'text-sky-400 font-bold border border-sky-400/50 group-hover:bg-white/10'
-                        : 'text-slate-300 font-medium group-hover:bg-white/10'
+                          ? "text-sky-400 font-bold border border-sky-400/50 group-hover:bg-white/10"
+                          : "text-slate-300 font-medium group-hover:bg-white/10"
                     }`}
                   >
-                    {dayItem.dayNum || (dayItem.date ? parseInt(dayItem.date.slice(-2), 10) : idx + 1)}
+                    {dayItem.dayNum ||
+                      (dayItem.date
+                        ? parseInt(dayItem.date.slice(-2), 10)
+                        : idx + 1)}
                   </div>
                 </button>
               );
@@ -319,26 +382,35 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
             <div>
               <div className="flex items-center gap-3">
                 <span className="text-4xl sm:text-5xl font-light tracking-tight text-white font-mono">
-                  {displayTemp !== undefined ? `${displayTemp}°` : '--'}
+                  {displayTemp !== undefined ? `${displayTemp}°` : "--"}
                 </span>
-                <WeatherIcon icon={displayIcon} className="w-10 h-10 sm:w-12 sm:h-12 drop-shadow-md" />
+                <WeatherIcon
+                  icon={displayIcon}
+                  className="w-10 h-10 sm:w-12 sm:h-12 drop-shadow-md"
+                />
               </div>
               <div className="flex items-center gap-2 mt-1 text-xs text-slate-400 font-medium">
                 <span>H:{selectedDay?.maxTemp}°</span>
                 <span>L:{selectedDay?.minTemp}°</span>
                 <span aria-hidden="true">·</span>
-                <span className="text-slate-300 font-semibold">{displayPoint?.condition || selectedDay?.condition}</span>
+                <span className="text-slate-300 font-semibold">
+                  {displayPoint?.condition || selectedDay?.condition}
+                </span>
                 {activeScrubHour !== null && (
-                  <span className="text-sky-400 font-mono">({displayPoint?.hourLabel})</span>
+                  <span className="text-sky-400 font-mono">
+                    ({displayPoint?.hourLabel})
+                  </span>
                 )}
               </div>
             </div>
 
             <div className="text-right">
               <span className="text-xs text-slate-400 uppercase font-mono tracking-wider">
-                {weather.tempUnit === '°F' ? 'Fahrenheit (°F)' : 'Celsius (°C)'}
+                {weather.tempUnit === "°F" ? "Fahrenheit (°F)" : "Celsius (°C)"}
               </span>
-              <p className="text-xs text-slate-500 font-medium">{weather.city}</p>
+              <p className="text-xs text-slate-500 font-medium">
+                {weather.city}
+              </p>
             </div>
           </div>
 
@@ -347,13 +419,25 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
           {/* ============================================================ */}
           <div className="bg-slate-900/60 rounded-2xl p-3 border border-white/10">
             {/* Hour Condition Icons Row */}
-            <div className="grid grid-cols-8 text-center px-6 mb-1">
+            <div
+              className="grid grid-cols-8 text-center mb-1.5"
+              style={{
+                paddingLeft: `${(paddingLeft / chartWidth) * 100}%`,
+                paddingRight: `${(paddingRight / chartWidth) * 100}%`,
+              }}
+            >
               {[0, 3, 6, 9, 12, 15, 18, 21].map((hIdx) => {
                 const pt = hourlyData[hIdx];
                 return (
-                  <div key={hIdx} className="flex flex-col items-center gap-0.5">
+                  <div
+                    key={hIdx}
+                    className="flex flex-col items-center gap-0.5"
+                  >
                     {pt ? (
-                      <WeatherIcon icon={pt.icon} className="w-3.5 h-3.5 opacity-80" />
+                      <WeatherIcon
+                        icon={pt.icon}
+                        className="w-3.5 h-3.5 opacity-80"
+                      />
                     ) : (
                       <div className="w-3.5 h-3.5" />
                     )}
@@ -363,40 +447,52 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
             </div>
 
             {/* Responsive SVG Chart */}
-            <div className="relative w-full h-40">
+            <div className="relative w-full h-52 sm:h-56">
               <svg
                 viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                 className="w-full h-full overflow-visible"
               >
                 <defs>
-                  <linearGradient id="appleTempGradient" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="appleTempGradient"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.45" />
                     <stop offset="60%" stopColor="#0284c7" stopOpacity="0.15" />
                     <stop offset="100%" stopColor="#0284c7" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
 
-                {/* Horizontal Gridlines & Y-Axis Labels */}
+                {/* Horizontal Gridlines & Y-Axis Temperature Labels */}
                 {yTicks.map((tickVal) => {
                   const tempRange = Math.max(1, maxGraphTemp - minGraphTemp);
-                  const y = paddingTop + innerHeight - ((tickVal - minGraphTemp) / tempRange) * innerHeight;
+                  const y =
+                    paddingTop +
+                    innerHeight -
+                    ((tickVal - minGraphTemp) / tempRange) * innerHeight;
                   return (
                     <g key={tickVal}>
                       <line
-                        x1={paddingX}
+                        x1={paddingLeft}
                         y1={y}
-                        x2={chartWidth - paddingX}
+                        x2={chartWidth - paddingRight}
                         y2={y}
-                        stroke="rgba(255,255,255,0.08)"
-                        strokeDasharray={tickVal === 0 ? '0' : '4 4'}
-                        strokeWidth={tickVal === 0 ? '1.5' : '1'}
+                        stroke="rgba(255,255,255,0.12)"
+                        strokeDasharray={tickVal === 0 ? "0" : "4 4"}
+                        strokeWidth={tickVal === 0 ? "1.5" : "1"}
                       />
                       <text
-                        x={chartWidth - paddingX + 8}
-                        y={y + 3}
-                        fill="rgba(255,255,255,0.4)"
-                        fontSize="10"
-                        fontFamily="monospace"
+                        x={chartWidth - paddingRight + 12}
+                        y={y}
+                        dominantBaseline="central"
+                        fill="#f8fafc"
+                        fontSize="22"
+                        fontWeight="700"
+                        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                        className="select-none"
                       >
                         {tickVal}°
                       </text>
@@ -404,9 +500,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                   );
                 })}
 
-                {/* Vertical Hour Guidelines at 00, 06, 12, 18 */}
-                {[0, 6, 12, 18].map((h) => {
-                  const x = paddingX + (h / 23) * innerWidth;
+                {/* Vertical Hour Guidelines at 00, 06, 12, 18, 23 */}
+                {[0, 6, 12, 18, 23].map((h) => {
+                  const x = paddingLeft + (h / 23) * innerWidth;
                   return (
                     <line
                       key={h}
@@ -414,7 +510,7 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                       y1={paddingTop}
                       x2={x}
                       y2={paddingTop + innerHeight}
-                      stroke="rgba(255,255,255,0.06)"
+                      stroke="rgba(255,255,255,0.08)"
                       strokeDasharray="2 4"
                     />
                   );
@@ -456,16 +552,16 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     <circle
                       cx={points[highPoint].x}
                       cy={points[highPoint].y}
-                      r="3.5"
+                      r="5"
                       fill="#ffffff"
                       stroke="#38bdf8"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                     />
                     <text
                       x={points[highPoint].x}
-                      y={points[highPoint].y - 8}
+                      y={points[highPoint].y - 9}
                       fill="#ffffff"
-                      fontSize="9"
+                      fontSize="14"
                       fontWeight="bold"
                       textAnchor="middle"
                       fontFamily="monospace"
@@ -481,16 +577,16 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     <circle
                       cx={points[lowPoint].x}
                       cy={points[lowPoint].y}
-                      r="3.5"
+                      r="5"
                       fill="#ffffff"
                       stroke="#0284c7"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                     />
                     <text
                       x={points[lowPoint].x}
-                      y={points[lowPoint].y - 8}
+                      y={points[lowPoint].y - 9}
                       fill="#ffffff"
-                      fontSize="9"
+                      fontSize="14"
                       fontWeight="bold"
                       textAnchor="middle"
                       fontFamily="monospace"
@@ -506,14 +602,14 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     <circle
                       cx={points[currentHour].x}
                       cy={points[currentHour].y}
-                      r="5"
+                      r="6"
                       fill="#38bdf8"
                       className="animate-pulse"
                     />
                     <circle
                       cx={points[currentHour].x}
                       cy={points[currentHour].y}
-                      r="2"
+                      r="2.5"
                       fill="#ffffff"
                     />
                   </g>
@@ -541,10 +637,42 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     />
                   </g>
                 )}
+
+                {/* In-SVG X-Axis Hour Labels */}
+                {[
+                  { h: 0, label: "00" },
+                  { h: 6, label: "06" },
+                  { h: 12, label: "12" },
+                  { h: 18, label: "18" },
+                  { h: 23, label: "23" },
+                ].map(({ h, label }) => {
+                  const x = paddingLeft + (h / 23) * innerWidth;
+                  return (
+                    <text
+                      key={h}
+                      x={x}
+                      y={chartHeight - 10}
+                      fill="#94a3b8"
+                      fontSize="18"
+                      fontWeight="600"
+                      textAnchor="middle"
+                      fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                    >
+                      {label}
+                    </text>
+                  );
+                })}
               </svg>
 
               {/* Click / Touch overlay for scrubber */}
-              <div className="absolute inset-0 flex">
+              <div
+                className="absolute inset-y-0 flex"
+                style={{
+                  left: `${(paddingLeft / chartWidth) * 100}%`,
+                  right: `${(paddingRight / chartWidth) * 100}%`,
+                  bottom: `${(paddingBottom / chartHeight) * 100}%`,
+                }}
+              >
                 {hourlyData.map((_, hIdx) => (
                   <button
                     key={hIdx}
@@ -557,36 +685,27 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
               </div>
             </div>
 
-            {/* X-Axis Hour Labels */}
-            <div className="flex justify-between px-6 pt-1 text-[10px] text-slate-400 font-mono">
-              <span>00</span>
-              <span>06</span>
-              <span>12</span>
-              <span>18</span>
-              <span>23</span>
-            </div>
-
             {/* Segmented Actual vs Feels Like Toggle */}
             <div className="mt-4 pt-3 border-t border-white/10">
               <div className="w-full max-w-xs mx-auto p-1 bg-white/10 rounded-xl flex items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => setTempMode('actual')}
+                  onClick={() => setTempMode("actual")}
                   className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    tempMode === 'actual'
-                      ? 'bg-white text-slate-950 shadow-md'
-                      : 'text-slate-300 hover:text-white'
+                    tempMode === "actual"
+                      ? "bg-white text-slate-950 shadow-md"
+                      : "text-slate-300 hover:text-white"
                   }`}
                 >
                   Actual
                 </button>
                 <button
                   type="button"
-                  onClick={() => setTempMode('feels_like')}
+                  onClick={() => setTempMode("feels_like")}
                   className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                    tempMode === 'feels_like'
-                      ? 'bg-white text-slate-950 shadow-md'
-                      : 'text-slate-300 hover:text-white'
+                    tempMode === "feels_like"
+                      ? "bg-white text-slate-950 shadow-md"
+                      : "text-slate-300 hover:text-white"
                   }`}
                 >
                   Feels Like
@@ -594,9 +713,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
               </div>
 
               <p className="text-center text-[11px] text-slate-400 mt-1.5">
-                {tempMode === 'actual'
-                  ? 'The actual temperature.'
-                  : 'What the temperature feels like as a result of humidity, sunlight or wind.'}
+                {tempMode === "actual"
+                  ? "The actual temperature."
+                  : "What the temperature feels like as a result of humidity, sunlight or wind."}
               </p>
             </div>
           </div>
@@ -612,53 +731,85 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                   <span>Chance of Precipitation</span>
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  {selectedDay?.dayName}&apos;s chance: <span className="text-sky-300 font-bold">{selectedDay?.precipitationProb}%</span>
+                  {selectedDay?.dayName}&apos;s chance:{" "}
+                  <span className="text-sky-300 font-bold">
+                    {selectedDay?.precipitationProb}%
+                  </span>
                 </p>
               </div>
-              {selectedDay?.precipitationAmount !== undefined && selectedDay.precipitationAmount > 0 && (
-                <span className="text-xs font-mono text-slate-300 bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
-                  {selectedDay.precipitationAmount} mm total
-                </span>
-              )}
+              {selectedDay?.precipitationAmount !== undefined &&
+                selectedDay.precipitationAmount > 0 && (
+                  <span className="text-xs font-mono text-slate-300 bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                    {selectedDay.precipitationAmount} mm total
+                  </span>
+                )}
             </div>
 
             {/* Precipitation Chart */}
-            <div className="relative w-full h-32">
+            <div className="relative w-full h-48 sm:h-52">
               <svg
                 viewBox={`0 0 ${chartWidth} ${chartHeight}`}
                 className="w-full h-full overflow-visible"
               >
                 <defs>
                   {/* Diagonal hatched stripe pattern for 0% rain (matches Apple Weather screenshot) */}
-                  <pattern id="diagonalHatch" width="8" height="8" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
-                    <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(255,255,255,0.06)" strokeWidth="1" />
+                  <pattern
+                    id="diagonalHatch"
+                    width="8"
+                    height="8"
+                    patternTransform="rotate(45 0 0)"
+                    patternUnits="userSpaceOnUse"
+                  >
+                    <line
+                      x1="0"
+                      y1="0"
+                      x2="0"
+                      y2="8"
+                      stroke="rgba(255,255,255,0.06)"
+                      strokeWidth="1"
+                    />
                   </pattern>
 
-                  <linearGradient id="precipGradient" x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient
+                    id="precipGradient"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
                     <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.6" />
-                    <stop offset="100%" stopColor="#0284c7" stopOpacity="0.15" />
+                    <stop
+                      offset="100%"
+                      stopColor="#0284c7"
+                      stopOpacity="0.15"
+                    />
                   </linearGradient>
                 </defs>
 
                 {/* Percentage Ticks (0%, 20%, 40%, 60%, 80%, 100%) */}
                 {[0, 20, 40, 60, 80, 100].map((pct) => {
-                  const y = paddingTop + innerHeight - (pct / 100) * innerHeight;
+                  const y =
+                    paddingTop + innerHeight - (pct / 100) * innerHeight;
                   return (
                     <g key={pct}>
                       <line
-                        x1={paddingX}
+                        x1={paddingLeft}
                         y1={y}
-                        x2={chartWidth - paddingX}
+                        x2={chartWidth - paddingRight}
                         y2={y}
-                        stroke="rgba(255,255,255,0.08)"
-                        strokeDasharray={pct === 0 ? '0' : '4 4'}
+                        stroke="rgba(255,255,255,0.12)"
+                        strokeDasharray={pct === 0 ? "0" : "4 4"}
+                        strokeWidth={pct === 0 ? "1.5" : "1"}
                       />
                       <text
-                        x={chartWidth - paddingX + 8}
-                        y={y + 3}
-                        fill="rgba(255,255,255,0.4)"
-                        fontSize="10"
-                        fontFamily="monospace"
+                        x={chartWidth - paddingRight + 12}
+                        y={y}
+                        dominantBaseline="central"
+                        fill="#7dd3fc"
+                        fontSize="21"
+                        fontWeight="700"
+                        fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                        className="select-none"
                       >
                         {pct}%
                       </text>
@@ -666,9 +817,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                   );
                 })}
 
-                {/* Vertical Hour Guidelines at 00, 06, 12, 18 */}
-                {[0, 6, 12, 18].map((h) => {
-                  const x = paddingX + (h / 23) * innerWidth;
+                {/* Vertical Hour Guidelines at 00, 06, 12, 18, 23 */}
+                {[0, 6, 12, 18, 23].map((h) => {
+                  const x = paddingLeft + (h / 23) * innerWidth;
                   return (
                     <line
                       key={h}
@@ -676,7 +827,7 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                       y1={paddingTop}
                       x2={x}
                       y2={paddingTop + innerHeight}
-                      stroke="rgba(255,255,255,0.06)"
+                      stroke="rgba(255,255,255,0.08)"
                       strokeDasharray="2 4"
                     />
                   );
@@ -686,16 +837,16 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                 {!hasAnyPrecipitation ? (
                   <g>
                     <rect
-                      x={paddingX}
+                      x={paddingLeft}
                       y={paddingTop}
                       width={innerWidth}
                       height={innerHeight}
                       fill="url(#diagonalHatch)"
                     />
                     <line
-                      x1={paddingX}
+                      x1={paddingLeft}
                       y1={paddingTop + innerHeight}
-                      x2={chartWidth - paddingX}
+                      x2={chartWidth - paddingRight}
                       y2={paddingTop + innerHeight}
                       stroke="#0ea5e9"
                       strokeWidth="2"
@@ -710,7 +861,7 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     {/* Glowing Top Line */}
                     {precipPoints.length > 0 && (
                       <path
-                        d={precipAreaPath.split(' L ')[0]}
+                        d={precipAreaPath.split(" L ")[0]}
                         fill="none"
                         stroke="#38bdf8"
                         strokeWidth="2.5"
@@ -719,16 +870,32 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     )}
                   </g>
                 )}
-              </svg>
-            </div>
 
-            {/* X-Axis Hour Labels */}
-            <div className="flex justify-between px-6 pt-1 text-[10px] text-slate-400 font-mono">
-              <span>00</span>
-              <span>06</span>
-              <span>12</span>
-              <span>18</span>
-              <span>23</span>
+                {/* In-SVG X-Axis Hour Labels */}
+                {[
+                  { h: 0, label: "00" },
+                  { h: 6, label: "06" },
+                  { h: 12, label: "12" },
+                  { h: 18, label: "18" },
+                  { h: 23, label: "23" },
+                ].map(({ h, label }) => {
+                  const x = paddingLeft + (h / 23) * innerWidth;
+                  return (
+                    <text
+                      key={h}
+                      x={x}
+                      y={chartHeight - 10}
+                      fill="#94a3b8"
+                      fontSize="18"
+                      fontWeight="600"
+                      textAnchor="middle"
+                      fontFamily="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace"
+                    >
+                      {label}
+                    </text>
+                  );
+                })}
+              </svg>
             </div>
           </div>
 
@@ -748,7 +915,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     <span>LAST 24 HOURS</span>
                   </div>
                   <span className="font-mono font-bold text-white">
-                    {weather.past24hPrecipitation !== undefined ? `${weather.past24hPrecipitation} mm` : '0 mm'}
+                    {weather.past24hPrecipitation !== undefined
+                      ? `${weather.past24hPrecipitation} mm`
+                      : "0 mm"}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -757,7 +926,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                     <span>NEXT 24 HOURS</span>
                   </div>
                   <span className="font-mono font-bold text-white">
-                    {weather.next24hPrecipitation !== undefined ? `${weather.next24hPrecipitation} mm` : `${selectedDay?.precipitationAmount || 0} mm`}
+                    {weather.next24hPrecipitation !== undefined
+                      ? `${weather.next24hPrecipitation} mm`
+                      : `${selectedDay?.precipitationAmount || 0} mm`}
                   </span>
                 </div>
               </div>
@@ -785,24 +956,34 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                 {/* Today range bar */}
                 <div className="flex items-center gap-3 text-xs">
                   <span className="w-16 text-slate-400 font-medium">Today</span>
-                  <span className="font-mono text-slate-300 w-6 text-right">{selectedDay?.minTemp}°</span>
+                  <span className="font-mono text-slate-300 w-6 text-right">
+                    {selectedDay?.minTemp}°
+                  </span>
                   <div className="flex-1 h-1.5 bg-slate-800 rounded-full relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-sky-400 to-teal-400 rounded-full" />
                   </div>
-                  <span className="font-mono text-slate-300 w-6">{selectedDay?.maxTemp}°</span>
+                  <span className="font-mono text-slate-300 w-6">
+                    {selectedDay?.maxTemp}°
+                  </span>
                 </div>
 
                 {/* Yesterday range bar */}
                 {selectedDay?.yesterdayMaxTemp !== undefined && (
                   <div className="flex items-center gap-3 text-xs">
-                    <span className="w-16 text-slate-400 font-medium">Yesterday</span>
+                    <span className="w-16 text-slate-400 font-medium">
+                      Yesterday
+                    </span>
                     <span className="font-mono text-slate-400 w-6 text-right">
-                      {selectedDay.yesterdayMinTemp !== undefined ? `${selectedDay.yesterdayMinTemp}°` : '--'}
+                      {selectedDay.yesterdayMinTemp !== undefined
+                        ? `${selectedDay.yesterdayMinTemp}°`
+                        : "--"}
                     </span>
                     <div className="flex-1 h-1.5 bg-slate-800 rounded-full relative overflow-hidden">
                       <div className="absolute inset-0 bg-gradient-to-r from-teal-500/70 to-sky-500/70 rounded-full" />
                     </div>
-                    <span className="font-mono text-slate-400 w-6">{selectedDay.yesterdayMaxTemp}°</span>
+                    <span className="font-mono text-slate-400 w-6">
+                      {selectedDay.yesterdayMaxTemp}°
+                    </span>
                   </div>
                 )}
               </div>
@@ -815,8 +996,9 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                 <span>About Feels Like Temperature</span>
               </h4>
               <p className="leading-relaxed text-[11px] text-slate-400">
-                Feels Like conveys how warm or cold it feels and can be different from the actual temperature.
-                The Feels Like temperature is affected by humidity, sunlight, and wind.
+                Feels Like conveys how warm or cold it feels and can be
+                different from the actual temperature. The Feels Like
+                temperature is affected by humidity, sunlight, and wind.
               </p>
             </div>
           </div>
