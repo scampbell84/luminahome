@@ -9,7 +9,9 @@ import {
   CloudDrizzle, 
   CloudFog,
   Wind,
-  Droplets
+  Droplets,
+  Moon,
+  CloudMoon
 } from 'lucide-react';
 
 interface WeatherIconProps {
@@ -22,6 +24,10 @@ export const WeatherIcon: React.FC<WeatherIconProps> = ({ icon, className = 'w-6
   switch (icon) {
     case 'sun':
       return <Sun className={`${className} text-amber-400`} size={size} />;
+    case 'moon':
+      return <Moon className={`${className} text-sky-200`} size={size} />;
+    case 'cloud-moon':
+      return <CloudMoon className={`${className} text-indigo-300`} size={size} />;
     case 'sun-dim':
     case 'cloud-sun':
       return <CloudSun className={`${className} text-amber-300`} size={size} />;

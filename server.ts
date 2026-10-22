@@ -9,7 +9,7 @@ import ical from 'node-ical';
 import Parser from 'rss-parser';
 import { DEFAULT_CONFIG, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from './src/constants/defaultConfig.js';
 import { APP_VERSION } from './src/constants/version.js';
-import { AppConfig, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto } from './src/types/config.js';
+import { AppConfig, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto, HourlyPoint, DetailedDailyForecast } from './src/types/config.js';
 import { GoogleGenAI } from '@google/genai';
 
 const app = express();
@@ -1308,30 +1308,123 @@ app.get('/api/weather', async (req: Request, res: Response) => {
   const windUnitParam = units === 'imperial' ? 'mph' : 'kmh';
 
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max&timezone=auto&temperature_unit=${tempUnitParam}&wind_speed_unit=${windUnitParam}`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max&past_days=1&timezone=auto&temperature_unit=${tempUnitParam}&wind_speed_unit=${windUnitParam}`;
 
     const data = await fetchOpenMeteoWithRetry(url, 2);
     const current = data.current;
-    const daily = data.daily;
+    const daily = data.daily || {};
+    const hourly = data.hourly || {};
 
     const weatherInfo = interpretWmoCode(current.weather_code);
 
-    const formattedDaily = (daily.time || []).slice(0, 6).map((timeStr: string, idx: number) => {
-      const date = new Date(timeStr + 'T00:00:00');
-      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const dayName = idx === 0 ? 'Today' : dayNames[date.getDay()];
-      const code = daily.weather_code[idx];
+    // Map all raw hourly points from Open-Meteo
+    const hourlyTimes: string[] = hourly.time || [];
+    const allHourlyPoints: HourlyPoint[] = hourlyTimes.map((timeStr: string, idx: number) => {
+      const hourNum = parseInt(timeStr.slice(11, 13), 10) || 0;
+      const isDay = hourly.is_day ? Boolean(hourly.is_day[idx]) : hourNum >= 6 && hourNum < 21;
+      const code = hourly.weather_code ? hourly.weather_code[idx] : 0;
       const info = interpretWmoCode(code);
+      let icon = info.icon;
+      if (!isDay) {
+        if (icon === 'sun' || icon === 'sun-dim') icon = 'moon';
+        else if (icon === 'cloud-sun') icon = 'cloud-moon';
+      }
+
+      return {
+        time: timeStr,
+        hour: hourNum,
+        hourLabel: `${String(hourNum).padStart(2, '0')}:00`,
+        temp: Math.round(hourly.temperature_2m ? hourly.temperature_2m[idx] : 0),
+        apparentTemp: Math.round(hourly.apparent_temperature ? hourly.apparent_temperature[idx] : 0),
+        precipitationProb: Math.round(hourly.precipitation_probability ? hourly.precipitation_probability[idx] : 0),
+        precipitationAmount: Number(((hourly.precipitation ? hourly.precipitation[idx] : 0) || 0).toFixed(1)),
+        weatherCode: code,
+        condition: info.condition,
+        icon,
+        isDay,
+      };
+    });
+
+    // Compute past 24h and next 24h precipitation sums
+    const nowIsoHour = new Date().toISOString().slice(0, 13);
+    let currentHourIdx = hourlyTimes.findIndex(t => t.startsWith(nowIsoHour));
+    if (currentHourIdx === -1) currentHourIdx = Math.min(24, Math.floor(hourlyTimes.length / 2));
+
+    let past24hPrecip = 0;
+    for (let i = Math.max(0, currentHourIdx - 24); i < currentHourIdx; i++) {
+      past24hPrecip += (hourly.precipitation ? hourly.precipitation[i] : 0) || 0;
+    }
+
+    let next24hPrecip = 0;
+    for (let i = currentHourIdx; i < Math.min(hourlyTimes.length, currentHourIdx + 24); i++) {
+      next24hPrecip += (hourly.precipitation ? hourly.precipitation[i] : 0) || 0;
+    }
+
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Identify yesterday's temperature extremes (index 0 when past_days=1)
+    const yesterdayMin = daily.temperature_2m_min && daily.temperature_2m_min.length > 0 ? Math.round(daily.temperature_2m_min[0]) : undefined;
+    const yesterdayMax = daily.temperature_2m_max && daily.temperature_2m_max.length > 0 ? Math.round(daily.temperature_2m_max[0]) : undefined;
+
+    // Daily entries starting from today (index 1 if past_days=1, else index 0)
+    const startIndex = daily.time && daily.time.length > 1 ? 1 : 0;
+    const daysSlice = (daily.time || []).slice(startIndex, startIndex + 7);
+
+    const formattedDaily: DetailedDailyForecast[] = daysSlice.map((timeStr: string, sliceIdx: number) => {
+      const origIdx = startIndex + sliceIdx;
+      const date = new Date(timeStr + 'T00:00:00');
+      const dayName = sliceIdx === 0 ? 'Today' : dayNames[date.getDay()];
+      const shortDay = dayNames[date.getDay()];
+      const dayInitial = shortDay[0];
+      const dayNum = date.getDate();
+      const code = daily.weather_code ? daily.weather_code[origIdx] : 0;
+      const info = interpretWmoCode(code);
+      const minTemp = Math.round(daily.temperature_2m_min ? daily.temperature_2m_min[origIdx] : 0);
+      const maxTemp = Math.round(daily.temperature_2m_max ? daily.temperature_2m_max[origIdx] : 0);
+      const pop = daily.precipitation_probability_max ? daily.precipitation_probability_max[origIdx] || 0 : 0;
+      const precipAmount = daily.precipitation_sum ? Number((daily.precipitation_sum[origIdx] || 0).toFixed(1)) : 0;
+
+      // Extract 24 hourly points for this specific day
+      const dayHourly = allHourlyPoints.filter(p => p.time.startsWith(timeStr));
+
+      // Build Apple Weather style narrative
+      const currentTemp = Math.round(current.temperature_2m);
+      const apparentTemp = Math.round(current.apparent_temperature);
+      const diff = apparentTemp - currentTemp;
+      let windNote = '';
+      if (diff <= -2) windNote = `Wind is making it feel cooler, about ${apparentTemp}°. `;
+      else if (diff >= 2) windNote = `Humidity makes it feel warmer, about ${apparentTemp}°. `;
+
+      let rainNote = '';
+      const rainPeak = dayHourly.find(h => h.precipitationProb >= 50);
+      if (rainPeak) {
+        rainNote = `${rainPeak.condition} expected around ${rainPeak.hourLabel}. `;
+      }
+
+      const summaryText = sliceIdx === 0
+        ? `${currentTemp}° now and ${info.condition.toLowerCase()}. ${windNote}${rainNote}Today's temperature range is from ${minTemp}° to ${maxTemp}° and feels like ${minTemp + diff}° to ${maxTemp + diff}°.`
+        : `${info.condition} throughout the day with temperatures ranging from ${minTemp}° to ${maxTemp}°. Precipitation probability peaks around ${pop}%.`;
+
+      const prevMin = origIdx > 0 && daily.temperature_2m_min ? Math.round(daily.temperature_2m_min[origIdx - 1]) : yesterdayMin;
+      const prevMax = origIdx > 0 && daily.temperature_2m_max ? Math.round(daily.temperature_2m_max[origIdx - 1]) : yesterdayMax;
 
       return {
         date: timeStr,
         dayName,
-        minTemp: Math.round(daily.temperature_2m_min[idx]),
-        maxTemp: Math.round(daily.temperature_2m_max[idx]),
+        shortDay,
+        dayInitial,
+        dayNum,
+        minTemp,
+        maxTemp,
         weatherCode: code,
         icon: info.icon,
         condition: info.condition,
-        precipitationProb: daily.precipitation_probability_max ? daily.precipitation_probability_max[idx] || 0 : 0,
+        precipitationProb: pop,
+        precipitationAmount: precipAmount,
+        yesterdayMinTemp: prevMin,
+        yesterdayMaxTemp: prevMax,
+        summaryText,
+        hourly: dayHourly,
       };
     });
 
@@ -1351,6 +1444,8 @@ app.get('/api/weather', async (req: Request, res: Response) => {
       alerts,
       activeAlert: alerts[0] || null,
       daily: formattedDaily,
+      past24hPrecipitation: Number(past24hPrecip.toFixed(1)),
+      next24hPrecipitation: Number(next24hPrecip.toFixed(1)),
       lastUpdated: new Date().toISOString(),
     };
 
@@ -1391,27 +1486,92 @@ app.get('/api/weather', async (req: Request, res: Response) => {
     const today = new Date();
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const mockDailyTemps = [
-      { min: 8, max: 14, code: 2, icon: 'cloud-sun', condition: 'Partly Cloudy', pop: 15 },
-      { min: 7, max: 13, code: 61, icon: 'cloud-rain', condition: 'Showers', pop: 60 },
-      { min: 6, max: 12, code: 3, icon: 'cloud', condition: 'Overcast', pop: 25 },
-      { min: 8, max: 14, code: 1, icon: 'sun-dim', condition: 'Mainly Clear', pop: 10 },
-      { min: 7, max: 13, code: 2, icon: 'cloud-sun', condition: 'Partly Cloudy', pop: 20 },
+      { min: 8, max: 14, code: 2, icon: 'cloud-sun', condition: 'Partly Cloudy', pop: 15, precip: 0.0 },
+      { min: 7, max: 13, code: 61, icon: 'cloud-rain', condition: 'Showers', pop: 60, precip: 8.5 },
+      { min: 6, max: 12, code: 3, icon: 'cloud', condition: 'Overcast', pop: 25, precip: 0.2 },
+      { min: 8, max: 14, code: 1, icon: 'sun-dim', condition: 'Mainly Clear', pop: 10, precip: 0.0 },
+      { min: 7, max: 13, code: 2, icon: 'cloud-sun', condition: 'Partly Cloudy', pop: 20, precip: 0.0 },
+      { min: 9, max: 15, code: 0, icon: 'sun', condition: 'Clear Sky', pop: 5, precip: 0.0 },
+      { min: 8, max: 13, code: 61, icon: 'cloud-rain', condition: 'Showers', pop: 45, precip: 3.2 },
     ];
 
-    const dynamicDaily = mockDailyTemps.map((item, idx) => {
+    const dynamicDaily: DetailedDailyForecast[] = mockDailyTemps.map((item, idx) => {
       const d = new Date(today);
       d.setDate(today.getDate() + idx);
       const dateStr = d.toISOString().split('T')[0];
       const dayName = idx === 0 ? 'Today' : dayNames[d.getDay()];
+      const shortDay = dayNames[d.getDay()];
+      const dayInitial = shortDay[0];
+      const dayNum = d.getDate();
+
+      const minTemp = units === 'imperial' ? Math.round(item.min * 1.8 + 32) : item.min;
+      const maxTemp = units === 'imperial' ? Math.round(item.max * 1.8 + 32) : item.max;
+
+      // Generate 24 hourly points with natural diurnal curve
+      const hourly: HourlyPoint[] = Array.from({ length: 24 }).map((_, h) => {
+        const isDay = h >= 6 && h < 21;
+        // Natural temperature curve peaking at 15:00 and coolest at 06:00
+        const sinFactor = Math.sin(((h - 9) / 24) * 2 * Math.PI);
+        const curTemp = Math.round(minTemp + (maxTemp - minTemp) * (0.5 + 0.5 * sinFactor));
+        const appTemp = curTemp - 1;
+
+        // Precipitation curve concentrated around afternoon if rainy
+        let pop = 0;
+        let precipAmt = 0;
+        if (item.pop > 30) {
+          if (h >= 8 && h <= 18) {
+            pop = Math.min(100, Math.round(item.pop * (0.6 + 0.4 * Math.sin(((h - 8) / 10) * Math.PI))));
+            precipAmt = Number((item.precip * 0.15).toFixed(1));
+          }
+        } else {
+          pop = Math.round(item.pop * 0.5);
+        }
+
+        let icon = item.icon;
+        if (!isDay) {
+          if (icon === 'sun' || icon === 'sun-dim') icon = 'moon';
+          else if (icon === 'cloud-sun') icon = 'cloud-moon';
+        }
+
+        return {
+          time: `${dateStr}T${String(h).padStart(2, '0')}:00`,
+          hour: h,
+          hourLabel: `${String(h).padStart(2, '0')}:00`,
+          temp: curTemp,
+          apparentTemp: appTemp,
+          precipitationProb: pop,
+          precipitationAmount: precipAmt,
+          weatherCode: item.code,
+          condition: item.condition,
+          icon,
+          isDay,
+        };
+      });
+
+      const prevMin = idx > 0 ? (units === 'imperial' ? Math.round(mockDailyTemps[idx - 1].min * 1.8 + 32) : mockDailyTemps[idx - 1].min) : minTemp - 1;
+      const prevMax = idx > 0 ? (units === 'imperial' ? Math.round(mockDailyTemps[idx - 1].max * 1.8 + 32) : mockDailyTemps[idx - 1].max) : maxTemp + 1;
+
+      const summaryText = idx === 0
+        ? `${maxTemp - 1}° now and ${item.condition.toLowerCase()}. Wind is making it feel cooler, about ${maxTemp - 2}°. Today's temperature range is from ${minTemp}° to ${maxTemp}° and feels like ${minTemp - 1}° to ${maxTemp - 1}°.`
+        : `${item.condition} throughout the day with temperatures from ${minTemp}° to ${maxTemp}°. Precipitation probability peaks around ${item.pop}%.`;
+
       return {
         date: dateStr,
         dayName,
-        minTemp: units === 'imperial' ? Math.round(item.min * 1.8 + 32) : item.min,
-        maxTemp: units === 'imperial' ? Math.round(item.max * 1.8 + 32) : item.max,
+        shortDay,
+        dayInitial,
+        dayNum,
+        minTemp,
+        maxTemp,
         weatherCode: item.code,
         icon: item.icon,
         condition: item.condition,
         precipitationProb: item.pop,
+        precipitationAmount: item.precip,
+        yesterdayMinTemp: prevMin,
+        yesterdayMaxTemp: prevMax,
+        summaryText,
+        hourly,
       };
     });
 
@@ -1430,6 +1590,8 @@ app.get('/api/weather', async (req: Request, res: Response) => {
       alerts: fallbackAlerts,
       activeAlert: fallbackAlerts[0] || null,
       daily: dynamicDaily,
+      past24hPrecipitation: 5.0,
+      next24hPrecipitation: 23.0,
       lastUpdated: new Date().toISOString(),
     };
 

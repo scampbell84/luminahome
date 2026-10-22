@@ -33,6 +33,39 @@ export interface WeatherAlert {
   color?: 'amber' | 'red' | 'yellow' | 'orange';
 }
 
+export interface HourlyPoint {
+  time: string; // ISO string e.g. "2026-10-22T14:00"
+  hour: number; // 0 to 23
+  hourLabel: string; // "14:00" or "2 PM"
+  temp: number;
+  apparentTemp: number;
+  precipitationProb: number; // 0 to 100%
+  precipitationAmount: number; // in mm or in
+  weatherCode: number;
+  condition: string;
+  icon: string;
+  isDay: boolean;
+}
+
+export interface DetailedDailyForecast {
+  date: string;
+  dayName: string;
+  shortDay: string;
+  dayInitial: string;
+  dayNum: number;
+  minTemp: number;
+  maxTemp: number;
+  weatherCode: number;
+  icon: string;
+  condition: string;
+  precipitationProb: number;
+  precipitationAmount?: number;
+  yesterdayMinTemp?: number;
+  yesterdayMaxTemp?: number;
+  summaryText?: string;
+  hourly?: HourlyPoint[];
+}
+
 export interface WeatherData {
   city: string;
   temp: number;
@@ -46,18 +79,11 @@ export interface WeatherData {
   tempUnit: string;
   uvIndex?: number;
   precipitationProb?: number;
+  past24hPrecipitation?: number;
+  next24hPrecipitation?: number;
   alerts?: WeatherAlert[];
   activeAlert?: WeatherAlert | null;
-  daily: Array<{
-    date: string;
-    dayName: string;
-    minTemp: number;
-    maxTemp: number;
-    weatherCode: number;
-    icon: string;
-    condition: string;
-    precipitationProb: number;
-  }>;
+  daily: DetailedDailyForecast[];
   lastUpdated: string;
 }
 

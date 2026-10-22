@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { WeatherData, AppConfig, WeatherAlert } from '../../types/config';
 import { WeatherIcon } from './WeatherIcon';
-import { Wind, Droplets, ArrowUp, ArrowDown, AlertTriangle, Info, X } from 'lucide-react';
+import { Wind, Droplets, AlertTriangle, Info, ChevronRight, X } from 'lucide-react';
+import { WeatherDetailsModal } from '../modals/WeatherDetailsModal';
 
 interface WeatherWidgetProps {
   config: AppConfig['weather'];
@@ -12,6 +13,8 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [showAlertModal, setShowAlertModal] = useState<boolean>(false);
+  const [showDetailsModal, setShowDetailsModal] = useState<boolean>(false);
+  const [selectedDetailDayIndex, setSelectedDetailDayIndex] = useState<number>(0);
 
   const fetchWeather = async () => {
     try {
@@ -95,10 +98,26 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
         </div>
       )}
 
-      {/* Current Conditions Block */}
-      <div className="flex items-start justify-between gap-4">
+      {/* Current Conditions Block - Tappable for Apple Weather detailed hourly overlay */}
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => {
+          setSelectedDetailDayIndex(0);
+          setShowDetailsModal(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setSelectedDetailDayIndex(0);
+            setShowDetailsModal(true);
+          }
+        }}
+        className="flex items-start justify-between gap-4 cursor-pointer group rounded-2xl p-2 -m-2 transition-all duration-200 hover:bg-white/10 active:scale-[0.99] border border-transparent hover:border-white/20"
+        title="Tap to view Apple Weather hourly forecast & details"
+      >
         <div className="flex items-center gap-3">
-          <WeatherIcon icon={weather.icon} className="w-12 h-12 md:w-16 md:h-16 drop-shadow-md" />
+          <WeatherIcon icon={weather.icon} className="w-12 h-12 md:w-16 md:h-16 drop-shadow-md group-hover:scale-105 transition-transform" />
           <div>
             <div className="flex items-baseline gap-1 text-kiosk-shadow">
               <span className="text-4xl md:text-5xl lg:text-6xl font-light tracking-tight">
@@ -113,13 +132,20 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
               {activeAlert && (
                 <button
                   type="button"
-                  onClick={() => setShowAlertModal(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowAlertModal(true);
+                  }}
                   className="px-2 py-0.5 rounded-full bg-amber-400 hover:bg-amber-300 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-md border border-white/60 transition-all active:scale-95 flex items-center gap-1"
                 >
                   <AlertTriangle className="w-2.5 h-2.5 fill-slate-950" />
                   <span>Alert</span>
                 </button>
               )}
+            </div>
+            <div className="flex items-center gap-1 text-[11px] text-white/60 group-hover:text-sky-300 transition-colors mt-0.5 font-medium">
+              <span>Hourly forecast</span>
+              <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
         </div>
@@ -131,7 +157,10 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
             </span>
             {activeAlert && (
               <span
-                onClick={() => setShowAlertModal(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowAlertModal(true);
+                }}
                 className="cursor-pointer px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[9px] font-black uppercase tracking-wider shadow-sm flex items-center gap-0.5 shrink-0 hover:bg-amber-300 transition-colors"
                 title="Active Weather Alert"
               >
@@ -155,28 +184,48 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
       {config.show5Day && weather.daily && weather.daily.length > 0 && (
         <div className="mt-3 pt-3 border-t border-white/15 grid grid-cols-5 gap-2 text-center text-kiosk-shadow">
           {weather.daily.slice(0, 5).map((day, idx) => (
-            <div 
-              key={day.date || idx} 
-              className="flex flex-col items-center bg-black/25 backdrop-blur-sm rounded-lg py-1.5 px-1 border border-white/10"
+            <button
+              key={day.date || idx}
+              type="button"
+              onClick={() => {
+                setSelectedDetailDayIndex(idx);
+                setShowDetailsModal(true);
+              }}
+              className="flex flex-col items-center bg-black/25 hover:bg-white/20 active:scale-95 transition-all duration-150 rounded-lg py-1.5 px-1 border border-white/10 hover:border-white/30 cursor-pointer text-center group shadow-sm focus:outline-none focus:ring-1 focus:ring-white/50"
+              title={`Tap for hourly conditions on ${day.dayName}`}
             >
-              <span className="text-xs font-semibold text-white/90">
+              <span className="text-xs font-semibold text-white/90 group-hover:text-white transition-colors">
                 {day.dayName}
               </span>
-              <div className="my-1">
+              <div className="my-1 group-hover:scale-110 transition-transform">
                 <WeatherIcon icon={day.icon} className="w-5 h-5 md:w-6 md:h-6" />
               </div>
               <div className="text-xs font-medium text-white flex items-center justify-center gap-1">
                 <span>{day.maxTemp}°</span>
                 <span className="text-white/50 text-[11px]">{day.minTemp}°</span>
               </div>
-              {day.precipitationProb > 15 && (
+              {day.precipitationProb > 15 ? (
                 <span className="text-[10px] text-sky-300 font-medium mt-0.5">
                   {day.precipitationProb}%
                 </span>
+              ) : (
+                <span className="text-[10px] text-white/40 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+                  Details
+                </span>
               )}
-            </div>
+            </button>
           ))}
         </div>
+      )}
+
+      {/* Apple Weather Details Modal */}
+      {showDetailsModal && (
+        <WeatherDetailsModal
+          isOpen={showDetailsModal}
+          onClose={() => setShowDetailsModal(false)}
+          weather={weather}
+          initialDayIndex={selectedDetailDayIndex}
+        />
       )}
 
       {/* Active Weather Alert Detail Modal */}
