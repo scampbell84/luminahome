@@ -163,6 +163,8 @@ export interface AppConfig {
     icloudCycleMinutes?: number; // 1, 3, 5, 10, 15, 30, etc.
     icloudBrightness?: number; // 10 to 100 percent
     icloudBlur?: number; // 0 to 25 px
+    photoFocalBias?: 'face_bias' | 'top' | 'center' | 'custom'; // Smart framing focus point
+    photoFocalOffsetY?: number; // 0 to 100 percentage (default: 20 for face bias)
     kioskHideCursor: boolean;
     heartbeatIntervalSeconds: number;
     fontSizeScale: 'sm' | 'md' | 'lg' | 'xl';
@@ -288,6 +290,8 @@ export interface AppConfig {
     icloudCycleMinutes?: number; // 1, 3, 5, 10, 15, 30 min
     photoBrightness?: number; // 10 to 100 percent (default 40%)
     photoBlur?: number; // 0 to 25 px (default 4px)
+    photoFocalBias?: 'face_bias' | 'top' | 'center' | 'custom'; // Smart framing focus point
+    photoFocalOffsetY?: number; // 0 to 100 percentage (default: 20 for face bias)
   };
 }
 

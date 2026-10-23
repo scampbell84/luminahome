@@ -457,6 +457,33 @@ function detectWeatherAlerts(
 // API Endpoints
 // -------------------------------------------------------------
 
+// Application Version & Build Info Endpoint (reads automated version.json)
+app.get(['/api/version', '/version.json'], (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  try {
+    const versionPath = path.resolve(process.cwd(), 'version.json');
+    if (fs.existsSync(versionPath)) {
+      const data = fs.readFileSync(versionPath, 'utf-8');
+      res.json(JSON.parse(data));
+      return;
+    }
+  } catch (err: any) {
+    console.warn('[Version] Error reading version.json:', err.message);
+  }
+
+  res.json({
+    appName: 'Lumina Home',
+    version: APP_VERSION,
+    versionTag: `v${APP_VERSION}`,
+    buildNumber: 1,
+    buildTime: new Date().toISOString(),
+    gitCommit: 'latest',
+    gitBranch: 'main',
+    nodeVersion: process.version,
+    releaseNotes: [],
+  });
+});
+
 // 1. Health Heartbeat
 app.get('/api/health', (_req: Request, res: Response) => {
   res.json({

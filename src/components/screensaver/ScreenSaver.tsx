@@ -57,6 +57,8 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
     backgroundType: 'liquid-glow',
     photoBrightness: 40,
     photoBlur: 4,
+    photoFocalBias: 'face_bias',
+    photoFocalOffsetY: 20,
   };
 
   const clockColor = ssConfig.clockColor || 'sunset';
@@ -342,6 +344,12 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
   const photoUrl = currentPhoto ? `/api/icloud-photo-proxy?url=${encodeURIComponent(currentPhoto.url)}` : '';
   const photoBrightness = isNightMode ? 15 : Math.max(10, Math.min(100, ssConfig.photoBrightness ?? 40));
   const photoBlur = ssConfig.photoBlur ?? 4;
+  const ssFocalBias = ssConfig.photoFocalBias || config.general.photoFocalBias || 'face_bias';
+  const ssFocalOffsetY = ssFocalBias === 'center'
+    ? 50
+    : ssFocalBias === 'top'
+    ? 10
+    : (ssConfig.photoFocalOffsetY ?? config.general.photoFocalOffsetY ?? 20);
 
   return (
     <div
@@ -353,12 +361,13 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
         isNightMode ? 'bg-[#000000]' : 'bg-[#02040a]'
       }`}
     >
-      {/* Photo Background Layer for Apple Photos iCloud Shared Album */}
+      {/* Photo Background Layer for Apple Photos iCloud Shared Album with smart face framing */}
       {ssConfig.backgroundType === 'icloud_album' && photoUrl && (
         <div
-          className="absolute inset-0 z-0 bg-cover bg-center transition-all duration-1000 ease-in-out pointer-events-none"
+          className="absolute inset-0 z-0 bg-cover transition-all duration-1000 ease-in-out pointer-events-none"
           style={{
             backgroundImage: `url('${photoUrl}')`,
+            backgroundPosition: `center ${ssFocalOffsetY}%`,
             filter: `brightness(${photoBrightness}%) blur(${photoBlur}px)`,
             transform: photoBlur > 0 ? 'scale(1.06)' : undefined,
           }}

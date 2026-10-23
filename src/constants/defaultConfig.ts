@@ -15,6 +15,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     icloudCycleMinutes: 3,
     icloudBrightness: 50,
     icloudBlur: 0,
+    photoFocalBias: 'face_bias',
+    photoFocalOffsetY: 20,
     kioskHideCursor: true,
     heartbeatIntervalSeconds: 30,
     fontSizeScale: 'md',
@@ -197,6 +199,8 @@ export const DEFAULT_CONFIG: AppConfig = {
     icloudCycleMinutes: 3,
     photoBrightness: 40,
     photoBlur: 4,
+    photoFocalBias: 'face_bias',
+    photoFocalOffsetY: 20,
   },
 };
 

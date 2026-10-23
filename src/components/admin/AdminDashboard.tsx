@@ -3,6 +3,7 @@ import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto } from '../../types
 import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
 import { APP_VERSION } from '../../constants/version';
 import { SystemSettings } from '../system/SystemSettings';
+import { AboutSection } from './AboutSection';
 import { GridVisualEditor } from './GridVisualEditor';
 import {
   Save,
@@ -14,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowRightLeft,
+  ArrowUpDown,
   Newspaper,
   CheckSquare,
   Hourglass,
@@ -70,7 +72,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onTriggerScreensaver,
 }) => {
   const [config, setConfig] = useState<AppConfig>(initialConfig);
-  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'system'>('layout');
+  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'system' | 'about'>('layout');
   const [saving, setSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -518,6 +520,50 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     });
   };
 
+  const sortCountdownItemsByDate = () => {
+    const items = getCountdownItems();
+    const now = new Date();
+    const parseItemDate = (dateStr: string) => {
+      if (!dateStr) return { year: now.getFullYear(), month: now.getMonth(), day: now.getDate(), hour: 0, minute: 0 };
+      const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+      if (m) {
+        return {
+          year: parseInt(m[1], 10),
+          month: parseInt(m[2], 10) - 1,
+          day: parseInt(m[3], 10),
+          hour: m[4] !== undefined ? parseInt(m[4], 10) : 0,
+          minute: m[5] !== undefined ? parseInt(m[5], 10) : 0,
+        };
+      }
+      const d = new Date(dateStr);
+      return { year: d.getFullYear(), month: d.getMonth(), day: d.getDate(), hour: d.getHours(), minute: d.getMinutes() };
+    };
+
+    const sorted = [...items].sort((a, b) => {
+      const getEffectiveTargetTime = (item: CountdownItem) => {
+        const parsed = parseItemDate(item.targetDate);
+        if (item.annual) {
+          const thisYearTarget = new Date(now.getFullYear(), parsed.month, parsed.day, parsed.hour, parsed.minute);
+          const endOfThisYear = new Date(now.getFullYear(), parsed.month, parsed.day, 23, 59, 59, 999);
+          if (now.getTime() > endOfThisYear.getTime()) {
+            return new Date(now.getFullYear() + 1, parsed.month, parsed.day, parsed.hour, parsed.minute).getTime();
+          }
+          return thisYearTarget.getTime();
+        }
+        return new Date(parsed.year, parsed.month, parsed.day, parsed.hour, parsed.minute).getTime();
+      };
+      return getEffectiveTargetTime(a) - getEffectiveTargetTime(b);
+    });
+
+    setConfig((prev) => ({
+      ...prev,
+      countdown: {
+        ...prev.countdown,
+        items: sorted,
+      },
+    }));
+  };
+
   const testCalendarFeed = async (feed: CalendarFeed) => {
     if (!feed.url.trim()) return;
     setTestingFeedId(feed.id);
@@ -764,7 +810,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <Activity className="w-4 h-4 text-emerald-400" />
               <span>System & Updates</span>
-              <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-bold px-1.5 py-0.5 rounded font-mono">
+            </button>
+
+            <button
+              onClick={(e) => {
+                setActiveTab('about');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'about'
+                  ? 'bg-sky-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Info className="w-4 h-4 text-sky-400" />
+              <span>About</span>
+              <span className="text-[10px] bg-sky-400/20 text-sky-300 font-bold px-1.5 py-0.5 rounded font-mono">
                 v{APP_VERSION}
               </span>
             </button>
@@ -1174,24 +1235,217 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
 
-                  {/* Live Simulation Card */}
+                  {/* Photo Framing & Face Focus Positioning */}
+                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center text-xs font-bold">
+                          👤
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h5 className="text-xs font-bold text-white">Photo Framing & Face Focus</h5>
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-0.5 rounded-full">
+                              Prevents Cutoff
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Anchors the vertical crop on widescreen displays so family faces and heads are never chopped off.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] font-mono text-sky-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800 self-start sm:self-auto">
+                        Anchor: {config.general.photoFocalBias === 'center' ? 'Center (50%)' : config.general.photoFocalBias === 'top' ? 'Top (10%)' : `${config.general.photoFocalOffsetY ?? 20}% Y`}
+                      </div>
+                    </div>
+
+                    {/* Preset Choice Chips */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              photoFocalBias: 'face_bias',
+                              photoFocalOffsetY: 20,
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          (config.general.photoFocalBias || 'face_bias') === 'face_bias'
+                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200 ring-1 ring-emerald-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white flex items-center gap-1.5">
+                          <span>Smart Face Bias</span>
+                          <span className="text-[9px] bg-emerald-500/30 text-emerald-300 px-1 py-0.2 rounded font-mono font-bold">
+                            Rec
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Upper 20% (Keeps heads & faces visible)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              photoFocalBias: 'top',
+                              photoFocalOffsetY: 10,
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          config.general.photoFocalBias === 'top'
+                            ? 'border-sky-500 bg-sky-500/10 text-sky-200 ring-1 ring-sky-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white">Top Anchor</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Upper 10% (Tightly aligns to top edge)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              photoFocalBias: 'center',
+                              photoFocalOffsetY: 50,
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          config.general.photoFocalBias === 'center'
+                            ? 'border-sky-500 bg-sky-500/10 text-sky-200 ring-1 ring-sky-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white">Center Crop</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Middle 50% (Standard symmetrical zoom)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              photoFocalBias: 'custom',
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          config.general.photoFocalBias === 'custom'
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-200 ring-1 ring-amber-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white">Custom Slider</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Manual vertical focal point (0% - 100%)
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Fine-Tuning Vertical Slider */}
+                    <div className="pt-1">
+                      <div className="flex justify-between items-center mb-1 text-xs">
+                        <label className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <span>Vertical Focal Offset</span>
+                          <span className="text-[10px] text-slate-500 font-normal">
+                            (0% = Top of photo, 50% = Center, 100% = Bottom)
+                          </span>
+                        </label>
+                        <span className="font-mono font-bold text-sky-400">
+                          {config.general.photoFocalOffsetY ?? 20}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={config.general.photoFocalOffsetY ?? 20}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setConfig((prev) => ({
+                            ...prev,
+                            general: {
+                              ...prev.general,
+                              photoFocalOffsetY: val,
+                              photoFocalBias: val === 50 ? 'center' : val === 10 ? 'top' : val === 20 ? 'face_bias' : 'custom',
+                            },
+                          }));
+                        }}
+                        className="w-full accent-sky-500 cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                        <span>0% (Top)</span>
+                        <span className="text-emerald-400 font-semibold">20% (Face & Head Zone)</span>
+                        <span>50% (Center)</span>
+                        <span>100% (Bottom)</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Live Simulation Card with Face Focus Guide */}
                   <div className="mt-3 p-3 rounded-xl bg-slate-900 border border-slate-800">
                     <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block mb-2">
-                      Live Wallpaper Preview with Current Brightness & Blur:
+                      Live Wallpaper Preview with Smart Face Framing:
                     </span>
-                    <div className="relative h-28 rounded-lg overflow-hidden border border-slate-700/80 flex items-center justify-center">
+                    <div className="relative h-32 rounded-lg overflow-hidden border border-slate-700/80 flex items-center justify-center">
                       <div
-                        className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                        className="absolute inset-0 bg-cover transition-all duration-300"
                         style={{
-                          backgroundImage: `url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80')`,
+                          backgroundImage: `url('https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1200&q=80')`,
+                          backgroundPosition: `center ${
+                            config.general.photoFocalBias === 'center'
+                              ? '50%'
+                              : config.general.photoFocalBias === 'top'
+                              ? '10%'
+                              : `${config.general.photoFocalOffsetY ?? 20}%`
+                          }`,
                           filter: `brightness(${config.general.icloudBrightness ?? 50}%) blur(${config.general.icloudBlur ?? 0}px)`,
                           transform: (config.general.icloudBlur ?? 0) > 0 ? 'scale(1.08)' : undefined,
                         }}
                       />
                       <div
                         className="absolute inset-0 bg-black"
-                        style={{ opacity: (config.general.backgroundDim || 0.45) * 0.5 }}
+                        style={{ opacity: (config.general.backgroundDim || 0.45) * 0.4 }}
                       />
+                      {/* Face Safe-Zone Visual Guide Overlay in Preview */}
+                      <div
+                        className="absolute left-0 right-0 border-t border-dashed border-emerald-400/60 pointer-events-none transition-all duration-300 z-1"
+                        style={{
+                          top: `${
+                            config.general.photoFocalBias === 'center'
+                              ? 50
+                              : config.general.photoFocalBias === 'top'
+                              ? 10
+                              : (config.general.photoFocalOffsetY ?? 20)
+                          }%`,
+                        }}
+                      >
+                        <span className="absolute right-2 -top-4 text-[9px] bg-slate-900/90 text-emerald-300 font-mono px-1.5 py-0.5 rounded border border-emerald-500/40 shadow">
+                          Focal Anchor ({config.general.photoFocalBias === 'center' ? 50 : config.general.photoFocalBias === 'top' ? 10 : (config.general.photoFocalOffsetY ?? 20)}%)
+                        </span>
+                      </div>
                       <div className="relative z-10 text-center px-4 py-2 rounded-xl bg-black/40 backdrop-blur-md border border-white/20 shadow-lg">
                         <div className="text-lg font-black text-white leading-none">10:45 AM</div>
                         <div className="text-[11px] font-bold text-sky-300 mt-0.5">Family Calendar • 3 Events Today</div>
@@ -2272,14 +2526,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 <div className="flex items-center gap-3">
                   {config.countdown.enabled && (
-                    <button
-                      type="button"
-                      onClick={addCountdownItem}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add Countdown</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {getCountdownItems().length > 1 && (
+                        <button
+                          type="button"
+                          onClick={sortCountdownItemsByDate}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg text-xs font-semibold border border-amber-500/30 transition-colors shadow-sm cursor-pointer"
+                          title="Sort countdown items chronologically by closest date"
+                        >
+                          <ArrowUpDown className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Sort Closest First</span>
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={addCountdownItem}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Add Countdown</span>
+                      </button>
+                    </div>
                   )}
 
                   <div className="flex items-center gap-2 pl-2 border-l border-slate-800">
@@ -2481,7 +2749,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-xs text-amber-200/90">
                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <p className="leading-relaxed">
-                      <strong>Countdown Behavior:</strong> When the target date/time is reached, it will display <strong>'Today'</strong>. Once the day passes, standard countdown items are removed, while <strong>Annual</strong> events automatically advance to the next year and continue counting down.
+                      <strong>Automatic Chronological Sorting:</strong> Event Countdowns are automatically displayed in order of <strong>closest to furthest away from today</strong> on your wall display (with any events happening today at the very top), regardless of the order they are entered here. When a target date is reached, it displays <strong>'Today'</strong>; once passed, one-off events are cleared while <strong>Annual</strong> events automatically advance to next year.
                     </p>
                   </div>
                 </div>
@@ -3064,21 +3332,233 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
 
+                  {/* Screensaver Photo Framing & Face Focus */}
+                  <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-amber-500/20 text-amber-300 flex items-center justify-center text-xs font-bold">
+                          👤
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h5 className="text-xs font-bold text-white">Screensaver Photo Framing & Face Focus</h5>
+                            <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-semibold px-2 py-0.5 rounded-full">
+                              Prevents Cutoff
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            Anchors screensaver photo framing to keep family faces clearly in frame during StandBy.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setConfig((prev) => ({
+                              ...prev,
+                              screensaver: {
+                                ...prev.screensaver,
+                                photoFocalBias: prev.general.photoFocalBias || 'face_bias',
+                                photoFocalOffsetY: prev.general.photoFocalOffsetY ?? 20,
+                              },
+                            }));
+                          }}
+                          className="px-2 py-1 text-[10px] font-semibold bg-slate-800 hover:bg-slate-700 text-sky-300 rounded border border-slate-700 transition-colors cursor-pointer"
+                          title="Copy framing setting from Wallpaper tab"
+                        >
+                          Match Wallpaper
+                        </button>
+                        <div className="text-[11px] font-mono text-sky-400 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                          {config.screensaver?.photoFocalBias === 'center' ? 'Center (50%)' : config.screensaver?.photoFocalBias === 'top' ? 'Top (10%)' : `${config.screensaver?.photoFocalOffsetY ?? 20}% Y`}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Presets */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              photoFocalBias: 'face_bias',
+                              photoFocalOffsetY: 20,
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          (config.screensaver?.photoFocalBias || 'face_bias') === 'face_bias'
+                            ? 'border-emerald-500 bg-emerald-500/10 text-emerald-200 ring-1 ring-emerald-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white flex items-center gap-1.5">
+                          <span>Smart Face Bias</span>
+                          <span className="text-[9px] bg-emerald-500/30 text-emerald-300 px-1 py-0.2 rounded font-mono font-bold">
+                            Rec
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Upper 20% (Keeps heads & faces visible)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              photoFocalBias: 'top',
+                              photoFocalOffsetY: 10,
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          config.screensaver?.photoFocalBias === 'top'
+                            ? 'border-sky-500 bg-sky-500/10 text-sky-200 ring-1 ring-sky-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white">Top Anchor</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Upper 10% (Tightly aligns to top edge)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              photoFocalBias: 'center',
+                              photoFocalOffsetY: 50,
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          config.screensaver?.photoFocalBias === 'center'
+                            ? 'border-sky-500 bg-sky-500/10 text-sky-200 ring-1 ring-sky-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white">Center Crop</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Middle 50% (Standard symmetrical zoom)
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              photoFocalBias: 'custom',
+                            },
+                          }))
+                        }
+                        className={`p-2.5 rounded-lg border text-xs text-left transition-all ${
+                          config.screensaver?.photoFocalBias === 'custom'
+                            ? 'border-amber-500 bg-amber-500/10 text-amber-200 ring-1 ring-amber-500/40'
+                            : 'border-slate-800 bg-slate-950 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="font-semibold text-white">Custom Slider</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          Manual vertical focal point (0% - 100%)
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Fine-Tuning Vertical Slider */}
+                    <div className="pt-1">
+                      <div className="flex justify-between items-center mb-1 text-xs">
+                        <label className="text-slate-300 font-medium flex items-center gap-1.5">
+                          <span>Screensaver Vertical Focal Offset</span>
+                          <span className="text-[10px] text-slate-500 font-normal">
+                            (0% = Top of photo, 50% = Center, 100% = Bottom)
+                          </span>
+                        </label>
+                        <span className="font-mono font-bold text-sky-400">
+                          {config.screensaver?.photoFocalOffsetY ?? 20}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        step="5"
+                        value={config.screensaver?.photoFocalOffsetY ?? 20}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          setConfig((prev) => ({
+                            ...prev,
+                            screensaver: {
+                              ...prev.screensaver,
+                              photoFocalOffsetY: val,
+                              photoFocalBias: val === 50 ? 'center' : val === 10 ? 'top' : val === 20 ? 'face_bias' : 'custom',
+                            },
+                          }));
+                        }}
+                        className="w-full accent-sky-500 cursor-pointer"
+                      />
+                      <div className="flex justify-between text-[10px] text-slate-500 mt-1 font-mono">
+                        <span>0% (Top)</span>
+                        <span className="text-emerald-400 font-semibold">20% (Face & Head Zone)</span>
+                        <span>50% (Center)</span>
+                        <span>100% (Bottom)</span>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Screensaver StandBy Clock & Photo Live Preview */}
                   <div className="mt-3 p-3 rounded-xl bg-slate-950 border border-slate-800">
                     <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block mb-2">
-                      StandBy Screensaver Simulation (Clock + Photo Background):
+                      StandBy Screensaver Simulation (Clock + Photo Background with Face Framing):
                     </span>
                     <div className="relative h-36 rounded-xl overflow-hidden border border-slate-800 flex items-center justify-center">
                       <div
-                        className="absolute inset-0 bg-cover bg-center transition-all duration-300"
+                        className="absolute inset-0 bg-cover transition-all duration-300"
                         style={{
-                          backgroundImage: `url('https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80')`,
+                          backgroundImage: `url('https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1200&q=80')`,
+                          backgroundPosition: `center ${
+                            config.screensaver?.photoFocalBias === 'center'
+                              ? '50%'
+                              : config.screensaver?.photoFocalBias === 'top'
+                              ? '10%'
+                              : `${config.screensaver?.photoFocalOffsetY ?? 20}%`
+                          }`,
                           filter: `brightness(${config.screensaver?.photoBrightness ?? 40}%) blur(${config.screensaver?.photoBlur ?? 4}px)`,
                           transform: (config.screensaver?.photoBlur ?? 4) > 0 ? 'scale(1.08)' : undefined,
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/75" />
+                      {/* Face Safe-Zone Visual Guide Overlay in Preview */}
+                      <div
+                        className="absolute left-0 right-0 border-t border-dashed border-emerald-400/60 pointer-events-none transition-all duration-300 z-1"
+                        style={{
+                          top: `${
+                            config.screensaver?.photoFocalBias === 'center'
+                              ? 50
+                              : config.screensaver?.photoFocalBias === 'top'
+                              ? 10
+                              : (config.screensaver?.photoFocalOffsetY ?? 20)
+                          }%`,
+                        }}
+                      >
+                        <span className="absolute right-2 -top-4 text-[9px] bg-slate-900/90 text-emerald-300 font-mono px-1.5 py-0.5 rounded border border-emerald-500/40 shadow">
+                          Anchor ({config.screensaver?.photoFocalBias === 'center' ? 50 : config.screensaver?.photoFocalBias === 'top' ? 10 : (config.screensaver?.photoFocalOffsetY ?? 20)}%)
+                        </span>
+                      </div>
                       <div className="relative z-10 flex flex-col items-center">
                         <div className="text-3xl font-black font-apple-rounded tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-orange-400 to-rose-400 drop-shadow-[0_0_15px_rgba(251,146,60,0.5)]">
                           10:45
@@ -3318,6 +3798,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Tab: System & Updates */}
         {activeTab === 'system' && <SystemSettings />}
+
+        {/* Tab: About & Release Notes */}
+        {activeTab === 'about' && (
+          <AboutSection onNavigateToSystem={() => setActiveTab('system')} />
+        )}
       </div>
 
       {/* Briefing Preview Modal */}

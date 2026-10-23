@@ -301,18 +301,25 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
     }
   };
 
+  const wallpaperFocalY = config.general.photoFocalBias === 'center'
+    ? 50
+    : config.general.photoFocalBias === 'top'
+    ? 10
+    : (config.general.photoFocalOffsetY ?? 20);
+
   return (
     <div
       className={`relative w-screen h-screen overflow-hidden kiosk-screen bg-slate-950 font-sans select-none ${
         config.general.kioskHideCursor && !mouseActive ? 'cursor-none' : ''
       }`}
     >
-      {/* Background Wallpaper Layer with smooth transition */}
+      {/* Background Wallpaper Layer with smart face-framing & smooth transition */}
       {backgroundImageUrl && (
         <div
-          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 ease-in-out"
+          className="absolute inset-0 bg-cover transition-all duration-1000 ease-in-out"
           style={{
             backgroundImage: `url('${backgroundImageUrl}')`,
+            backgroundPosition: `center ${wallpaperFocalY}%`,
             filter: config.general.backgroundType === 'icloud_album'
               ? `brightness(${Math.max(10, Math.min(100, config.general.icloudBrightness ?? 50))}%) blur(${config.general.icloudBlur ?? 0}px)`
               : config.general.backgroundBlur ? `blur(${config.general.backgroundBlur}px)` : undefined,

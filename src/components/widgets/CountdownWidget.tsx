@@ -304,7 +304,26 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
   // Filter out expired items for render
   const visibleCalculations = calculations.filter((c) => !c.isExpiredPast);
 
-  if (visibleCalculations.length === 0) {
+  // Sort countdown events chronologically from closest to furthest away from today
+  const sortedCalculations = useMemo(() => {
+    return [...visibleCalculations].sort((a, b) => {
+      // 1. Events happening Today always come first
+      if (a.isToday && !b.isToday) return -1;
+      if (!a.isToday && b.isToday) return 1;
+
+      // 2. Sort by effective target timestamp (closest to furthest)
+      const diff = a.effectiveTarget.getTime() - b.effectiveTarget.getTime();
+      if (diff !== 0) return diff;
+
+      // 3. Tie-breaker by remaining days
+      if (a.days !== b.days) return a.days - b.days;
+
+      // 4. Stable tie-breaker by title
+      return (a.item.title || '').localeCompare(b.item.title || '');
+    });
+  }, [visibleCalculations]);
+
+  if (sortedCalculations.length === 0) {
     return (
       <div className="bg-black/35 backdrop-blur-md rounded-xl p-3 border border-white/10 text-white select-none text-kiosk-shadow">
         <div className="flex items-center gap-2 mb-2">
@@ -321,8 +340,8 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
   }
 
   // If only 1 item, display the featured countdown card
-  if (visibleCalculations.length === 1) {
-    const single = visibleCalculations[0];
+  if (sortedCalculations.length === 1) {
+    const single = sortedCalculations[0];
     return (
       <div className="bg-black/35 backdrop-blur-md rounded-xl p-3.5 border border-white/10 text-white select-none text-kiosk-shadow shadow-lg transition-all">
         <div className="flex items-center justify-between mb-2.5">
@@ -410,8 +429,8 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
     );
   }
 
-  // Multiple items view: Scrollable list of countdown cards
-  const todayItemsCount = visibleCalculations.filter((c) => c.isToday).length;
+  // Multiple items view: Scrollable list of countdown cards (sorted closest to furthest away)
+  const todayItemsCount = sortedCalculations.filter((c) => c.isToday).length;
 
   return (
     <div className="bg-black/35 backdrop-blur-md rounded-xl p-3 border border-white/10 text-white select-none text-kiosk-shadow flex flex-col shadow-lg">
@@ -420,7 +439,7 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
         <div className="flex items-center gap-2">
           <Clock className="w-4 h-4 text-amber-300" />
           <h3 className="text-xs md:text-sm font-semibold tracking-wide">
-            Event Countdowns ({visibleCalculations.length})
+            Event Countdowns ({sortedCalculations.length})
           </h3>
         </div>
 
@@ -437,9 +456,9 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
         </div>
       </div>
 
-      {/* Scrollable Countdown List */}
+      {/* Scrollable Countdown List (Ordered Closest to Furthest) */}
       <div className="max-h-[250px] sm:max-h-[290px] md:max-h-[330px] overflow-y-auto agenda-scroll pr-1.5 space-y-2">
-        {visibleCalculations.map((calc) => {
+        {sortedCalculations.map((calc) => {
           const { item, days, hours, minutes, seconds, isToday } = calc;
 
           if (isToday) {

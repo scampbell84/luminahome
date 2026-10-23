@@ -7,14 +7,52 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '3.1.0';
+export const APP_VERSION = '3.2.1';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.2.1',
+    releaseDate: 'October 2026',
+    title: 'Automatic Chronological Sorting for Event Countdowns',
+    isCurrent: true,
+    highlights: [
+      'Event Countdowns now automatically sort from closest to furthest away from today',
+      'Eliminates arbitrary manual order so immediate birthdays and holidays appear at the top',
+      'Events occurring Today are always pinned at the very top with celebratory badge',
+      'Added "Sort Closest First" quick action button in Admin Settings',
+    ],
+    details: [
+      'Automatic Chronological Ordering: Event countdowns on the wall display are now dynamically ordered from nearest to furthest away from today based on their next occurrence, regardless of the order they were entered into settings.',
+      'Annual Event Intelligence: Accurately computes upcoming occurrences for annual recurring milestones, ensuring they slot into their proper chronological sequence before distant future events.',
+      'Today Pinning: Events whose target day is today are given top priority with celebratory animated accents.',
+      'Settings Quick Sort: Added a "Sort Closest First" button in the Admin Settings Countdown manager to synchronize the saved configuration order with the live display.',
+    ],
+  },
+  {
+    version: 'v3.2.0',
+    releaseDate: 'October 2026',
+    title: 'Smart Face & Head Framing for iCloud Family Photos',
+    isCurrent: false,
+    highlights: [
+      'Smart face & head focal bias (top 20%) preventing family faces from being cut off on widescreen displays',
+      'Applied seamlessly across both the main Home wallpaper and StandBy screen saver',
+      'Photo Framing & Face Focus controls in Admin Settings with 4 quick presets and fine-tuning slider',
+      'Live interactive preview with dynamic focal anchor line and real-time safe-zone feedback',
+      'Smooth 1000ms crossfade transitions between photos with 0ms latency and zero hardware thermal overhead',
+    ],
+    details: [
+      'Smart Face & Head Anchoring: Eliminated symmetrical center-cropping on widescreen displays by introducing intelligent focal anchoring biased towards the upper 20% safe-band where heads and faces naturally reside in portrait and family group shots.',
+      'Comprehensive Home & Screensaver Coverage: Both the active dashboard wallpaper and the ambient StandBy screen saver now automatically frame photos to keep family members completely visible.',
+      'Admin Framing Controls: Added dedicated framing selectors to both Wallpaper and Screen Saver tabs in Admin Settings, offering Smart Face Bias (20%), Top Anchor (10%), Center Crop (50%), and a Custom Focal Offset slider.',
+      'Live Safe-Zone Simulation: Live preview cards in Admin Settings render photos with your exact vertical focal offset and a dashed guide showing where the focal anchor sits.',
+      'Zero Kiosk Thermal Overhead: Pure CSS background-position calculations avoid heavy client-side ML bundle sizes, ensuring silky smooth 60fps operation on low-power Raspberry Pi kiosks.',
+    ],
+  },
   {
     version: 'v3.1.0',
     releaseDate: 'October 2026',
     title: 'Resilient Multi-iCal Sync & Enhanced Weather Legibility',
-    isCurrent: true,
+    isCurrent: false,
     highlights: [
       'Fault-tolerant iCloud & iCal sync with automatic retry backoff and rate-limit defense',
       'Persistent disk & memory caching (stale-while-revalidate) preventing blank schedule displays',
