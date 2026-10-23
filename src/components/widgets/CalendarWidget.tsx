@@ -22,8 +22,11 @@ export const CalendarWidget: React.FC<CalendarWidgetProps> = ({ config }) => {
 
   const fetchCalendar = async () => {
     try {
-      const res = await fetch('/api/calendar');
-      if (res.ok) {
+      const res = await fetch('/api/calendar', {
+        headers: { Accept: 'application/json' },
+      });
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
         const data = await res.json();
         setEvents(data.events || []);
       }

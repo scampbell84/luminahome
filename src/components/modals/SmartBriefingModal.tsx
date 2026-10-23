@@ -51,16 +51,47 @@ export const SmartBriefingModal: React.FC<SmartBriefingModalProps> = ({
 
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
+  const getFallbackBriefing = (): BriefingData => {
+    const hour = new Date().getHours();
+    const period: 'morning' | 'afternoon' | 'evening' | 'night' =
+      hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 17 ? 'afternoon' : hour >= 17 && hour < 22 ? 'evening' : 'night';
+    const greeting =
+      period === 'morning' ? 'Good morning' : period === 'afternoon' ? 'Good afternoon' : period === 'evening' ? 'Good evening' : 'Good night';
+
+    return {
+      briefing: `${greeting}! Welcome to Lumina Home. Household systems, schedule, and ambiance are operating smoothly.`,
+      greeting,
+      period,
+      highlights: ['System operating normally', 'Circadian wall ambiance active'],
+      weatherAlert: null,
+      weatherSummary: null,
+      eventCount: 0,
+      firstEvent: null,
+      activeRemindersCount: 0,
+      nearestCountdown: null,
+      cachedAt: new Date().toISOString(),
+      isAiGenerated: false,
+    };
+  };
+
   const fetchBriefing = async (force = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/briefing${force ? '?force=true' : ''}`);
-      if (res.ok) {
+      const res = await fetch(`/api/briefing${force ? '?force=true' : ''}`, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
         const json = await res.json();
         setData(json);
+      } else {
+        setData((prev) => prev || getFallbackBriefing());
       }
     } catch (err) {
-      console.error('[SmartBriefing] Failed to fetch:', err);
+      console.warn('[SmartBriefing] Failed to fetch live briefing, using local circadian summary:', err);
+      setData((prev) => prev || getFallbackBriefing());
     } finally {
       setLoading(false);
     }

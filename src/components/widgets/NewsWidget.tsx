@@ -14,8 +14,11 @@ export const NewsWidget: React.FC<NewsWidgetProps> = ({ config }) => {
   const fetchNews = async () => {
     try {
       const url = `/api/rss?url=${encodeURIComponent(config.feedUrl)}`;
-      const res = await fetch(url);
-      if (res.ok) {
+      const res = await fetch(url, {
+        headers: { Accept: 'application/json' },
+      });
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
         const data = await res.json();
         setItems(data.items || []);
         if (data.title) setFeedTitle(data.title);

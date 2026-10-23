@@ -9,7 +9,7 @@ import ical from 'node-ical';
 import Parser from 'rss-parser';
 import { DEFAULT_CONFIG, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from './src/constants/defaultConfig.js';
 import { APP_VERSION } from './src/constants/version.js';
-import { AppConfig, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto, HourlyPoint, DetailedDailyForecast } from './src/types/config.js';
+import { AppConfig, CalendarFeed, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto, HourlyPoint, DetailedDailyForecast } from './src/types/config.js';
 import { GoogleGenAI } from '@google/genai';
 
 const app = express();
@@ -139,6 +139,63 @@ function saveLocalEvents(events: StoredLocalEvent[]): void {
   } catch (err: any) {
     console.error('[Calendar] Failed to save local events:', err.message);
   }
+}
+
+// -------------------------------------------------------------
+// Persistent Multi-iCal Disk & Memory Cache (~/.luminahome/calendar_cache.json)
+// Defends against Apple iCloud morning peak rate limits (HTTP 503) and ensures
+// the wall display never shows a blank schedule even when upstream services are down.
+// -------------------------------------------------------------
+const CALENDAR_CACHE_FILE = path.join(path.dirname(CONFIG_FILE), 'calendar_cache.json');
+
+interface FeedCacheEntry {
+  feedId: string;
+  url: string;
+  timestamp: number;
+  etag?: string;
+  lastModified?: string;
+  events: CalendarEvent[];
+  eventCount: number;
+}
+
+let calendarMemoryCache: Record<string, FeedCacheEntry> = {};
+
+function loadCalendarCache(): Record<string, FeedCacheEntry> {
+  try {
+    if (fs.existsSync(CALENDAR_CACHE_FILE)) {
+      const data = fs.readFileSync(CALENDAR_CACHE_FILE, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        const count = Object.keys(parsed).length;
+        console.log(`[Calendar Cache] Loaded ${count} cached feeds from ${CALENDAR_CACHE_FILE}`);
+        return parsed;
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Calendar Cache] Failed to load disk cache:', err.message);
+  }
+  return {};
+}
+
+function saveCalendarCache(cache: Record<string, FeedCacheEntry>): void {
+  try {
+    fs.writeFileSync(CALENDAR_CACHE_FILE, JSON.stringify(cache, null, 2), 'utf-8');
+  } catch (err: any) {
+    console.warn('[Calendar Cache] Failed to save disk cache:', err.message);
+  }
+}
+
+// Initialize on boot
+calendarMemoryCache = loadCalendarCache();
+
+function getAllCachedCalendarEvents(): CalendarEvent[] {
+  const events: CalendarEvent[] = [];
+  for (const entry of Object.values(calendarMemoryCache)) {
+    if (entry && Array.isArray(entry.events)) {
+      events.push(...entry.events);
+    }
+  }
+  return events;
 }
 
 interface BriefingData {
@@ -599,136 +656,285 @@ function formatEventDates(startRaw: Date, endRaw: Date, isAllDay: boolean): { st
   };
 }
 
-// 4. Universal Calendar (Multi-iCal Fetch & Parse)
-app.get('/api/calendar', async (req: Request, res: Response) => {
-  const config = loadConfig();
-  const feeds = config.calendar.feeds.filter(f => f.enabled && f.url && f.url.trim().length > 0);
+// Resilient calendar feed fetcher with Apple CalDAV compatibility headers,
+// exponential backoff with jitter, Retry-After compliance, and 503 defense.
+async function fetchCalendarFeedWithRetry(
+  url: string,
+  feedName = 'Calendar Feed',
+  customHeaders: Record<string, string> = {},
+  maxRetries = 3
+): Promise<{ text: string; status: number; etag?: string; lastModified?: string }> {
+  let cleanUrl = url.trim();
+  if (cleanUrl.startsWith('webcal://')) {
+    cleanUrl = 'https://' + cleanUrl.slice(9);
+  }
 
-  const now = new Date();
-  const pastCutoff = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 365 days in past (1 year back for Year View)
-  const futureCutoff = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000); // 365 days in future (1 year forward for Year View)
+  // Realistic macOS CalendarAgent headers to avoid Apple iCloud edge anti-bot 503s
+  const reqHeaders: Record<string, string> = {
+    'User-Agent': 'MacCalendar/16.0 (Macintosh; Intel Mac OS X 14.5) CalendarAgent/9.0',
+    'Accept': 'text/calendar, text/x-vcalendar, text/plain;q=0.8, */*;q=0.5',
+    'Accept-Language': 'en-US,en;q=0.9',
+    'Cache-Control': 'no-cache',
+    'Pragma': 'no-cache',
+    ...customHeaders,
+  };
 
-  const allEvents: CalendarEvent[] = [];
-  const feedResults: Array<{ id: string; name: string; count: number; error?: string }> = [];
+  let lastError: any = null;
 
-  for (const feed of feeds) {
-    let cleanUrl = feed.url.trim();
-    if (cleanUrl.startsWith('webcal://')) {
-      cleanUrl = 'https://' + cleanUrl.slice(9);
-    }
-
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const response = await fetch(cleanUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) LuminaHome/1.0',
-          'Accept': 'text/calendar, text/plain, */*',
-        },
-        signal: AbortSignal.timeout(10000), // 10s timeout
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      const response = await fetch(cleanUrl, {
+        headers: reqHeaders,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const text = await response.text();
+        const etag = response.headers.get('etag') || undefined;
+        const lastModified = response.headers.get('last-modified') || undefined;
+        return { text, status: response.status, etag, lastModified };
       }
 
-      const rawIcs = await response.text();
-      const parsedData = ical.parseICS(rawIcs);
+      if (response.status === 304) {
+        return { text: '', status: 304 };
+      }
 
-      let feedEventCount = 0;
-      for (const key of Object.keys(parsedData)) {
-        const item: any = parsedData[key];
-        if (!item || item.type !== 'VEVENT') continue;
-
-        // 1. Recurring Event with RRULE: expand into individual occurrences
-        if (item.rrule) {
-          try {
-            const instances = (ical as any).expandRecurringEvent(item, {
-              from: pastCutoff,
-              to: futureCutoff,
-            });
-
-            for (const inst of instances) {
-              const start = inst.start ? new Date(inst.start) : null;
-              if (!start || isNaN(start.getTime())) continue;
-
-              let end = inst.end ? new Date(inst.end) : new Date(start.getTime() + 60 * 60 * 1000);
-              if (isNaN(end.getTime())) end = start;
-
-              const isAllDay = Boolean(
-                inst.isFullDay || 
-                item.datetype === 'date' || 
-                (item.start && (item.start as any).dateOnly) ||
-                (inst.start && (inst.start as any).dateOnly) ||
-                (start.getUTCHours() === 0 && start.getUTCMinutes() === 0 && end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && (end.getTime() - start.getTime() >= 24 * 60 * 60 * 1000))
-              );
-
-              const { startStr, endStr } = formatEventDates(start, end, isAllDay);
-
-              allEvents.push({
-                id: `${feed.id}-${inst.event?.uid || item.uid || key}-${start.getTime()}`,
-                title: String(inst.summary || item.summary || 'Untitled Event'),
-                start: startStr,
-                end: endStr,
-                allDay: isAllDay,
-                location: inst.location ? String(inst.location) : (item.location ? String(item.location) : undefined),
-                description: inst.description ? String(inst.description) : (item.description ? String(item.description) : undefined),
-                calendarId: feed.id,
-                calendarName: feed.name,
-                color: feed.color,
-              });
-
-              feedEventCount++;
-            }
-          } catch (recurErr: any) {
-            console.warn(`Error expanding recurring event [${item.summary}]:`, recurErr.message);
+      // Handle transient upstream overload (HTTP 503, 429, 502, 504)
+      if ([429, 500, 502, 503, 504].includes(response.status) && attempt < maxRetries) {
+        let delayMs = 1500 * Math.pow(2, attempt) + Math.random() * 800;
+        const retryAfter = response.headers.get('retry-after');
+        if (retryAfter) {
+          const parsed = parseInt(retryAfter, 10);
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 10) {
+            delayMs = parsed * 1000 + 300;
           }
-        } else {
-          // 2. Standard Non-recurring Event
-          const start = item.start ? new Date(item.start) : null;
+        }
+        console.warn(`[Calendar] Feed [${feedName}] returned HTTP ${response.status}. Retrying in ${Math.round(delayMs)}ms (attempt ${attempt + 1}/${maxRetries})...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      throw new Error(`HTTP ${response.status} ${response.statusText}`);
+    } catch (err: any) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        const delayMs = 1500 * Math.pow(2, attempt) + Math.random() * 800;
+        console.warn(`[Calendar] Feed [${feedName}] fetch error (${err.message}). Retrying in ${Math.round(delayMs)}ms (attempt ${attempt + 1}/${maxRetries})...`);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+    }
+  }
+
+  throw lastError || new Error(`Feed fetch failed after ${maxRetries} retries`);
+}
+
+// Parse raw iCal text into normalized CalendarEvent models
+function parseIcsToEvents(
+  rawIcs: string,
+  feed: { id: string; name: string; color?: string },
+  pastCutoff: Date,
+  futureCutoff: Date
+): CalendarEvent[] {
+  const events: CalendarEvent[] = [];
+  const parsedData = ical.parseICS(rawIcs);
+
+  for (const key of Object.keys(parsedData)) {
+    const item: any = parsedData[key];
+    if (!item || item.type !== 'VEVENT') continue;
+
+    // 1. Recurring Event with RRULE: expand into individual occurrences
+    if (item.rrule) {
+      try {
+        const instances = (ical as any).expandRecurringEvent(item, {
+          from: pastCutoff,
+          to: futureCutoff,
+        });
+
+        for (const inst of instances) {
+          const start = inst.start ? new Date(inst.start) : null;
           if (!start || isNaN(start.getTime())) continue;
 
-          let end = item.end ? new Date(item.end) : new Date(start.getTime() + 60 * 60 * 1000);
+          let end = inst.end ? new Date(inst.end) : new Date(start.getTime() + 60 * 60 * 1000);
           if (isNaN(end.getTime())) end = start;
 
-          // Check window
-          if (end < pastCutoff || start > futureCutoff) {
-            continue;
-          }
-
           const isAllDay = Boolean(
-            (item.datetype === 'date') || 
+            inst.isFullDay ||
+            item.datetype === 'date' ||
             (item.start && (item.start as any).dateOnly) ||
+            (inst.start && (inst.start as any).dateOnly) ||
             (start.getUTCHours() === 0 && start.getUTCMinutes() === 0 && end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && (end.getTime() - start.getTime() >= 24 * 60 * 60 * 1000))
           );
 
           const { startStr, endStr } = formatEventDates(start, end, isAllDay);
 
-          allEvents.push({
-            id: `${feed.id}-${item.uid || key}`,
-            title: String(item.summary || 'Untitled Event'),
+          events.push({
+            id: `${feed.id}-${inst.event?.uid || item.uid || key}-${start.getTime()}`,
+            title: String(inst.summary || item.summary || 'Untitled Event'),
             start: startStr,
             end: endStr,
             allDay: isAllDay,
-            location: item.location ? String(item.location) : undefined,
-            description: item.description ? String(item.description) : undefined,
+            location: inst.location ? String(inst.location) : (item.location ? String(item.location) : undefined),
+            description: inst.description ? String(inst.description) : (item.description ? String(item.description) : undefined),
             calendarId: feed.id,
             calendarName: feed.name,
-            color: feed.color,
+            color: feed.color || '#38bdf8',
           });
-
-          feedEventCount++;
         }
+      } catch (recurErr: any) {
+        console.warn(`Error expanding recurring event [${item.summary}]:`, recurErr.message);
+      }
+    } else {
+      // 2. Standard Non-recurring Event
+      const start = item.start ? new Date(item.start) : null;
+      if (!start || isNaN(start.getTime())) continue;
+
+      let end = item.end ? new Date(item.end) : new Date(start.getTime() + 60 * 60 * 1000);
+      if (isNaN(end.getTime())) end = start;
+
+      // Check window
+      if (end < pastCutoff || start > futureCutoff) {
+        continue;
       }
 
-      feedResults.push({ id: feed.id, name: feed.name, count: feedEventCount });
-    } catch (err: any) {
-      console.warn(`Calendar feed [${feed.name}] error:`, err.message);
-      feedResults.push({ id: feed.id, name: feed.name, count: 0, error: err.message });
+      const isAllDay = Boolean(
+        (item.datetype === 'date') ||
+        (item.start && (item.start as any).dateOnly) ||
+        (start.getUTCHours() === 0 && start.getUTCMinutes() === 0 && end.getUTCHours() === 0 && end.getUTCMinutes() === 0 && (end.getTime() - start.getTime() >= 24 * 60 * 60 * 1000))
+      );
+
+      const { startStr, endStr } = formatEventDates(start, end, isAllDay);
+
+      events.push({
+        id: `${feed.id}-${item.uid || key}`,
+        title: String(item.summary || 'Untitled Event'),
+        start: startStr,
+        end: endStr,
+        allDay: isAllDay,
+        location: item.location ? String(item.location) : undefined,
+        description: item.description ? String(item.description) : undefined,
+        calendarId: feed.id,
+        calendarName: feed.name,
+        color: feed.color || '#38bdf8',
+      });
     }
   }
 
-  // If no external events loaded (e.g. initial demo setup or no feeds configured yet),
-  // generate sample events so the dashboard displays gorgeously
-  if (allEvents.length === 0) {
+  return events;
+}
+
+const CALENDAR_CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes fresh
+
+// 4. Universal Calendar (Multi-iCal Fetch & Parse with Stale-While-Revalidate Protection)
+app.get('/api/calendar', async (req: Request, res: Response) => {
+  const config = loadConfig();
+  const feeds = config.calendar.feeds.filter(f => f.enabled && f.url && f.url.trim().length > 0);
+  const forceRefresh = req.query.force === 'true';
+  const now = Date.now();
+
+  const pastCutoff = new Date(now - 365 * 24 * 60 * 60 * 1000); // 365 days in past (1 year back for Year View)
+  const futureCutoff = new Date(now + 365 * 24 * 60 * 60 * 1000); // 365 days in future (1 year forward for Year View)
+
+  const allEvents: CalendarEvent[] = [];
+  const feedResults: Array<{ id: string; name: string; count: number; cached?: boolean; error?: string }> = [];
+
+  // Check if all enabled feeds are fresh in memory cache
+  const allFeedsFresh = !forceRefresh && feeds.length > 0 && feeds.every(feed => {
+    const cached = calendarMemoryCache[feed.id];
+    return cached && (now - cached.timestamp < CALENDAR_CACHE_TTL_MS) && Array.isArray(cached.events);
+  });
+
+  if (allFeedsFresh) {
+    // Fast path: serve completely from cache in <5ms without hammering upstream Apple/iCal servers
+    for (const feed of feeds) {
+      const cached = calendarMemoryCache[feed.id];
+      if (cached) {
+        allEvents.push(...cached.events);
+        feedResults.push({ id: feed.id, name: feed.name, count: cached.events.length, cached: true });
+      }
+    }
+  } else {
+    // Revalidation path: query feeds with staggering and retry
+    let feedIndex = 0;
+    for (const feed of feeds) {
+      let cleanUrl = feed.url.trim();
+      if (cleanUrl.startsWith('webcal://')) {
+        cleanUrl = 'https://' + cleanUrl.slice(9);
+      }
+
+      const cached = calendarMemoryCache[feed.id];
+      const isFeedFresh = !forceRefresh && cached && (now - cached.timestamp < CALENDAR_CACHE_TTL_MS);
+
+      if (isFeedFresh) {
+        allEvents.push(...cached.events);
+        feedResults.push({ id: feed.id, name: feed.name, count: cached.events.length, cached: true });
+        continue;
+      }
+
+      // Small polite inter-request delay (350-500ms) to prevent triggering Apple's burst rate limiter
+      if (feedIndex > 0) {
+        await new Promise((r) => setTimeout(r, 350 + Math.random() * 150));
+      }
+      feedIndex++;
+
+      const conditionalHeaders: Record<string, string> = {};
+      if (cached?.etag) conditionalHeaders['If-None-Match'] = cached.etag;
+      if (cached?.lastModified) conditionalHeaders['If-Modified-Since'] = cached.lastModified;
+
+      try {
+        const { text, status, etag, lastModified } = await fetchCalendarFeedWithRetry(cleanUrl, feed.name, conditionalHeaders, 2);
+
+        if (status === 304 && cached) {
+          // Upstream returned 304 Not Modified -> refresh timestamp and reuse existing cached events
+          cached.timestamp = now;
+          allEvents.push(...cached.events);
+          feedResults.push({ id: feed.id, name: feed.name, count: cached.events.length });
+          continue;
+        }
+
+        const parsedEvents = parseIcsToEvents(text, feed, pastCutoff, futureCutoff);
+        allEvents.push(...parsedEvents);
+
+        // Update persistent memory and disk cache
+        calendarMemoryCache[feed.id] = {
+          feedId: feed.id,
+          url: cleanUrl,
+          timestamp: now,
+          etag,
+          lastModified,
+          events: parsedEvents,
+          eventCount: parsedEvents.length,
+        };
+        saveCalendarCache(calendarMemoryCache);
+
+        feedResults.push({ id: feed.id, name: feed.name, count: parsedEvents.length });
+      } catch (err: any) {
+        // UPSTREAM FAILURE MITIGATION (Defends against Apple 503 morning peak outages):
+        // If we have previous cached events for this feed, NEVER leave the user with a blank calendar!
+        if (cached && cached.events && cached.events.length > 0) {
+          console.warn(`[Calendar] Feed [${feed.name}] upstream unavailable (${err.message}). Safely serving ${cached.events.length} previously cached events.`);
+          allEvents.push(...cached.events);
+          feedResults.push({
+            id: feed.id,
+            name: feed.name,
+            count: cached.events.length,
+            cached: true,
+            error: `Upstream temporary 503; serving ${cached.events.length} cached events`,
+          });
+        } else {
+          console.warn(`[Calendar] Feed [${feed.name}] error with no existing cache:`, err.message);
+          feedResults.push({ id: feed.id, name: feed.name, count: 0, error: err.message });
+        }
+      }
+    }
+  }
+
+  // If no external events loaded AND no feeds are configured, provide sample events for first-run demo
+  if (allEvents.length === 0 && feeds.length === 0) {
     const today = new Date();
     const makeDate = (dayOffset: number, hour: number, minute: number = 0) => {
       const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, hour, minute);
@@ -788,56 +994,6 @@ app.get('/api/calendar', async (req: Request, res: Response) => {
         calendarId: 'feed-family',
         calendarName: 'Family',
         color: '#f59e0b',
-      },
-      {
-        id: 'demo-multiday-1',
-        title: 'Grandparents Visiting & Family Dinner',
-        start: makeDate(-1, 0, 0),
-        end: makeDate(3, 23, 59),
-        allDay: true,
-        calendarId: 'feed-family',
-        calendarName: 'Family',
-        color: '#f59e0b',
-      },
-      {
-        id: 'demo-multiday-2',
-        title: 'Fall Break & Camping Road Trip',
-        start: makeDate(4, 0, 0),
-        end: makeDate(8, 23, 59),
-        allDay: true,
-        calendarId: 'feed-family',
-        calendarName: 'Vacation',
-        color: '#10b981',
-      },
-      {
-        id: 'demo-multiday-3',
-        title: 'Global Tech & Architecture Summit',
-        start: makeDate(11, 0, 0),
-        end: makeDate(14, 23, 59),
-        allDay: true,
-        calendarId: 'feed-work',
-        calendarName: 'Work',
-        color: '#8b5cf6',
-      },
-      {
-        id: 'demo-6',
-        title: 'Community Garden Workshop',
-        start: makeDate(4, 10, 0),
-        end: makeDate(4, 12, 0),
-        allDay: false,
-        calendarId: 'feed-family',
-        calendarName: 'Personal',
-        color: '#38bdf8',
-      },
-      {
-        id: 'demo-7',
-        title: 'Weekend Bike Ride & Brunch',
-        start: makeDate(6, 9, 0),
-        end: makeDate(6, 13, 0),
-        allDay: false,
-        calendarId: 'feed-family',
-        calendarName: 'Personal',
-        color: '#38bdf8',
       }
     );
   }
@@ -992,7 +1148,8 @@ app.post('/api/notes/add', (req: Request, res: Response) => {
 });
 
 // Smart Morning & Evening Circadian Briefing Synthesizer
-app.get('/api/briefing', async (req: Request, res: Response) => {
+app.get(['/api/briefing', '/api/briefing/'], async (req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   try {
     const forceRefresh = req.query.force === 'true';
     const now = Date.now();
@@ -1053,8 +1210,23 @@ app.get('/api/briefing', async (req: Request, res: Response) => {
 
     // 2. Events Today
     const localEvents = loadLocalEvents();
+    const cachedEvents = getAllCachedCalendarEvents();
     const todayStr = currentDate.toISOString().slice(0, 10);
-    const todayEvents = localEvents.filter(e => e.start.slice(0, 10) === todayStr);
+    const combinedEvents = [
+      ...localEvents.map(le => ({
+        title: le.title,
+        start: le.start,
+        allDay: Boolean(le.allDay),
+        location: le.location,
+      })),
+      ...cachedEvents.map(ce => ({
+        title: ce.title,
+        start: ce.start,
+        allDay: Boolean(ce.allDay),
+        location: ce.location,
+      })),
+    ];
+    const todayEvents = combinedEvents.filter(e => e.start.slice(0, 10) === todayStr);
 
     const todayEventCount = todayEvents.length;
     let firstEvent: { title: string; time: string; location?: string } | null = null;
@@ -1201,7 +1373,7 @@ Rules:
     cachedBriefing = { data: payload, timestamp: now };
     res.json(payload);
   } catch (err: any) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.status(500).setHeader('Content-Type', 'application/json; charset=utf-8').json({ ok: false, error: err.message });
   }
 });
 
@@ -1219,26 +1391,17 @@ app.post('/api/calendar/test-url', async (req: Request, res: Response) => {
   }
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 LuminaHome/1.0',
-        'Accept': 'text/calendar, text/plain, */*',
-      },
-      signal: AbortSignal.timeout(8000),
-    });
-
-    if (!response.ok) {
-      res.json({ ok: false, error: `Server responded with HTTP ${response.status}` });
-      return;
-    }
-
-    const text = await response.text();
+    const { text } = await fetchCalendarFeedWithRetry(url, 'Admin Test Feed', {}, 2);
     const parsed = ical.parseICS(text);
     const count = Object.values(parsed).filter((item: any) => item.type === 'VEVENT').length;
 
     res.json({ ok: true, eventCount: count });
   } catch (err: any) {
-    res.json({ ok: false, error: err.message || 'Failed to connect to feed' });
+    const is503 = String(err.message).includes('503');
+    const userFriendlyError = is503
+      ? 'Apple iCloud CalDAV is temporarily busy (HTTP 503 morning peak). The app will automatically retry and serve cached events.'
+      : (err.message || 'Failed to connect to feed');
+    res.json({ ok: false, error: userFriendlyError });
   }
 });
 

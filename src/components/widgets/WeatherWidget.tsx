@@ -27,8 +27,13 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
       if (config.testAlert) {
         query.set('testAlert', 'true');
       }
-      const res = await fetch(`/api/weather?${query.toString()}`);
-      if (!res.ok) throw new Error('Weather fetch failed');
+      const res = await fetch(`/api/weather?${query.toString()}`, {
+        headers: { Accept: 'application/json' },
+      });
+      const contentType = res.headers.get('content-type');
+      if (!res.ok || !contentType || !contentType.includes('application/json')) {
+        throw new Error('Weather fetch returned non-JSON response');
+      }
       const data: WeatherData = await res.json();
       setWeather(data);
       setError(null);

@@ -126,8 +126,11 @@ export default function App() {
   // Fetch initial config from backend
   const loadConfig = async () => {
     try {
-      const res = await fetch('/api/config');
-      if (res.ok) {
+      const res = await fetch('/api/config', {
+        headers: { Accept: 'application/json' },
+      });
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
         const data = await res.json();
         setConfig(data);
       }
@@ -139,8 +142,11 @@ export default function App() {
   // Fetch calendar events
   const loadCalendar = async () => {
     try {
-      const res = await fetch('/api/calendar');
-      if (res.ok) {
+      const res = await fetch('/api/calendar', {
+        headers: { Accept: 'application/json' },
+      });
+      const contentType = res.headers.get('content-type');
+      if (res.ok && contentType && contentType.includes('application/json')) {
         const data = await res.json();
         setCalendarEvents(data.events || []);
       }

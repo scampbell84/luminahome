@@ -1720,7 +1720,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 <span className="font-semibold text-slate-300 block">How to obtain your calendar iCal URL:</span>
                 <ul className="list-disc list-inside space-y-1 text-slate-400">
                   <li><strong>Google Calendar:</strong> Settings → Click Calendar → Integrate Calendar → Copy <em>"Secret address in iCal format"</em>.</li>
-                  <li><strong>Apple iCloud:</strong> iCloud Calendar → Click share icon next to calendar → Check <em>"Public Calendar"</em> → Copy link (starts with webcal://).</li>
+                  <li><strong>Apple iCloud:</strong> iCloud Calendar → Click share icon next to calendar → Check <em>"Public Calendar"</em> → Copy link (starts with webcal://). <em>Lumina Home automatically caches your iCloud calendars to protect against transient morning 503 rate-limits.</em></li>
                   <li><strong>Outlook:</strong> Settings → Calendar → Shared calendars → Publish a calendar → Copy ICS link.</li>
                 </ul>
               </div>
