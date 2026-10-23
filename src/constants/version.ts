@@ -7,14 +7,35 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '3.0.0';
+export const APP_VERSION = '3.1.0';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.1.0',
+    releaseDate: 'October 2026',
+    title: 'Resilient Multi-iCal Sync & Enhanced Weather Legibility',
+    isCurrent: true,
+    highlights: [
+      'Fault-tolerant iCloud & iCal sync with automatic retry backoff and rate-limit defense',
+      'Persistent disk & memory caching (stale-while-revalidate) preventing blank schedule displays',
+      'Staggered feed pacing to eliminate Apple CalDAV morning peak 503 throttling',
+      'Enlarged high-contrast temperature and precipitation indicators on weather trend graphs',
+      'Circadian Smart Briefing fused with both local touch events and cached external iCal feeds',
+      'Weather modal React Hook ordering and JSON content-type negotiation safeguards',
+    ],
+    details: [
+      'iCloud & CalDAV Fault Tolerance: Implemented automatic exponential backoff with jitter and Retry-After header compliance for Apple CalDAV edge clusters, defending against high-volume morning 503 rate limits.',
+      'Persistent Stale-While-Revalidate Caching: Added persistent storage (~/.luminahome/calendar_cache.json) and memory caching so wall displays seamlessly retain and serve family schedules even during upstream cloud outages.',
+      'Staggered Multi-Feed Pacing: Automatically staggers requests across multiple calendar feeds with polite 350-500ms pacing, preventing burst firewall flags on Apple servers.',
+      'Weather Graph Legibility: Redesigned the temperature and precipitation complication indicators on the right side of the 24-hour weather trend graphs with enlarged typography and high-contrast pill styling for effortless readability from across the room.',
+      'Briefing Schedule Fusion: Unified the daily smart circadian briefing engine to aggregate both direct kiosk touch events and cached external iCal subscriptions for accurate morning and evening summaries.',
+      'Engine Stability: Resolved React Hook rendering order in weather details modals and hardened backend API proxy routing.',
+    ],
+  },
   {
     version: 'v3.0.0',
     releaseDate: 'October 2026',
     title: 'Daily Smart Briefings & Interactive Two-Way Kiosk',
-    isCurrent: true,
     highlights: [
       'Daily morning and evening smart summary briefings synthesized from weather, schedule, reminders, and countdowns',
       'Web Speech API audio voice narration with real-time waveform visualizer',
