@@ -293,6 +293,39 @@ export interface AppConfig {
     photoFocalBias?: 'face_bias' | 'top' | 'center' | 'custom'; // Smart framing focus point
     photoFocalOffsetY?: number; // 0 to 100 percentage (default: 20 for face bias)
   };
+  party?: PartyConfig;
+}
+
+export type PartyAccentColor = 'gold' | 'neon-pink' | 'emerald' | 'cyan' | 'purple' | 'amber';
+export type PartyEffect = 'confetti' | 'sparkles' | 'none';
+
+export interface PartyConfig {
+  enabled: boolean;
+  active: boolean; // Whether party screen is currently launched
+  title: string; // e.g. "Happy 30th Birthday, Sarah!"
+  subtitle?: string; // e.g. "Eat, drink, dance & celebrate with us!"
+  accentColor: PartyAccentColor;
+  effects: PartyEffect;
+  photos: {
+    sourceType: 'icloud_album' | 'wallpaper_sync' | 'sample';
+    icloudAlbumUrl?: string; // Dedicated event photo album or syncs with main album
+    cycleSeconds: number; // 5 to 60 seconds
+    photoBrightness?: number; // 20% to 100%
+    photoBlur?: number; // 0 to 20 px
+    photoFocalOffsetY?: number; // Face-bias framing offset (default 20%)
+  };
+  wifi: {
+    enabled: boolean;
+    networkName: string;
+    password: string;
+    securityType?: 'WPA' | 'WEP' | 'nopass';
+  };
+  music: {
+    enabled: boolean;
+    title: string; // e.g. "Tonight's House Party Mix"
+    playlistUrl?: string; // Spotify / Apple Music / YouTube Music URL
+    djNote?: string; // e.g. "Scan to open playlist & queue songs"
+  };
 }
 
 export type ScreenSaverStyle = 'standby-duo' | 'weather-focus' | 'photo-art' | 'bold-digital' | 'classic-analog' | 'cosmic-glow' | 'night-stand';

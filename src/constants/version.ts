@@ -7,14 +7,37 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '3.2.1';
+export const APP_VERSION = '3.3.0';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.3.0',
+    releaseDate: 'October 2026',
+    title: 'Party & Celebration Mode Screen',
+    isCurrent: true,
+    highlights: [
+      'Dedicated celebration screen for parties, birthdays, anniversaries, and family gatherings',
+      'Edge-to-edge photo slideshow with smart face-safe framing preventing heads from being cut off',
+      'Ambient physics-based confetti or floating starlight sparkles (zero-overhead canvas engine)',
+      'Customizable celebration banner with fast presets (Birthday, Cocktails, Dinner, Housewarming)',
+      'Instant Guest Wi-Fi QR code card for seamless camera scan-to-connect',
+      'Music & party playlist sharing card with direct scan link to Spotify, Apple Music, or Sonos',
+      'Quick-access Party Mode triggers in the bottom dock, header bar, and Admin Settings',
+    ],
+    details: [
+      'Dedicated Celebration Screen: One tap transforms the wall kiosk into an ambient celebration display featuring celebratory headlines, guest Wi-Fi QR access, and shared photo streams.',
+      'Face-Safe Framing Inherited: Family photos automatically maintain face-safe upper-third framing so guests and loved ones remain clearly visible in every slideshow crossfade.',
+      'Guest Wi-Fi Instant Scan: Guests can connect immediately to home Wi-Fi simply by aiming their smartphone camera at the crisp SVG QR code—no manual password typing needed.',
+      'Party Playlist QR Code: Displays a live QR card linking directly to Spotify, Apple Music, or your DJ queue so guests can view what is playing or add songs to the party mix.',
+      'Celebration Presets & Theme Colors: Six celebration themes (Gold, Neon Pink, Emerald, Cyan, Purple, Sunset Orange) and animated effects (Confetti, Sparkles, None) configurable in the new Party & Events settings tab.',
+      'Frictionless Access: Switch into Party Mode instantly via the bottom dock or settings, and tap "Exit Party Mode" to seamlessly return to your dashboard.',
+    ],
+  },
   {
     version: 'v3.2.1',
     releaseDate: 'October 2026',
     title: 'Automatic Chronological Sorting for Event Countdowns',
-    isCurrent: true,
+    isCurrent: false,
     highlights: [
       'Event Countdowns now automatically sort from closest to furthest away from today',
       'Eliminates arbitrary manual order so immediate birthdays and holidays appear at the top',

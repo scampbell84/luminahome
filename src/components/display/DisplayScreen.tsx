@@ -10,13 +10,14 @@ import { NotesWidget } from '../widgets/NotesWidget';
 import { SystemWidget } from '../widgets/SystemWidget';
 import { SmartBriefingWidget } from '../widgets/SmartBriefingWidget';
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
-import { AlertCircle, Camera, Sparkles } from 'lucide-react';
+import { AlertCircle, Camera, Sparkles, PartyPopper } from 'lucide-react';
 
 interface DisplayScreenProps {
   config: AppConfig;
   onOpenAdmin: () => void;
   onRefreshConfig: () => void;
   onUpdateConfig?: (updatedConfig: AppConfig) => void;
+  onTriggerPartyMode?: () => void;
 }
 
 export const DisplayScreen: React.FC<DisplayScreenProps> = ({
@@ -24,6 +25,7 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   onOpenAdmin,
   onRefreshConfig,
   onUpdateConfig,
+  onTriggerPartyMode,
 }) => {
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [lastHeartbeat, setLastHeartbeat] = useState<Date | null>(new Date());
@@ -368,7 +370,19 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
               <SmartBriefingWidget onEventCreated={onRefreshConfig} />
             </div>
           ) : (
-            <div className="w-full flex justify-end mb-2 shrink-0">
+            <div className="w-full flex justify-end items-center gap-2 mb-2 shrink-0">
+              {onTriggerPartyMode && config.party?.enabled !== false && (
+                <button
+                  type="button"
+                  onClick={onTriggerPartyMode}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-gradient-to-r from-amber-500/25 via-pink-500/25 to-purple-500/25 hover:from-amber-500/40 hover:via-pink-500/40 hover:to-purple-500/40 text-amber-200 hover:text-white border border-amber-400/40 backdrop-blur-xl shadow-lg transition-all active:scale-95 cursor-pointer text-xs font-bold group"
+                  title="Switch to Party & Celebration Screen"
+                >
+                  <PartyPopper className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-12 transition-transform" />
+                  <span>Party Mode</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => {

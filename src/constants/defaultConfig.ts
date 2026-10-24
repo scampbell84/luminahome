@@ -202,7 +202,93 @@ export const DEFAULT_CONFIG: AppConfig = {
     photoFocalBias: 'face_bias',
     photoFocalOffsetY: 20,
   },
+  party: {
+    enabled: true,
+    active: false,
+    title: 'Happy Birthday!',
+    subtitle: 'Eat, drink, dance & celebrate with us tonight!',
+    accentColor: 'gold',
+    effects: 'confetti',
+    photos: {
+      sourceType: 'wallpaper_sync',
+      icloudAlbumUrl: '',
+      cycleSeconds: 10,
+      photoBrightness: 55,
+      photoBlur: 2,
+      photoFocalOffsetY: 20,
+    },
+    wifi: {
+      enabled: true,
+      networkName: 'Home-Guest-WiFi',
+      password: 'celebratewithus',
+      securityType: 'WPA',
+    },
+    music: {
+      enabled: true,
+      title: "Tonight's House Party Mix",
+      playlistUrl: 'https://open.spotify.com',
+      djNote: 'Scan to open playlist & request tunes',
+    },
+  },
 };
+
+export const PARTY_TEMPLATES: Array<{
+  id: string;
+  name: string;
+  title: string;
+  subtitle: string;
+  accentColor: 'gold' | 'neon-pink' | 'emerald' | 'cyan' | 'purple' | 'amber';
+  effects: 'confetti' | 'sparkles' | 'none';
+}> = [
+  {
+    id: 'birthday',
+    name: 'Birthday Party',
+    title: 'Happy Birthday!',
+    subtitle: 'Wishing you the most magical year ahead. Let the celebration begin!',
+    accentColor: 'gold',
+    effects: 'confetti',
+  },
+  {
+    id: 'anniversary',
+    name: 'Anniversary',
+    title: 'Happy Anniversary!',
+    subtitle: 'Cheers to love, laughter, and happily ever after.',
+    accentColor: 'neon-pink',
+    effects: 'sparkles',
+  },
+  {
+    id: 'dinner',
+    name: 'Dinner Gathering',
+    title: 'Welcome Friends & Family',
+    subtitle: 'Good food, great drinks, and wonderful company tonight.',
+    accentColor: 'amber',
+    effects: 'sparkles',
+  },
+  {
+    id: 'cocktail',
+    name: 'Cocktails & Music',
+    title: 'Cocktails & Good Vibes',
+    subtitle: 'Grab a drink, scan the playlist, and make yourself at home.',
+    accentColor: 'purple',
+    effects: 'confetti',
+  },
+  {
+    id: 'housewarming',
+    name: 'Housewarming',
+    title: 'Welcome to Our New Home!',
+    subtitle: 'Thank you for coming to celebrate our fresh new beginning with us.',
+    accentColor: 'emerald',
+    effects: 'confetti',
+  },
+  {
+    id: 'holiday',
+    name: 'Holiday Celebration',
+    title: 'Happy Holidays!',
+    subtitle: 'Warmest wishes from our home to yours. Enjoy the festivities!',
+    accentColor: 'cyan',
+    effects: 'sparkles',
+  },
+];
 
 export const DEFAULT_ICLOUD_SAMPLE_PHOTOS: Array<{
   id: string;

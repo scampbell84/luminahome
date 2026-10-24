@@ -6,6 +6,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { BigCalendarView } from './components/calendar/BigCalendarView';
 import { BottomMenuBar, NavigationTab } from './components/navigation/BottomMenuBar';
 import { ScreenSaver } from './components/screensaver/ScreenSaver';
+import { PartyScreen } from './components/party/PartyScreen';
 import { Monitor } from 'lucide-react';
 
 export default function App() {
@@ -15,6 +16,7 @@ export default function App() {
   const [loading, setLoading] = useState<boolean>(true);
   const [notification, setNotification] = useState<string | null>(null);
   const [isScreensaverActive, setIsScreensaverActive] = useState<boolean>(false);
+  const [isPartyActive, setIsPartyActive] = useState<boolean>(false);
   const [visitedTabs, setVisitedTabs] = useState<Set<NavigationTab>>(() => new Set([currentTab]));
 
   // Keep visited tabs in DOM to eliminate re-mount stutter and network re-fetching
@@ -33,7 +35,10 @@ export default function App() {
     const params = new URLSearchParams(window.location.search);
     const viewParam = params.get('view')?.toLowerCase();
 
-    if (path.includes('admin') || path.includes('settings') || viewParam === 'settings' || viewParam === 'admin') {
+    if (path.includes('party') || viewParam === 'party') {
+      setIsPartyActive(true);
+      setCurrentTab('home');
+    } else if (path.includes('admin') || path.includes('settings') || viewParam === 'settings' || viewParam === 'admin') {
       setCurrentTab('settings');
     } else if (path.includes('calendar') || viewParam === 'calendar') {
       setCurrentTab('calendar');
@@ -43,11 +48,16 @@ export default function App() {
 
     const handlePopState = () => {
       const p = window.location.pathname.toLowerCase();
-      if (p.includes('admin') || p.includes('settings')) {
+      if (p.includes('party')) {
+        setIsPartyActive(true);
+      } else if (p.includes('admin') || p.includes('settings')) {
+        setIsPartyActive(false);
         setCurrentTab('settings');
       } else if (p.includes('calendar')) {
+        setIsPartyActive(false);
         setCurrentTab('calendar');
       } else {
+        setIsPartyActive(false);
         setCurrentTab('home');
       }
     };
@@ -267,6 +277,7 @@ export default function App() {
               onOpenAdmin={() => navigateTo('settings')}
               onRefreshConfig={loadConfig}
               onUpdateConfig={handleSaveConfig}
+              onTriggerPartyMode={() => setIsPartyActive(true)}
             />
           </div>
         )}
@@ -290,6 +301,7 @@ export default function App() {
               onReset={handleResetConfig}
               onOpenDisplay={() => navigateTo('home')}
               onTriggerScreensaver={() => setIsScreensaverActive(true)}
+              onTriggerPartyMode={() => setIsPartyActive(true)}
             />
           </div>
         )}
@@ -300,9 +312,19 @@ export default function App() {
         activeTab={currentTab}
         onSelectTab={navigateTo}
         format24={config.clock.format24}
+        onTriggerPartyMode={() => setIsPartyActive(true)}
         onTriggerScreensaver={() => setIsScreensaverActive(true)}
         onRefresh={handleRefresh}
       />
+
+      {/* Full-screen Dedicated Party & Celebration Screen Overlay */}
+      {isPartyActive && (
+        <PartyScreen
+          config={config}
+          onExit={() => setIsPartyActive(false)}
+          onUpdateConfig={handleSaveConfig}
+        />
+      )}
 
       {/* Full-screen Apple HomeView Screen Saver Overlay */}
       {isScreensaverActive && (

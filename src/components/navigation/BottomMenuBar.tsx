@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, Settings, Maximize2, Minimize2, Sparkles, RefreshCw } from 'lucide-react';
+import { Home, Calendar, Settings, Maximize2, Minimize2, Sparkles, RefreshCw, PartyPopper } from 'lucide-react';
 
 export type NavigationTab = 'home' | 'calendar' | 'settings';
 
@@ -8,6 +8,7 @@ interface BottomMenuBarProps {
   onSelectTab: (tab: NavigationTab) => void;
   format24?: boolean;
   onTriggerScreensaver?: () => void;
+  onTriggerPartyMode?: () => void;
   onRefresh?: () => void;
 }
 
@@ -16,6 +17,7 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
   onSelectTab,
   format24 = false,
   onTriggerScreensaver,
+  onTriggerPartyMode,
   onRefresh,
 }) => {
   const [timeStr, setTimeStr] = useState<string>('');
@@ -109,12 +111,23 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
         })}
       </div>
 
-      {/* Right Side: Live Clock, Refresh, Screensaver & Fullscreen Toggle */}
+      {/* Right Side: Live Clock, Refresh, Screensaver, Party Mode & Fullscreen Toggle */}
       <div className="flex items-center gap-2.5 shrink-0 ml-4 border-l border-white/15 pl-4">
+        {onTriggerPartyMode && (
+          <button
+            onClick={onTriggerPartyMode}
+            className="px-2.5 py-1.5 bg-gradient-to-r from-amber-500/25 to-pink-500/25 hover:from-amber-500/40 hover:to-pink-500/40 text-amber-200 hover:text-white rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold border border-amber-400/40 shadow-sm active:scale-95 cursor-pointer group"
+            title="Launch Celebration & Party Screen"
+          >
+            <PartyPopper className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-12 transition-transform" />
+            <span className="hidden sm:inline">Party Mode</span>
+          </button>
+        )}
+
         {onTriggerScreensaver && (
           <button
             onClick={onTriggerScreensaver}
-            className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white/90 hover:text-white rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold border border-white/15 shadow-sm active:scale-95"
+            className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-white/90 hover:text-white rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold border border-white/15 shadow-sm active:scale-95 cursor-pointer"
             title="Display Screen Saver"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-300" />

@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto } from '../../types/config';
-import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
+import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto, PartyAccentColor, PartyEffect } from '../../types/config';
+import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS, PARTY_TEMPLATES } from '../../constants/defaultConfig';
 import { APP_VERSION } from '../../constants/version';
 import { SystemSettings } from '../system/SystemSettings';
 import { AboutSection } from './AboutSection';
 import { GridVisualEditor } from './GridVisualEditor';
+import { PartySettingsTab } from './PartySettingsTab';
+import { generateQrDataUrl, formatWifiQrString } from '../../utils/qrCode';
 import {
   Save,
   RotateCcw,
@@ -52,6 +54,10 @@ import {
   Lock,
   Info,
   RefreshCw,
+  PartyPopper,
+  Music,
+  QrCode,
+  Radio,
 } from 'lucide-react';
 
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
@@ -62,6 +68,7 @@ interface AdminDashboardProps {
   onReset: () => Promise<void>;
   onOpenDisplay: () => void;
   onTriggerScreensaver?: () => void;
+  onTriggerPartyMode?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
@@ -70,9 +77,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onReset,
   onOpenDisplay,
   onTriggerScreensaver,
+  onTriggerPartyMode,
 }) => {
   const [config, setConfig] = useState<AppConfig>(initialConfig);
-  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'system' | 'about'>('layout');
+  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'party' | 'system' | 'about'>('layout');
   const [saving, setSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -795,6 +803,24 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             >
               <Sparkles className="w-4 h-4 text-amber-400" />
               <span>Screen Saver</span>
+            </button>
+
+            <button
+              onClick={(e) => {
+                setActiveTab('party');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'party'
+                  ? 'bg-gradient-to-r from-fuchsia-600 to-pink-600 text-white shadow-md shadow-fuchsia-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <PartyPopper className="w-4 h-4 text-fuchsia-400" />
+              <span>Party & Events</span>
+              <span className="text-[10px] bg-fuchsia-500/20 text-fuchsia-300 px-1.5 py-0.5 rounded font-mono font-semibold">
+                New
+              </span>
             </button>
 
             <button
@@ -3794,6 +3820,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
             </div>
           </div>
+        )}
+
+        {/* Tab: Party & Events */}
+        {activeTab === 'party' && (
+          <PartySettingsTab
+            partyConfig={(config.party || DEFAULT_CONFIG.party)!}
+            onUpdatePartyConfig={(updater) =>
+              setConfig((prev) => ({
+                ...prev,
+                party: updater((prev.party || DEFAULT_CONFIG.party)!),
+              }))
+            }
+            onTriggerPartyMode={onTriggerPartyMode}
+          />
         )}
 
         {/* Tab: System & Updates */}
