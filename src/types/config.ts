@@ -264,6 +264,8 @@ export interface AppConfig {
     enabled: boolean;
     showIp: boolean;
     showUptime: boolean;
+    virtualKeyboard?: boolean; // On-Screen Virtual Keyboard for Raspberry Pi touchscreen (default: true)
+    virtualKeyboardSound?: boolean; // Key click audio feedback (default: true)
   };
   screensaver: {
     enabled: boolean;

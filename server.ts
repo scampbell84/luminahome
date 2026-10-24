@@ -1844,17 +1844,30 @@ function extractICloudToken(urlOrToken: string): string {
   const trimmed = urlOrToken.trim();
   if (trimmed.includes('#')) {
     const afterHash = trimmed.split('#')[1];
-    return afterHash.split('?')[0].split(';')[0];
+    return afterHash.split('?')[0].split(';')[0].replace(/\/$/, '');
+  }
+  if (trimmed.includes('/shared/album/')) {
+    const parts = trimmed.split('/shared/album/')[1];
+    return parts.split('/')[0].split('?')[0].split('#')[0].split(';')[0].replace(/\/$/, '');
+  }
+  if (trimmed.includes('/shared/albums/')) {
+    const parts = trimmed.split('/shared/albums/')[1];
+    return parts.split('/')[0].split('?')[0].split('#')[0].split(';')[0].replace(/\/$/, '');
   }
   if (trimmed.includes('/photos/')) {
     const parts = trimmed.split('/photos/')[1];
-    return parts.split('/')[0].split('?')[0].split('#')[0].split(';')[0];
+    return parts.split('/')[0].split('?')[0].split('#')[0].split(';')[0].replace(/\/$/, '');
   }
   if (trimmed.includes('/sharedalbum/')) {
     const parts = trimmed.split('/sharedalbum/')[1];
-    return parts.replace(/^en-[a-z]+\//i, '').replace(/^#/, '').split('?')[0].split(';')[0];
+    return parts.replace(/^en-[a-z]+\//i, '').replace(/^#/, '').split('?')[0].split(';')[0].replace(/\/$/, '');
   }
-  return trimmed.split(';')[0];
+  const sanitized = trimmed.split('?')[0].split(';')[0].replace(/\/$/, '');
+  if (sanitized.includes('/')) {
+    const segments = sanitized.split('/').filter(Boolean);
+    return segments[segments.length - 1];
+  }
+  return sanitized;
 }
 
 function getICloudInitialBaseUrl(token: string): string {
@@ -1877,6 +1890,172 @@ interface ICloudCacheEntry {
 
 const icloudCache = new Map<string, ICloudCacheEntry>();
 const ICLOUD_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+
+/**
+ * Modern Apple Photos CloudKit Shared Albums resolver
+ * Supports photos.icloud.com/shared/album/... and share.icloud.com/photos/...
+ */
+async function fetchCloudKitPhotosAlbum(shortGUID: string): Promise<{
+  ok: boolean;
+  streamName: string;
+  owner: string;
+  count: number;
+  photos: ICloudPhoto[];
+} | null> {
+  try {
+    const resolveUrl = `https://ckdatabasews.icloud.com/database/1/com.apple.photos.cloud/production/public/records/resolve?remapEnums=true&getCurrentSyncToken=true&sharing_url_key=${encodeURIComponent(shortGUID)}`;
+    const resolveRes = await fetch(resolveUrl, {
+      method: 'POST',
+      headers: {
+        'Origin': 'https://photos.icloud.com',
+        'Referer': 'https://photos.icloud.com/',
+        'Content-Type': 'text/plain',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({ shortGUIDs: [{ value: shortGUID }] }),
+    });
+
+    if (!resolveRes.ok) return null;
+    const resolveData = (await resolveRes.json()) as any;
+    if (!resolveData.results || resolveData.results.length === 0) return null;
+
+    const res0 = resolveData.results[0];
+    if (res0.error || !res0.zoneID || !res0.anonymousPublicAccess) return null;
+
+    const streamName =
+      res0.share?.fields?.['cloudkit.title']?.value ||
+      res0.share?.fields?.title?.value ||
+      'iCloud Shared Album';
+
+    const owner = [
+      res0.ownerIdentity?.nameComponents?.givenName,
+      res0.ownerIdentity?.nameComponents?.familyName,
+    ].filter(Boolean).join(' ') || 'iCloud User';
+
+    const zoneID = res0.zoneID;
+    const anon = res0.anonymousPublicAccess;
+    const partition = anon.databasePartition; // e.g. https://p114-ckdatabasews.icloud.com:443
+    const anonToken = anon.token;
+
+    const queryUrl = `${partition}/database/1/com.apple.photos.cloud/production/shared/records/query?remapEnums=true&getCurrentSyncToken=true&sharing_url_key=${encodeURIComponent(shortGUID)}&publicAccessAuthToken=${encodeURIComponent(anonToken)}`;
+
+    const queryRes = await fetch(queryUrl, {
+      method: 'POST',
+      headers: {
+        'Origin': 'https://photos.icloud.com',
+        'Referer': 'https://photos.icloud.com/',
+        'Content-Type': 'text/plain',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      },
+      body: JSON.stringify({
+        query: {
+          recordType: 'CPLAssetAndMasterByAssetDateWithoutHiddenOrDeleted',
+          filterBy: [
+            { fieldName: 'direction', comparator: 'EQUALS', fieldValue: { value: 'DESCENDING', type: 'STRING' } },
+          ],
+        },
+        zoneID,
+        resultsLimit: 100,
+      }),
+    });
+
+    if (!queryRes.ok) return null;
+    const queryData = (await queryRes.json()) as any;
+    if (!queryData.records || !Array.isArray(queryData.records)) return null;
+
+    const photos: ICloudPhoto[] = [];
+    const parseRecords = (records: any[]) => {
+      for (const record of records) {
+        const f = record.fields;
+        if (!f) continue;
+
+        const medRes = f.resJPEGMedRes?.value;
+        const origRes = f.resOriginalRes?.value;
+        const thumbRes = f.resJPEGThumbRes?.value;
+        const targetRes = medRes || origRes || thumbRes;
+        if (!targetRes || !targetRes.downloadURL) continue;
+
+        let filename = 'photo.jpg';
+        if (f.filenameEnc?.value) {
+          try {
+            filename = Buffer.from(f.filenameEnc.value, 'base64').toString('utf-8');
+          } catch {}
+        }
+
+        const fullUrl = targetRes.downloadURL.replace('${f}', encodeURIComponent(filename));
+        const thumbUrl = (thumbRes?.downloadURL || targetRes.downloadURL).replace('${f}', encodeURIComponent(filename));
+
+        photos.push({
+          id: record.recordName,
+          url: fullUrl,
+          thumbnailUrl: thumbUrl,
+          width: Number(f.resJPEGMedWidth?.value) || Number(f.resOriginalWidth?.value) || 1920,
+          height: Number(f.resJPEGMedHeight?.value) || Number(f.resOriginalHeight?.value) || 1080,
+          caption: filename,
+          dateCreated: f.originalCreationDate?.value ? new Date(f.originalCreationDate.value).toISOString() : undefined,
+        });
+      }
+    };
+
+    parseRecords(queryData.records);
+
+    // If there is a continuation marker and we haven't fetched all photos, paginate
+    let continuationMarker = queryData.continuationMarker;
+    let pages = 0;
+    while (continuationMarker && pages < 3 && photos.length < 300) {
+      pages++;
+      try {
+        const nextRes = await fetch(queryUrl, {
+          method: 'POST',
+          headers: {
+            'Origin': 'https://photos.icloud.com',
+            'Referer': 'https://photos.icloud.com/',
+            'Content-Type': 'text/plain',
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          body: JSON.stringify({
+            query: {
+              recordType: 'CPLAssetAndMasterByAssetDateWithoutHiddenOrDeleted',
+              filterBy: [
+                { fieldName: 'direction', comparator: 'EQUALS', fieldValue: { value: 'DESCENDING', type: 'STRING' } },
+              ],
+            },
+            zoneID,
+            continuationMarker,
+            resultsLimit: 100,
+          }),
+        });
+
+        if (nextRes.ok) {
+          const nextData = (await nextRes.json()) as any;
+          continuationMarker = nextData.continuationMarker;
+          if (nextData.records && Array.isArray(nextData.records)) {
+            parseRecords(nextData.records);
+          } else {
+            break;
+          }
+        } else {
+          break;
+        }
+      } catch {
+        break;
+      }
+    }
+
+    if (photos.length === 0) return null;
+
+    return {
+      ok: true,
+      streamName,
+      owner,
+      count: photos.length,
+      photos,
+    };
+  } catch (err: any) {
+    console.warn('[iCloud CloudKit] Fetch exception:', err?.message || err);
+    return null;
+  }
+}
 
 app.get('/api/icloud-album', async (req: Request, res: Response) => {
   const rawUrl = (req.query.url as string || '').trim();
@@ -1906,6 +2085,22 @@ app.get('/api/icloud-album', async (req: Request, res: Response) => {
     return res.json(cached.data);
   }
 
+  // Priority 1: Check if modern Apple CloudKit Photos shared album (photos.icloud.com, share.icloud.com, or contains /shared/album/)
+  const isCloudKitCandidate =
+    rawUrl.includes('/shared/album') ||
+    rawUrl.includes('share.icloud.com') ||
+    rawUrl.includes('photos.icloud.com') ||
+    token.startsWith('0');
+
+  if (isCloudKitCandidate) {
+    const ckResult = await fetchCloudKitPhotosAlbum(token);
+    if (ckResult && ckResult.ok && ckResult.photos.length > 0) {
+      icloudCache.set(token, { timestamp: Date.now(), data: ckResult });
+      return res.json(ckResult);
+    }
+  }
+
+  // Priority 2: Try legacy sharedstreams API (pXX-sharedstreams.icloud.com)
   try {
     const initialBaseUrl = getICloudInitialBaseUrl(token);
     const icloudHeaders = {
@@ -1946,6 +2141,15 @@ app.get('/api/icloud-album', async (req: Request, res: Response) => {
     }
 
     if (!webstreamRes.ok) {
+      // If legacy sharedstreams failed, try CloudKit Photos as secondary fallback before erroring out
+      if (!isCloudKitCandidate) {
+        const ckFallback = await fetchCloudKitPhotosAlbum(token);
+        if (ckFallback && ckFallback.ok && ckFallback.photos.length > 0) {
+          icloudCache.set(token, { timestamp: Date.now(), data: ckFallback });
+          return res.json(ckFallback);
+        }
+      }
+
       return res.status(webstreamRes.status).json({
         ok: false,
         error: `iCloud service responded with HTTP ${webstreamRes.status}. Make sure "Public Website" is toggled ON in this shared album.`,
@@ -2042,6 +2246,15 @@ app.get('/api/icloud-album', async (req: Request, res: Response) => {
     res.json(result);
   } catch (err: any) {
     console.error('[iCloud] Error parsing shared album:', err);
+    // Try CloudKit fallback before returning failure
+    try {
+      const ckFallback = await fetchCloudKitPhotosAlbum(token);
+      if (ckFallback && ckFallback.ok && ckFallback.photos.length > 0) {
+        icloudCache.set(token, { timestamp: Date.now(), data: ckFallback });
+        return res.json(ckFallback);
+      }
+    } catch {}
+
     res.status(500).json({
       ok: false,
       error: `Failed to load iCloud album: ${err.message}. Ensure the album is set to Public Website.`,

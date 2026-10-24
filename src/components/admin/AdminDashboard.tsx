@@ -58,6 +58,8 @@ import {
   Music,
   QrCode,
   Radio,
+  Keyboard,
+  Volume2,
 } from 'lucide-react';
 
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
@@ -945,6 +947,72 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       checked={config.general.kioskHideCursor}
                       onChange={(e) => setConfig(prev => ({ ...prev, general: { ...prev.general, kioskHideCursor: e.target.checked } }))}
                       className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
+                    />
+                  </div>
+
+                  {/* On-Screen Virtual Keyboard for Raspberry Pi Touchscreen */}
+                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
+                    <div>
+                      <span className="text-xs font-medium text-white flex items-center gap-1.5">
+                        <Keyboard className="w-3.5 h-3.5 text-sky-400" />
+                        <span>On-Screen Touchscreen Keyboard</span>
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Automatically pops up when tapping any text field or password on touchscreen
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.system?.virtualKeyboard ?? true}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          system: {
+                            ...prev.system,
+                            virtualKeyboard: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Keyboard Audio Click Sound */}
+                  <div className="flex items-center justify-between p-3 bg-slate-950 rounded-lg border border-slate-800">
+                    <div>
+                      <span className="text-xs font-medium text-white flex items-center gap-1.5">
+                        <Volume2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Keyboard Click Audio Feedback</span>
+                      </span>
+                      <span className="text-[11px] text-slate-400">
+                        Synthesizes a soft mechanical tactile click sound on touch keypresses
+                      </span>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={config.system?.virtualKeyboardSound ?? true}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          system: {
+                            ...prev.system,
+                            virtualKeyboardSound: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 cursor-pointer"
+                    />
+                  </div>
+
+                  {/* Touchscreen Keyboard Interactive Test Field */}
+                  <div className="p-3 bg-sky-950/20 border border-sky-500/20 rounded-lg">
+                    <label className="text-[11px] font-semibold text-sky-300 block mb-1">
+                      Touchscreen Keyboard Test Box
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Tap here to test the on-screen keyboard..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500"
                     />
                   </div>
 

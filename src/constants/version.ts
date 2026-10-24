@@ -7,14 +7,52 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '3.3.3';
+export const APP_VERSION = '3.4.1';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.4.1',
+    releaseDate: 'October 2026',
+    title: 'Support for Modern Apple Photos iCloud Shared Albums (photos.icloud.com)',
+    isCurrent: true,
+    highlights: [
+      'Added full support for modern Apple Photos shared links (photos.icloud.com/shared/album/... and share.icloud.com/photos/...) alongside legacy shared streams',
+      'Implemented automated CloudKit share resolution with anonymous token authentication and batch query pagination',
+      'Tested and verified with live Apple Photos albums, loading up to hundreds of full-resolution (2048px) photos seamlessly',
+      'Works instantly in Home Wallpapers, Ambient Screen Saver, and Party Celebration Mode',
+    ],
+    details: [
+      'Modern Apple CloudKit Photos Architecture: Apple introduced a new web sharing structure (photos.icloud.com/shared/album/<shortGUID>/) using CloudKit CPLAssetAndMaster records instead of the legacy pXX-sharedstreams partition endpoint. Lumina Home now natively resolves both sharing architectures automatically.',
+      'Intelligent Bidirectional Resolver: The album parser automatically detects whether a link is a legacy sharedstream URL (#B...) or a modern CloudKit shortGUID token, resolving tokens, anonymous public access keys, and zone IDs dynamically.',
+      'High-Resolution Image Extraction: Retrieves 2048px medium JPEG derivatives directly from Apple CDN with full thumbnail generation, base64 filename decoding, and multi-page pagination for large family photo libraries.',
+    ],
+  },
+  {
+    version: 'v3.4.0',
+    releaseDate: 'October 2026',
+    title: 'Built-In On-Screen Touchscreen Keyboard for Raspberry Pi',
+    isCurrent: false,
+    highlights: [
+      'Standard built-in virtual on-screen keyboard that automatically pops up when tapping any input or textarea',
+      'Full touch layout with QWERTY letters, numbers row, Shift, Caps Lock, spacebar, and hold-to-repeat Backspace',
+      'Dedicated symbols and special characters (?123 / #+=) with fast shortcuts for https://, .com, @, and URLs',
+      'Real-time text preview toolbar with instant Clear button and Previous / Next field navigation arrows',
+      'Tactile soft mechanical click sound synthesizer using Web Audio API (with quick mute toggle in toolbar)',
+      'Floating manual keyboard summon button to open/hide the keyboard at any time on touch displays',
+    ],
+    details: [
+      'Raspberry Pi Touchscreen Optimization: Chromium kiosk mode on Linux typically lacks a functional virtual keyboard when tapping text inputs. Lumina Home now includes an authentic, zero-dependency on-screen keyboard built right into the platform.',
+      'Auto-Popup on Field Touch: Tapping into any text, password, URL, email, or notes field smoothly summons the keyboard docked at the bottom of the screen while auto-scrolling the active input so it is never obscured.',
+      'Full QWERTY & Kiosk URL Keys: Includes standard numbers row, uppercase latching via Shift or double-tap Caps Lock, and dedicated symbol switches with direct shortcuts (.com, https://, /, @, -) making Wi-Fi passwords and calendar feed URLs quick and painless to enter.',
+      'Form Navigation: The keyboard toolbar includes "Prev" and "Next" arrow buttons to jump across form fields without needing to reach for small touchscreen input boxes.',
+      'Continuous Deletion & Field Clear: Backspace supports tap-and-hold for rapid backspacing, plus a dedicated "Clear" button in the status preview to empty any field with one tap.',
+    ],
+  },
   {
     version: 'v3.3.3',
     releaseDate: 'October 2026',
     title: 'Tap to Enlarge QR Codes for Instant Guest Scanning',
-    isCurrent: true,
+    isCurrent: false,
     highlights: [
       'Interactive "Tap to Enlarge" badge and thumbnail overlay on all Party Screen QR cards',
       'High-contrast enlarged QR modal (up to 320px) easily scannable from across the room',

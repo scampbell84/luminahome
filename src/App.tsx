@@ -7,6 +7,7 @@ import { BigCalendarView } from './components/calendar/BigCalendarView';
 import { BottomMenuBar, NavigationTab } from './components/navigation/BottomMenuBar';
 import { ScreenSaver } from './components/screensaver/ScreenSaver';
 import { PartyScreen } from './components/party/PartyScreen';
+import { VirtualKeyboard } from './components/keyboard/VirtualKeyboard';
 import { Monitor } from 'lucide-react';
 
 export default function App() {
@@ -342,6 +343,12 @@ export default function App() {
           {notification}
         </div>
       )}
+
+      {/* Built-in On-Screen Virtual Keyboard for Raspberry Pi Touchscreen */}
+      <VirtualKeyboard
+        enabled={config.system?.virtualKeyboard ?? true}
+        soundEnabled={config.system?.virtualKeyboardSound ?? true}
+      />
     </div>
   );
 }

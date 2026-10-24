@@ -1,38 +1,75 @@
 {
   "appName": "Lumina Home",
-  "version": "3.3.3",
-  "versionTag": "v3.3.3",
-  "buildNumber": 8,
-  "buildTime": "2026-10-24T15:59:53.815Z",
-  "buildDate": "24 Oct 2026, 15:59",
+  "version": "3.4.1",
+  "versionTag": "v3.4.1",
+  "buildNumber": 11,
+  "buildTime": "2026-10-24T21:59:18.580Z",
+  "buildDate": "24 Oct 2026, 21:59",
   "gitCommit": "latest",
   "gitBranch": "main",
   "nodeVersion": "v22.23.3",
   "releaseDate": "October 2026",
   "currentRelease": {
-    "version": "v3.3.3",
+    "version": "v3.4.1",
     "releaseDate": "October 2026",
-    "title": "Tap to Enlarge QR Codes for Instant Guest Scanning",
+    "title": "Support for Modern Apple Photos iCloud Shared Albums (photos.icloud.com)",
     "isCurrent": true,
     "highlights": [
-      "Interactive \"Tap to Enlarge\" badge and thumbnail overlay on all Party Screen QR cards",
-      "High-contrast enlarged QR modal (up to 320px) easily scannable from across the room",
-      "Simple, natural dismissal: tap the \"Close\" button, click anywhere outside the modal, or press ESC",
-      "One-tap copy button for Wi-Fi passwords and direct browser launch for playlists/albums"
+      "Added full support for modern Apple Photos shared links (photos.icloud.com/shared/album/... and share.icloud.com/photos/...) alongside legacy shared streams",
+      "Implemented automated CloudKit share resolution with anonymous token authentication and batch query pagination",
+      "Tested and verified with live Apple Photos albums, loading up to hundreds of full-resolution (2048px) photos seamlessly",
+      "Works instantly in Home Wallpapers, Ambient Screen Saver, and Party Celebration Mode"
     ],
     "details": [
-      "Tap to Enlarge QR Cards: All three celebratory footer cards—Guest Wi-Fi, Party Playlist, and Guest Photo Drop—now feature clear, touch-friendly \"Tap to Enlarge\" buttons and responsive interactive thumbnails.",
-      "Jumbo QR Scanning Overlay: Tapping opens an enlarged, high-contrast QR code rendered crisp via vector SVG up to 320px wide, allowing guests to scan effortlessly from across the living room or kitchen counter without crowding the display.",
-      "Flexible Dismissal: The enlarged overlay can be instantly dismissed by tapping the prominent \"Close\" button, clicking anywhere on the darkened backdrop around the modal, or pressing the Escape key.",
-      "Quick Copy & Direct Links: The enlarged modal displays clear network credentials with a one-tap copy button for guest Wi-Fi passwords and clickable browser links for playlist and photo drop URLs."
+      "Modern Apple CloudKit Photos Architecture: Apple introduced a new web sharing structure (photos.icloud.com/shared/album/<shortGUID>/) using CloudKit CPLAssetAndMaster records instead of the legacy pXX-sharedstreams partition endpoint. Lumina Home now natively resolves both sharing architectures automatically.",
+      "Intelligent Bidirectional Resolver: The album parser automatically detects whether a link is a legacy sharedstream URL (#B...) or a modern CloudKit shortGUID token, resolving tokens, anonymous public access keys, and zone IDs dynamically.",
+      "High-Resolution Image Extraction: Retrieves 2048px medium JPEG derivatives directly from Apple CDN with full thumbnail generation, base64 filename decoding, and multi-page pagination for large family photo libraries."
     ]
   },
   "releaseNotes": [
     {
+      "version": "v3.4.1",
+      "releaseDate": "October 2026",
+      "title": "Support for Modern Apple Photos iCloud Shared Albums (photos.icloud.com)",
+      "isCurrent": true,
+      "highlights": [
+        "Added full support for modern Apple Photos shared links (photos.icloud.com/shared/album/... and share.icloud.com/photos/...) alongside legacy shared streams",
+        "Implemented automated CloudKit share resolution with anonymous token authentication and batch query pagination",
+        "Tested and verified with live Apple Photos albums, loading up to hundreds of full-resolution (2048px) photos seamlessly",
+        "Works instantly in Home Wallpapers, Ambient Screen Saver, and Party Celebration Mode"
+      ],
+      "details": [
+        "Modern Apple CloudKit Photos Architecture: Apple introduced a new web sharing structure (photos.icloud.com/shared/album/<shortGUID>/) using CloudKit CPLAssetAndMaster records instead of the legacy pXX-sharedstreams partition endpoint. Lumina Home now natively resolves both sharing architectures automatically.",
+        "Intelligent Bidirectional Resolver: The album parser automatically detects whether a link is a legacy sharedstream URL (#B...) or a modern CloudKit shortGUID token, resolving tokens, anonymous public access keys, and zone IDs dynamically.",
+        "High-Resolution Image Extraction: Retrieves 2048px medium JPEG derivatives directly from Apple CDN with full thumbnail generation, base64 filename decoding, and multi-page pagination for large family photo libraries."
+      ]
+    },
+    {
+      "version": "v3.4.0",
+      "releaseDate": "October 2026",
+      "title": "Built-In On-Screen Touchscreen Keyboard for Raspberry Pi",
+      "isCurrent": false,
+      "highlights": [
+        "Standard built-in virtual on-screen keyboard that automatically pops up when tapping any input or textarea",
+        "Full touch layout with QWERTY letters, numbers row, Shift, Caps Lock, spacebar, and hold-to-repeat Backspace",
+        "Dedicated symbols and special characters (?123 / #+=) with fast shortcuts for https://, .com, @, and URLs",
+        "Real-time text preview toolbar with instant Clear button and Previous / Next field navigation arrows",
+        "Tactile soft mechanical click sound synthesizer using Web Audio API (with quick mute toggle in toolbar)",
+        "Floating manual keyboard summon button to open/hide the keyboard at any time on touch displays"
+      ],
+      "details": [
+        "Raspberry Pi Touchscreen Optimization: Chromium kiosk mode on Linux typically lacks a functional virtual keyboard when tapping text inputs. Lumina Home now includes an authentic, zero-dependency on-screen keyboard built right into the platform.",
+        "Auto-Popup on Field Touch: Tapping into any text, password, URL, email, or notes field smoothly summons the keyboard docked at the bottom of the screen while auto-scrolling the active input so it is never obscured.",
+        "Full QWERTY & Kiosk URL Keys: Includes standard numbers row, uppercase latching via Shift or double-tap Caps Lock, and dedicated symbol switches with direct shortcuts (.com, https://, /, @, -) making Wi-Fi passwords and calendar feed URLs quick and painless to enter.",
+        "Form Navigation: The keyboard toolbar includes \"Prev\" and \"Next\" arrow buttons to jump across form fields without needing to reach for small touchscreen input boxes.",
+        "Continuous Deletion & Field Clear: Backspace supports tap-and-hold for rapid backspacing, plus a dedicated \"Clear\" button in the status preview to empty any field with one tap."
+      ]
+    },
+    {
       "version": "v3.3.3",
       "releaseDate": "October 2026",
       "title": "Tap to Enlarge QR Codes for Instant Guest Scanning",
-      "isCurrent": true,
+      "isCurrent": false,
       "highlights": [
         "Interactive \"Tap to Enlarge\" badge and thumbnail overlay on all Party Screen QR cards",
         "High-contrast enlarged QR modal (up to 320px) easily scannable from across the room",
