@@ -14,6 +14,9 @@ import {
   Radio,
   Volume2,
   Camera,
+  Maximize2,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface PartyScreenProps {
@@ -62,6 +65,47 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
   const [guestUploadQrUrl, setGuestUploadQrUrl] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherData | null>(null);
+
+  // Enlarged QR Code Modal state
+  interface EnlargedQrModalData {
+    type: 'wifi' | 'music' | 'upload';
+    title: string;
+    badgeTitle: string;
+    badgeColor: string;
+    badgeIcon: React.ReactNode;
+    instruction: string;
+    qrUrl: string;
+    details?: {
+      label: string;
+      value: string;
+      copyable?: boolean;
+      mono?: boolean;
+    }[];
+    externalUrl?: string;
+  }
+
+  const [enlargedQr, setEnlargedQr] = useState<EnlargedQrModalData | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // Dismiss enlarged QR modal on Escape key
+  useEffect(() => {
+    if (!enlargedQr) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setEnlargedQr(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [enlargedQr]);
+
+  const copyToClipboard = (text: string, key: string) => {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 2000);
+    }).catch(() => {});
+  };
 
   // Time ticker
   useEffect(() => {
@@ -516,18 +560,44 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
         )}
       </main>
 
-      {/* 6. Bottom Cards: Guest Wi-Fi & Party Playlist Music Card */}
+      {/* 6. Bottom Cards: Guest Wi-Fi, Guest Photo Drop & Party Playlist with Tap to Enlarge */}
       <footer className="relative z-20 w-full px-6 py-6 pb-8 flex flex-col sm:flex-row items-center sm:items-end justify-between gap-4">
         {/* Guest Wi-Fi QR Card */}
         {partyConfig.wifi.enabled && (
-          <div className="w-full sm:w-auto flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900/85 border border-white/20 backdrop-blur-2xl shadow-2xl transition-transform hover:scale-[1.02]">
+          <div
+            onClick={() => {
+              if (!wifiQrUrl) return;
+              setEnlargedQr({
+                type: 'wifi',
+                title: partyConfig.wifi.networkName,
+                badgeTitle: 'Guest Wi-Fi Network',
+                badgeColor: 'text-amber-300 bg-amber-500/20 border-amber-400/40',
+                badgeIcon: <Wifi className="w-4 h-4 text-amber-300" />,
+                instruction: 'Point your smartphone camera at this QR code to connect instantly to guest Wi-Fi',
+                qrUrl: wifiQrUrl,
+                details: [
+                  { label: 'Network Name (SSID)', value: partyConfig.wifi.networkName, copyable: true },
+                  { label: 'Password', value: partyConfig.wifi.password || 'None (Open Network)', copyable: Boolean(partyConfig.wifi.password), mono: true },
+                  { label: 'Security', value: partyConfig.wifi.securityType || 'WPA/WPA2' },
+                ],
+              });
+            }}
+            role="button"
+            tabIndex={0}
+            className="group relative cursor-pointer w-full sm:w-auto flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 hover:border-amber-400/50 backdrop-blur-2xl shadow-2xl transition-all duration-200 hover:scale-[1.03] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+            title="Tap to enlarge Guest Wi-Fi QR code"
+          >
             {wifiQrUrl ? (
-              <div className="w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 shadow-md flex items-center justify-center">
+              <div className="relative w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 shadow-md flex items-center justify-center overflow-hidden group-hover:ring-2 group-hover:ring-amber-400/60 transition-all">
                 <img
                   src={wifiQrUrl}
                   alt="Guest Wi-Fi QR Code"
                   className="w-full h-full object-contain"
                 />
+                <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-white text-[10px] font-bold">
+                  <Maximize2 className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>Enlarge</span>
+                </div>
               </div>
             ) : (
               <div className="w-20 h-20 bg-white/10 rounded-xl shrink-0 flex items-center justify-center text-slate-400">
@@ -549,8 +619,9 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
                   {partyConfig.wifi.password || 'None'}
                 </span>
               </div>
-              <div className="text-[10px] text-slate-400 mt-1">
-                Scan with phone camera to connect
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-300 bg-amber-400/15 group-hover:bg-amber-400/25 border border-amber-400/30 px-2 py-0.5 rounded-full mt-1.5 w-fit transition-colors shadow-sm">
+                <Maximize2 className="w-3 h-3" />
+                <span>Tap to Enlarge</span>
               </div>
             </div>
           </div>
@@ -558,14 +629,40 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
 
         {/* Guest Photo Drop / Upload Card */}
         {partyConfig.photos.guestUploadEnabled && partyConfig.photos.guestUploadUrl && (
-          <div className="w-full sm:w-auto flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900/85 border border-white/20 backdrop-blur-2xl shadow-2xl transition-transform hover:scale-[1.02]">
+          <div
+            onClick={() => {
+              if (!guestUploadQrUrl) return;
+              setEnlargedQr({
+                type: 'upload',
+                title: partyConfig.photos.guestUploadTitle || 'Guest Photo Drop',
+                badgeTitle: 'Live Guest Photo Drop',
+                badgeColor: 'text-emerald-300 bg-emerald-500/20 border-emerald-400/40',
+                badgeIcon: <Camera className="w-4 h-4 text-emerald-300" />,
+                instruction: 'Scan with your smartphone camera to upload party photos straight to this slideshow',
+                qrUrl: guestUploadQrUrl,
+                externalUrl: partyConfig.photos.guestUploadUrl,
+                details: [
+                  { label: 'Destination', value: partyConfig.photos.guestUploadTitle || 'Shared Party Album' },
+                  { label: 'Upload URL', value: partyConfig.photos.guestUploadUrl || '', copyable: true, mono: true },
+                ],
+              });
+            }}
+            role="button"
+            tabIndex={0}
+            className="group relative cursor-pointer w-full sm:w-auto flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 hover:border-emerald-400/50 backdrop-blur-2xl shadow-2xl transition-all duration-200 hover:scale-[1.03] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-emerald-400/50"
+            title="Tap to enlarge Guest Photo Drop QR code"
+          >
             {guestUploadQrUrl ? (
-              <div className="w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 shadow-md flex items-center justify-center">
+              <div className="relative w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 shadow-md flex items-center justify-center overflow-hidden group-hover:ring-2 group-hover:ring-emerald-400/60 transition-all">
                 <img
                   src={guestUploadQrUrl}
                   alt="Guest Photo Upload QR"
                   className="w-full h-full object-contain"
                 />
+                <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-white text-[10px] font-bold">
+                  <Maximize2 className="w-4 h-4 text-emerald-300 animate-pulse" />
+                  <span>Enlarge</span>
+                </div>
               </div>
             ) : (
               <div className="w-20 h-20 bg-white/10 rounded-xl shrink-0 flex items-center justify-center text-slate-400">
@@ -581,8 +678,9 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
               <div className="text-sm font-black text-white truncate max-w-[200px] mt-0.5">
                 {partyConfig.photos.guestUploadTitle || 'Add Party Photos'}
               </div>
-              <div className="text-[10px] text-slate-400 mt-1">
-                Scan to upload photos from your phone
+              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-300 bg-emerald-400/15 group-hover:bg-emerald-400/25 border border-emerald-400/30 px-2 py-0.5 rounded-full mt-1.5 w-fit transition-colors shadow-sm">
+                <Maximize2 className="w-3 h-3" />
+                <span>Tap to Enlarge</span>
               </div>
             </div>
           </div>
@@ -590,7 +688,30 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
 
         {/* Music Playlist / DJ Card */}
         {partyConfig.music.enabled && (
-          <div className="w-full sm:w-auto flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900/85 border border-white/20 backdrop-blur-2xl shadow-2xl transition-transform hover:scale-[1.02]">
+          <div
+            onClick={() => {
+              if (!musicQrUrl) return;
+              setEnlargedQr({
+                type: 'music',
+                title: partyConfig.music.title || "Party Soundtrack",
+                badgeTitle: 'Party Soundtrack',
+                badgeColor: 'text-sky-300 bg-sky-500/20 border-sky-400/40',
+                badgeIcon: <Radio className="w-4 h-4 text-sky-300" />,
+                instruction: partyConfig.music.djNote || 'Point your smartphone camera to open the playlist on Spotify or Apple Music',
+                qrUrl: musicQrUrl,
+                externalUrl: partyConfig.music.playlistUrl,
+                details: [
+                  { label: 'Mix Name', value: partyConfig.music.title || 'Party Mix' },
+                  { label: 'Host DJ Note', value: partyConfig.music.djNote || 'Scan to open playlist' },
+                  { label: 'Playlist URL', value: partyConfig.music.playlistUrl || '', copyable: true, mono: true },
+                ],
+              });
+            }}
+            role="button"
+            tabIndex={0}
+            className="group relative cursor-pointer w-full sm:w-auto flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800/95 border border-white/20 hover:border-sky-400/50 backdrop-blur-2xl shadow-2xl transition-all duration-200 hover:scale-[1.03] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-sky-400/50"
+            title="Tap to enlarge Party Playlist QR code"
+          >
             <div className="min-w-0 text-left sm:text-right pl-2">
               <div className="flex items-center sm:justify-end gap-1.5 text-xs font-bold text-sky-300 uppercase tracking-wider">
                 <Radio className="w-3.5 h-3.5 animate-pulse" />
@@ -602,18 +723,23 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
               <div className="text-xs text-slate-300 mt-0.5">
                 {partyConfig.music.djNote || 'Scan to open playlist'}
               </div>
-              <div className="text-[10px] text-slate-400 mt-1">
-                Point camera to open music mix
+              <div className="flex items-center sm:justify-end gap-1.5 text-[11px] font-semibold text-sky-300 bg-sky-400/15 group-hover:bg-sky-400/25 border border-sky-400/30 px-2 py-0.5 rounded-full mt-1.5 w-fit sm:ml-auto transition-colors shadow-sm">
+                <Maximize2 className="w-3 h-3" />
+                <span>Tap to Enlarge</span>
               </div>
             </div>
 
             {musicQrUrl ? (
-              <div className="w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 shadow-md flex items-center justify-center">
+              <div className="relative w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 shadow-md flex items-center justify-center overflow-hidden group-hover:ring-2 group-hover:ring-sky-400/60 transition-all">
                 <img
                   src={musicQrUrl}
                   alt="Playlist QR Code"
                   className="w-full h-full object-contain"
                 />
+                <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center gap-1 transition-opacity text-white text-[10px] font-bold">
+                  <Maximize2 className="w-4 h-4 text-sky-300 animate-pulse" />
+                  <span>Enlarge</span>
+                </div>
               </div>
             ) : (
               <div className="w-20 h-20 bg-white/10 rounded-xl shrink-0 flex items-center justify-center text-slate-400">
@@ -623,6 +749,124 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
           </div>
         )}
       </footer>
+
+      {/* Enlarged QR Code Overlay Modal */}
+      {enlargedQr && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-xl flex items-center justify-center p-4 sm:p-6 animate-fadeIn transition-opacity select-none"
+          onClick={() => setEnlargedQr(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative w-full max-w-md bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border border-white/25 rounded-3xl p-6 sm:p-7 shadow-2xl flex flex-col items-center text-center max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Corner Close Button */}
+            <button
+              onClick={() => setEnlargedQr(null)}
+              className="absolute top-4 right-4 p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white/70 hover:text-white transition-colors cursor-pointer"
+              title="Close (or press Esc / tap outside)"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Badge Indicator */}
+            <div
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-2 border ${enlargedQr.badgeColor}`}
+            >
+              {enlargedQr.badgeIcon}
+              <span>{enlargedQr.badgeTitle}</span>
+            </div>
+
+            {/* Main Title */}
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1 mb-1">
+              {enlargedQr.title}
+            </h2>
+
+            {/* Friendly Scanning Prompt */}
+            <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-sm mb-4">
+              {enlargedQr.instruction}
+            </p>
+
+            {/* Enlarged QR Code Container */}
+            <div className="w-64 h-64 sm:w-80 sm:h-80 bg-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border-4 border-white/20 flex items-center justify-center my-1">
+              <img
+                src={enlargedQr.qrUrl}
+                alt={enlargedQr.title}
+                className="w-full h-full object-contain pointer-events-none"
+              />
+            </div>
+
+            {/* Details Table */}
+            {enlargedQr.details && enlargedQr.details.length > 0 && (
+              <div className="w-full mt-4 bg-white/5 rounded-2xl p-3 border border-white/10 space-y-2 text-left">
+                {enlargedQr.details.map((detail, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center justify-between text-xs gap-3"
+                  >
+                    <span className="text-slate-400 font-medium shrink-0">
+                      {detail.label}:
+                    </span>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={`truncate text-white font-semibold ${
+                          detail.mono ? 'font-mono bg-black/40 px-2 py-0.5 rounded border border-white/10 text-amber-200' : ''
+                        }`}
+                        title={detail.value}
+                      >
+                        {detail.value}
+                      </span>
+                      {detail.copyable && (
+                        <button
+                          onClick={() => copyToClipboard(detail.value, `${enlargedQr.type}-${idx}`)}
+                          className="shrink-0 p-1 rounded-md bg-white/10 hover:bg-white/20 text-white/80 hover:text-white transition-colors"
+                          title={`Copy ${detail.label}`}
+                        >
+                          {copiedKey === `${enlargedQr.type}-${idx}` ? (
+                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* External URL action if applicable */}
+            {enlargedQr.externalUrl && (
+              <a
+                href={enlargedQr.externalUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex items-center gap-2 text-xs font-semibold text-sky-300 hover:text-sky-200 hover:underline"
+              >
+                <span>Open direct link in browser</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+
+            {/* Prominent Dismiss Button */}
+            <button
+              onClick={() => setEnlargedQr(null)}
+              className="mt-5 w-full py-3.5 px-6 rounded-2xl bg-white/15 hover:bg-white/25 active:bg-white/30 text-white font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2 border border-white/20 cursor-pointer shadow-lg"
+            >
+              <X className="w-4 h-4" />
+              <span>Close</span>
+            </button>
+
+            {/* Subtle dismiss guidance */}
+            <span className="text-[11px] text-slate-400 mt-2">
+              Tap anywhere outside this card or press ESC to dismiss
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

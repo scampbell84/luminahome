@@ -7,14 +7,32 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '3.3.2';
+export const APP_VERSION = '3.3.3';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.3.3',
+    releaseDate: 'October 2026',
+    title: 'Tap to Enlarge QR Codes for Instant Guest Scanning',
+    isCurrent: true,
+    highlights: [
+      'Interactive "Tap to Enlarge" badge and thumbnail overlay on all Party Screen QR cards',
+      'High-contrast enlarged QR modal (up to 320px) easily scannable from across the room',
+      'Simple, natural dismissal: tap the "Close" button, click anywhere outside the modal, or press ESC',
+      'One-tap copy button for Wi-Fi passwords and direct browser launch for playlists/albums',
+    ],
+    details: [
+      'Tap to Enlarge QR Cards: All three celebratory footer cards—Guest Wi-Fi, Party Playlist, and Guest Photo Drop—now feature clear, touch-friendly "Tap to Enlarge" buttons and responsive interactive thumbnails.',
+      'Jumbo QR Scanning Overlay: Tapping opens an enlarged, high-contrast QR code rendered crisp via vector SVG up to 320px wide, allowing guests to scan effortlessly from across the living room or kitchen counter without crowding the display.',
+      'Flexible Dismissal: The enlarged overlay can be instantly dismissed by tapping the prominent "Close" button, clicking anywhere on the darkened backdrop around the modal, or pressing the Escape key.',
+      'Quick Copy & Direct Links: The enlarged modal displays clear network credentials with a one-tap copy button for guest Wi-Fi passwords and clickable browser links for playlist and photo drop URLs.',
+    ],
+  },
   {
     version: 'v3.3.2',
     releaseDate: 'October 2026',
     title: 'Party Typography on Raspberry Pi, Text Alignment & Photo Dim/Blur Controls',
-    isCurrent: true,
+    isCurrent: false,
     highlights: [
       'Loaded cross-platform Fredoka & Nunito web fonts so Raspberry Pi kiosks render the exact bubbly rounded letters seen in preview',
       'Added 5 celebratory font styles: Playful Rounded, Bold Modern, Editorial Serif, Festive Script, and Retro Neon',
