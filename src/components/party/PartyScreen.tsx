@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppConfig, PartyConfig, ICloudPhoto, WeatherData } from '../../types/config';
-import { DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
+import { DEFAULT_ICLOUD_SAMPLE_PHOTOS, PARTY_CURATED_THEME_COLLECTIONS } from '../../constants/defaultConfig';
 import { formatWifiQrString, generateQrDataUrl } from '../../utils/qrCode';
 import {
   Wifi,
@@ -12,7 +12,8 @@ import {
   ExternalLink,
   ChevronRight,
   Radio,
-  Volume2
+  Volume2,
+  Camera,
 } from 'lucide-react';
 
 interface PartyScreenProps {
@@ -58,6 +59,7 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
   const [photoIndex, setPhotoIndex] = useState<number>(0);
   const [wifiQrUrl, setWifiQrUrl] = useState<string>('');
   const [musicQrUrl, setMusicQrUrl] = useState<string>('');
+  const [guestUploadQrUrl, setGuestUploadQrUrl] = useState<string>('');
   const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [weather, setWeather] = useState<WeatherData | null>(null);
 
@@ -77,24 +79,80 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
 
   // Fetch photos based on configuration source
   useEffect(() => {
-    let targetAlbumUrl = '';
-    if (partyConfig.photos.sourceType === 'icloud_album' && partyConfig.photos.icloudAlbumUrl) {
-      targetAlbumUrl = partyConfig.photos.icloudAlbumUrl;
-    } else if (partyConfig.photos.sourceType === 'wallpaper_sync') {
-      targetAlbumUrl = config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '';
-    }
+    const photoCfg = partyConfig.photos;
+    const sourceType = photoCfg.sourceType || 'dedicated_icloud';
 
-    if (targetAlbumUrl) {
-      fetch(`/api/icloud-album?url=${encodeURIComponent(targetAlbumUrl)}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.ok && Array.isArray(data.photos) && data.photos.length > 0) {
-            setPhotos(data.photos);
-          }
-        })
-        .catch(() => {});
+    if (sourceType === 'dedicated_icloud' || sourceType === 'icloud_album') {
+      const targetAlbumUrl = photoCfg.icloudAlbumUrl || config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '';
+      if (targetAlbumUrl) {
+        fetch(`/api/icloud-album?url=${encodeURIComponent(targetAlbumUrl)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.ok && Array.isArray(data.photos) && data.photos.length > 0) {
+              setPhotos(data.photos);
+            } else {
+              setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+            }
+          })
+          .catch(() => {
+            setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+          });
+      } else {
+        setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+      }
+    } else if (sourceType === 'wallpaper_sync') {
+      const targetAlbumUrl = config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '';
+      if (targetAlbumUrl) {
+        fetch(`/api/icloud-album?url=${encodeURIComponent(targetAlbumUrl)}`)
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.ok && Array.isArray(data.photos) && data.photos.length > 0) {
+              setPhotos(data.photos);
+            } else {
+              setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+            }
+          })
+          .catch(() => {
+            setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+          });
+      } else {
+        setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+      }
+    } else if (sourceType === 'curated_theme') {
+      const themeKey = photoCfg.curatedTheme || 'celebration';
+      const themeData = PARTY_CURATED_THEME_COLLECTIONS[themeKey];
+      if (themeData && themeData.photos.length > 0) {
+        setPhotos(themeData.photos);
+      } else {
+        setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+      }
+    } else if (sourceType === 'custom_urls') {
+      const rawUrls = photoCfg.customUrls || [];
+      const validUrls = rawUrls.map((u) => u.trim()).filter((u) => u.startsWith('http://') || u.startsWith('https://'));
+      if (validUrls.length > 0) {
+        const customPhotos: ICloudPhoto[] = validUrls.map((url, i) => ({
+          id: `custom-party-${i}`,
+          url,
+          thumbnailUrl: url,
+          width: 1920,
+          height: 1080,
+          caption: `Party Photo ${i + 1}`,
+        }));
+        setPhotos(customPhotos);
+      } else {
+        setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+      }
+    } else {
+      setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
     }
-  }, [partyConfig.photos.sourceType, partyConfig.photos.icloudAlbumUrl, config.general.icloudAlbumUrl, config.screensaver?.icloudAlbumUrl]);
+  }, [
+    partyConfig.photos.sourceType,
+    partyConfig.photos.icloudAlbumUrl,
+    partyConfig.photos.curatedTheme,
+    JSON.stringify(partyConfig.photos.customUrls || []),
+    config.general.icloudAlbumUrl,
+    config.screensaver?.icloudAlbumUrl,
+  ]);
 
   // Slideshow rotation timer
   useEffect(() => {
@@ -132,6 +190,17 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
       setMusicQrUrl(url);
     });
   }, [partyConfig.music]);
+
+  // Generate Live Guest Photo Upload QR Code
+  useEffect(() => {
+    if (!partyConfig.photos.guestUploadEnabled || !partyConfig.photos.guestUploadUrl) {
+      setGuestUploadQrUrl('');
+      return;
+    }
+    generateQrDataUrl(partyConfig.photos.guestUploadUrl, { width: 220, margin: 1 }).then((url) => {
+      setGuestUploadQrUrl(url);
+    });
+  }, [partyConfig.photos.guestUploadEnabled, partyConfig.photos.guestUploadUrl]);
 
   // 2. Canvas Particle System for Confetti / Sparkles
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -244,9 +313,42 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
   // Current active photo URL & properties
   const currentPhoto = photos.length > 0 ? photos[photoIndex % photos.length] : null;
   const photoUrl = currentPhoto ? `/api/icloud-photo-proxy?url=${encodeURIComponent(currentPhoto.url)}` : '';
-  const photoBrightness = Math.max(20, Math.min(100, partyConfig.photos.photoBrightness ?? 55));
-  const photoBlur = partyConfig.photos.photoBlur ?? 2;
+  const photoBrightness = Math.max(10, Math.min(100, partyConfig.photos.photoBrightness ?? 55));
+  const photoBlur = Math.max(0, Math.min(30, partyConfig.photos.photoBlur ?? 2));
   const photoFocalY = partyConfig.photos.photoFocalOffsetY ?? 20;
+
+  // Adaptive vignette opacity based on user brightness preference
+  const vignetteOpacity = Math.max(0.15, Math.min(0.85, 1 - (photoBrightness / 140)));
+
+  // Font family class based on user selection (works on Raspberry Pi, Linux, Mac, Windows, iOS)
+  const fontClass = useMemo(() => {
+    switch (partyConfig.font) {
+      case 'modern':
+        return 'font-party-modern font-black tracking-tight';
+      case 'serif':
+        return 'font-party-serif font-black italic tracking-normal';
+      case 'script':
+        return 'font-party-script font-bold tracking-wide text-5xl sm:text-7xl md:text-8xl lg:text-9xl';
+      case 'neon':
+        return 'font-party-neon font-normal tracking-wider uppercase';
+      case 'rounded':
+      default:
+        return 'font-party-rounded font-bold tracking-tight';
+    }
+  }, [partyConfig.font]);
+
+  // Text vertical alignment
+  const alignmentClass = useMemo(() => {
+    switch (partyConfig.textAlignment) {
+      case 'top':
+        return 'justify-start pt-4 sm:pt-8 my-0';
+      case 'bottom':
+        return 'justify-end pb-4 sm:pb-8 my-0';
+      case 'center':
+      default:
+        return 'justify-center my-auto';
+    }
+  }, [partyConfig.textAlignment]);
 
   // Theme Accent Styling
   const themeStyles = useMemo(() => {
@@ -316,14 +418,20 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
             backgroundImage: `url('${photoUrl}')`,
             backgroundPosition: `center ${photoFocalY}%`,
             filter: `brightness(${photoBrightness}%) blur(${photoBlur}px)`,
-            transform: photoBlur > 0 ? 'scale(1.05)' : undefined,
+            transform: photoBlur > 0 ? 'scale(1.06)' : undefined,
           }}
         />
       )}
 
-      {/* 2. Gradient Vignettes (Ensures cards and banners pop with exceptional contrast) */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/80 pointer-events-none" />
-      <div className="absolute inset-0 bg-radial-gradient from-transparent via-black/25 to-black/75 pointer-events-none" />
+      {/* 2. Gradient Vignettes (Adaptive opacity tied to photo brightness) */}
+      <div
+        className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-black/80 pointer-events-none transition-opacity duration-500"
+        style={{ opacity: vignetteOpacity }}
+      />
+      <div
+        className="absolute inset-0 bg-radial-gradient from-transparent via-black/20 to-black/75 pointer-events-none transition-opacity duration-500"
+        style={{ opacity: vignetteOpacity }}
+      />
 
       {/* 3. Canvas Ambient Particles (Confetti / Sparkles) */}
       {partyConfig.effects !== 'none' && (
@@ -334,7 +442,7 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
       )}
 
       {/* 4. Top Header Strip */}
-      <header className="relative z-20 w-full px-6 py-5 flex items-center justify-between">
+      <header className="relative z-20 w-full px-6 py-5 flex items-center justify-between shrink-0">
         {/* Subtle Ambient Time & Weather Badge */}
         <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900/75 border border-white/15 backdrop-blur-xl shadow-lg">
           <Clock className="w-4 h-4 text-amber-300 shrink-0" />
@@ -370,8 +478,8 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
         </div>
       </header>
 
-      {/* 5. Centerpiece: Grand Celebratory Greeting Banner */}
-      <main className="relative z-20 w-full max-w-5xl mx-auto px-4 my-auto text-center flex flex-col items-center justify-center space-y-4">
+      {/* 5. Centerpiece: Grand Celebratory Greeting Banner with Dynamic Alignment */}
+      <main className={`relative z-20 w-full max-w-5xl mx-auto px-4 text-center flex flex-col items-center space-y-4 flex-1 ${alignmentClass}`}>
         {/* Decorative Top Sparkle Pill */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/20 backdrop-blur-2xl shadow-xl animate-pulse">
           <Sparkles className="w-4 h-4 text-amber-300" />
@@ -381,9 +489,9 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
           <Sparkles className="w-4 h-4 text-amber-300" />
         </div>
 
-        {/* Massive Dynamic Event Headline */}
+        {/* Massive Dynamic Event Headline with Chosen Font */}
         <h1
-          className={`text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-tight bg-gradient-to-b ${themeStyles.gradientText} bg-clip-text text-transparent drop-shadow-2xl font-apple-rounded`}
+          className={`text-4xl sm:text-6xl md:text-7xl lg:text-8xl leading-tight bg-gradient-to-b ${themeStyles.gradientText} bg-clip-text text-transparent drop-shadow-2xl ${fontClass}`}
           style={{
             filter: `drop-shadow(0 0 40px ${themeStyles.glow}) drop-shadow(0 15px 30px rgba(0,0,0,0.9))`,
           }}
@@ -393,7 +501,7 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
 
         {/* Elegant Subtitle */}
         {partyConfig.subtitle && (
-          <p className="max-w-2xl text-base sm:text-xl md:text-2xl font-medium text-white/90 drop-shadow-lg tracking-wide leading-relaxed">
+          <p className="max-w-2xl text-base sm:text-xl md:text-2xl font-medium text-white/90 drop-shadow-lg tracking-wide leading-relaxed font-party-rounded">
             {partyConfig.subtitle}
           </p>
         )}
@@ -443,6 +551,38 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
               </div>
               <div className="text-[10px] text-slate-400 mt-1">
                 Scan with phone camera to connect
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Guest Photo Drop / Upload Card */}
+        {partyConfig.photos.guestUploadEnabled && partyConfig.photos.guestUploadUrl && (
+          <div className="w-full sm:w-auto flex items-center gap-3.5 p-3.5 rounded-2xl bg-slate-900/85 border border-white/20 backdrop-blur-2xl shadow-2xl transition-transform hover:scale-[1.02]">
+            {guestUploadQrUrl ? (
+              <div className="w-20 h-20 bg-white p-1.5 rounded-xl shrink-0 shadow-md flex items-center justify-center">
+                <img
+                  src={guestUploadQrUrl}
+                  alt="Guest Photo Upload QR"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+            ) : (
+              <div className="w-20 h-20 bg-white/10 rounded-xl shrink-0 flex items-center justify-center text-slate-400">
+                <Camera className="w-8 h-8 text-emerald-400" />
+              </div>
+            )}
+
+            <div className="min-w-0 pr-2">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                <Camera className="w-3.5 h-3.5" />
+                <span>Guest Photo Drop</span>
+              </div>
+              <div className="text-sm font-black text-white truncate max-w-[200px] mt-0.5">
+                {partyConfig.photos.guestUploadTitle || 'Add Party Photos'}
+              </div>
+              <div className="text-[10px] text-slate-400 mt-1">
+                Scan to upload photos from your phone
               </div>
             </div>
           </div>

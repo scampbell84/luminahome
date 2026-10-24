@@ -209,13 +209,20 @@ export const DEFAULT_CONFIG: AppConfig = {
     subtitle: 'Eat, drink, dance & celebrate with us tonight!',
     accentColor: 'gold',
     effects: 'confetti',
+    font: 'rounded',
+    textAlignment: 'center',
     photos: {
-      sourceType: 'wallpaper_sync',
+      sourceType: 'dedicated_icloud',
       icloudAlbumUrl: '',
+      curatedTheme: 'celebration',
+      customUrls: [],
       cycleSeconds: 10,
       photoBrightness: 55,
       photoBlur: 2,
       photoFocalOffsetY: 20,
+      guestUploadEnabled: false,
+      guestUploadUrl: '',
+      guestUploadTitle: 'Drop Photos to Party Album',
     },
     wifi: {
       enabled: true,
@@ -289,6 +296,245 @@ export const PARTY_TEMPLATES: Array<{
     effects: 'sparkles',
   },
 ];
+
+export const PARTY_CURATED_THEME_COLLECTIONS: Record<
+  'celebration' | 'cocktails' | 'disco' | 'dinner' | 'tropical' | 'starry',
+  {
+    id: 'celebration' | 'cocktails' | 'disco' | 'dinner' | 'tropical' | 'starry';
+    label: string;
+    description: string;
+    icon: string;
+    photos: Array<{
+      id: string;
+      url: string;
+      thumbnailUrl: string;
+      width: number;
+      height: number;
+      caption: string;
+      dateCreated: string;
+    }>;
+  }
+> = {
+  celebration: {
+    id: 'celebration',
+    label: 'Celebration & Birthday Joy',
+    description: 'Festive balloons, sparkling candles, toasts, and party confetti',
+    icon: '🎂',
+    photos: [
+      {
+        id: 'curated-cel-1',
+        url: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Party Streamers & Festive Celebration',
+        dateCreated: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 'curated-cel-2',
+        url: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Balloons & Party Confetti',
+        dateCreated: '2026-10-02T00:00:00Z',
+      },
+      {
+        id: 'curated-cel-3',
+        url: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1464349095431-e9a21285b5f3?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Celebration Birthday Cake & Candles',
+        dateCreated: '2026-10-03T00:00:00Z',
+      },
+      {
+        id: 'curated-cel-4',
+        url: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Champagne Toast & Friends Celebrating',
+        dateCreated: '2026-10-04T00:00:00Z',
+      },
+      {
+        id: 'curated-cel-5',
+        url: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Golden Sparkles & Midnight Cheer',
+        dateCreated: '2026-10-05T00:00:00Z',
+      },
+    ],
+  },
+  cocktails: {
+    id: 'cocktails',
+    label: 'Cocktail Lounge & Evening Bar',
+    description: 'Craft mixology, clinking glasses, citrus garnishes, and ambient lounge vibes',
+    icon: '🍸',
+    photos: [
+      {
+        id: 'curated-cocktail-1',
+        url: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1551024709-8f23befc6f87?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Artisanal Craft Cocktails at the Bar',
+        dateCreated: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 'curated-cocktail-2',
+        url: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Cocktail Coupe with Fresh Rosemary',
+        dateCreated: '2026-10-02T00:00:00Z',
+      },
+      {
+        id: 'curated-cocktail-3',
+        url: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Wine & Champagne Clinking',
+        dateCreated: '2026-10-03T00:00:00Z',
+      },
+      {
+        id: 'curated-cocktail-4',
+        url: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1543007630-9710e4a00a20?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Evening Ambient Lounge & Bar Lights',
+        dateCreated: '2026-10-04T00:00:00Z',
+      },
+    ],
+  },
+  disco: {
+    id: 'disco',
+    label: 'Disco & Dance Party',
+    description: 'Mirrored disco balls, vibrant lasers, neon nightclub atmosphere',
+    icon: '🪩',
+    photos: [
+      {
+        id: 'curated-disco-1',
+        url: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Mirrored Disco Ball Reflection',
+        dateCreated: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 'curated-disco-2',
+        url: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Live DJ Console & Club Beams',
+        dateCreated: '2026-10-02T00:00:00Z',
+      },
+      {
+        id: 'curated-disco-3',
+        url: 'https://images.unsplash.com/photo-1545128485-c400e7702796?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1545128485-c400e7702796?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Electric Laser Lights & Rhythm',
+        dateCreated: '2026-10-03T00:00:00Z',
+      },
+    ],
+  },
+  dinner: {
+    id: 'dinner',
+    label: 'Dinner Gathering & Table Feast',
+    description: 'Candlelit tables, culinary platters, wine carafes, and intimate banquet memories',
+    icon: '🍽️',
+    photos: [
+      {
+        id: 'curated-dinner-1',
+        url: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Warm Dinner Table & Conversation',
+        dateCreated: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 'curated-dinner-2',
+        url: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Banquet Feast & Candles',
+        dateCreated: '2026-10-02T00:00:00Z',
+      },
+      {
+        id: 'curated-dinner-3',
+        url: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1519671482749-fd09be7ccebf?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Candlelit Dinner Party & Cheers',
+        dateCreated: '2026-10-03T00:00:00Z',
+      },
+    ],
+  },
+  tropical: {
+    id: 'tropical',
+    label: 'Tropical Luau & Summer Vibes',
+    description: 'Golden sunsets, palm breezes, poolside chill, and vibrant tiki drinks',
+    icon: '🌴',
+    photos: [
+      {
+        id: 'curated-trop-1',
+        url: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Sunset Beach & Calm Ocean Waters',
+        dateCreated: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 'curated-trop-2',
+        url: 'https://images.unsplash.com/photo-1575444758702-4a6b9222336e?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1575444758702-4a6b9222336e?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Tropical Citrus Drink by the Pool',
+        dateCreated: '2026-10-02T00:00:00Z',
+      },
+    ],
+  },
+  starry: {
+    id: 'starry',
+    label: 'Starry & Cozy Ambient',
+    description: 'Warm string lights, outdoor lanterns, embers, and peaceful evening glow',
+    icon: '✨',
+    photos: [
+      {
+        id: 'curated-star-1',
+        url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Warm Golden String Lights & Fairy Bokeh',
+        dateCreated: '2026-10-01T00:00:00Z',
+      },
+      {
+        id: 'curated-star-2',
+        url: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=2560&q=85',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1475721027785-f74eccf877e2?auto=format&fit=crop&w=400&q=70',
+        width: 2560,
+        height: 1440,
+        caption: 'Festive Outdoor String Lights',
+        dateCreated: '2026-10-02T00:00:00Z',
+      },
+    ],
+  },
+};
 
 export const DEFAULT_ICLOUD_SAMPLE_PHOTOS: Array<{
   id: string;

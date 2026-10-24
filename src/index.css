@@ -68,9 +68,35 @@
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
 }
 
+/* Celebration & Party Typography - Works on Raspberry Pi, Linux, Mac, Windows, iOS & Android */
+.font-party-rounded {
+  font-family: 'Fredoka', 'Nunito', 'SF Pro Rounded', ui-rounded, system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+
+.font-party-modern {
+  font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.font-party-serif {
+  font-family: 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+.font-party-script {
+  font-family: 'Caveat', cursive, sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.font-party-neon {
+  font-family: 'Righteous', 'Outfit', sans-serif;
+  letter-spacing: 0.04em;
+}
+
 /* Apple HomeView & StandBy Liquid Glass System */
 .font-apple-rounded {
-  font-family: -apple-system-short-headline, -apple-system, 'SF Pro Rounded', 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+  font-family: 'Fredoka', 'Nunito', 'SF Pro Rounded', -apple-system-short-headline, -apple-system, 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
   letter-spacing: -0.025em;
 }
 

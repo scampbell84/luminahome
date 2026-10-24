@@ -1,43 +1,80 @@
 {
   "appName": "Lumina Home",
-  "version": "3.3.0",
-  "versionTag": "v3.3.0",
-  "buildNumber": 5,
-  "buildTime": "2026-10-24T13:41:06.131Z",
-  "buildDate": "24 Oct 2026, 13:41",
+  "version": "3.3.2",
+  "versionTag": "v3.3.2",
+  "buildNumber": 7,
+  "buildTime": "2026-10-24T14:30:45.445Z",
+  "buildDate": "24 Oct 2026, 14:30",
   "gitCommit": "latest",
   "gitBranch": "main",
   "nodeVersion": "v22.23.3",
   "releaseDate": "October 2026",
   "currentRelease": {
-    "version": "v3.3.0",
+    "version": "v3.3.2",
     "releaseDate": "October 2026",
-    "title": "Party & Celebration Mode Screen",
+    "title": "Party Typography on Raspberry Pi, Text Alignment & Photo Dim/Blur Controls",
     "isCurrent": true,
     "highlights": [
-      "Dedicated celebration screen for parties, birthdays, anniversaries, and family gatherings",
-      "Edge-to-edge photo slideshow with smart face-safe framing preventing heads from being cut off",
-      "Ambient physics-based confetti or floating starlight sparkles (zero-overhead canvas engine)",
-      "Customizable celebration banner with fast presets (Birthday, Cocktails, Dinner, Housewarming)",
-      "Instant Guest Wi-Fi QR code card for seamless camera scan-to-connect",
-      "Music & party playlist sharing card with direct scan link to Spotify, Apple Music, or Sonos",
-      "Quick-access Party Mode triggers in the bottom dock, header bar, and Admin Settings"
+      "Loaded cross-platform Fredoka & Nunito web fonts so Raspberry Pi kiosks render the exact bubbly rounded letters seen in preview",
+      "Added 5 celebratory font styles: Playful Rounded, Bold Modern, Editorial Serif, Festive Script, and Retro Neon",
+      "Added Text Position selector: Center Screen, Top of Screen (unobstructed faces), or Bottom Aligned",
+      "Added interactive Photo Brightness / Dimming slider (10% to 100%) with quick presets",
+      "Added interactive Background Photo Blur slider (0px to 25px) for sharp photos or dreamy ambient bokeh"
     ],
     "details": [
-      "Dedicated Celebration Screen: One tap transforms the wall kiosk into an ambient celebration display featuring celebratory headlines, guest Wi-Fi QR access, and shared photo streams.",
-      "Face-Safe Framing Inherited: Family photos automatically maintain face-safe upper-third framing so guests and loved ones remain clearly visible in every slideshow crossfade.",
-      "Guest Wi-Fi Instant Scan: Guests can connect immediately to home Wi-Fi simply by aiming their smartphone camera at the crisp SVG QR code—no manual password typing needed.",
-      "Party Playlist QR Code: Displays a live QR card linking directly to Spotify, Apple Music, or your DJ queue so guests can view what is playing or add songs to the party mix.",
-      "Celebration Presets & Theme Colors: Six celebration themes (Gold, Neon Pink, Emerald, Cyan, Purple, Sunset Orange) and animated effects (Confetti, Sparkles, None) configurable in the new Party & Events settings tab.",
-      "Frictionless Access: Switch into Party Mode instantly via the bottom dock or settings, and tap \"Exit Party Mode\" to seamlessly return to your dashboard."
+      "Raspberry Pi Rounded Typography: Integrated Fredoka and Nunito web fonts from Google Fonts directly into the kiosk build. Because Linux and Chromium lack Apple system fonts, this guarantees that Raspberry Pi displays render the authentic soft bubble terminals seen in macOS previews.",
+      "Font Style Palette: Hosts can choose between 5 distinct typography personalities: Playful Rounded (bubbly & joyful), Bold Modern (sleek sans-serif), Editorial Serif (classy & formal), Festive Script (celebration handwriting), and Retro Neon (arcade/synthwave).",
+      "Vertical Alignment Control: You can position celebratory greetings at the top of the screen (leaving the central area completely unobstructed for family faces in photos), vertically centered as a classic centerpiece, or aligned towards the bottom above the QR cards.",
+      "Photo Dimming & Brightness Slider: Fine-tune the brightness of background photos from 10% (moody dim) to 100% (raw vivid photos) with adaptive dark vignettes.",
+      "Photo Blur & Soft Focus: Adjust photo blur from 0px (razor sharp for viewing memories) to 25px (soft ambient bokeh that spotlights the celebratory headline)."
     ]
   },
   "releaseNotes": [
     {
+      "version": "v3.3.2",
+      "releaseDate": "October 2026",
+      "title": "Party Typography on Raspberry Pi, Text Alignment & Photo Dim/Blur Controls",
+      "isCurrent": true,
+      "highlights": [
+        "Loaded cross-platform Fredoka & Nunito web fonts so Raspberry Pi kiosks render the exact bubbly rounded letters seen in preview",
+        "Added 5 celebratory font styles: Playful Rounded, Bold Modern, Editorial Serif, Festive Script, and Retro Neon",
+        "Added Text Position selector: Center Screen, Top of Screen (unobstructed faces), or Bottom Aligned",
+        "Added interactive Photo Brightness / Dimming slider (10% to 100%) with quick presets",
+        "Added interactive Background Photo Blur slider (0px to 25px) for sharp photos or dreamy ambient bokeh"
+      ],
+      "details": [
+        "Raspberry Pi Rounded Typography: Integrated Fredoka and Nunito web fonts from Google Fonts directly into the kiosk build. Because Linux and Chromium lack Apple system fonts, this guarantees that Raspberry Pi displays render the authentic soft bubble terminals seen in macOS previews.",
+        "Font Style Palette: Hosts can choose between 5 distinct typography personalities: Playful Rounded (bubbly & joyful), Bold Modern (sleek sans-serif), Editorial Serif (classy & formal), Festive Script (celebration handwriting), and Retro Neon (arcade/synthwave).",
+        "Vertical Alignment Control: You can position celebratory greetings at the top of the screen (leaving the central area completely unobstructed for family faces in photos), vertically centered as a classic centerpiece, or aligned towards the bottom above the QR cards.",
+        "Photo Dimming & Brightness Slider: Fine-tune the brightness of background photos from 10% (moody dim) to 100% (raw vivid photos) with adaptive dark vignettes.",
+        "Photo Blur & Soft Focus: Adjust photo blur from 0px (razor sharp for viewing memories) to 25px (soft ambient bokeh that spotlights the celebratory headline)."
+      ]
+    },
+    {
+      "version": "v3.3.1",
+      "releaseDate": "October 2026",
+      "title": "Multi-Source Party Photos & Dedicated Event iCloud Albums",
+      "isCurrent": false,
+      "highlights": [
+        "Option to connect a separate dedicated iCloud Shared Album specifically for this event or birthday",
+        "Test Album Connection tool in settings with real-time photo count, album title, and thumbnail strip",
+        "Curated celebration visual themes (Birthday Joy, Cocktail Lounge, Disco, Dinner, Tropical, Starry)",
+        "Direct custom web image URLs input with automatic link parsing",
+        "Interactive Guest Photo Drop QR code card allowing guests to upload photos from their phones live"
+      ],
+      "details": [
+        "Dedicated Event iCloud Albums: Hosts can now paste a dedicated public iCloud Shared Album link specifically created for a birthday, anniversary, or gathering, keeping the party slideshow focused on the guest of honor without altering the everyday family album.",
+        "Live Album Verification: Settings includes a real-time \"Test Album Connection\" button verifying the album link, displaying the stream name, photo count, and thumbnail previews.",
+        "Curated Party Themes: Added 6 high-definition ambient photography collections (Celebration & Birthday Joy, Cocktail Lounge, Disco Night, Dinner Gathering, Tropical Luau, Starry Ambient) providing instant festive visuals even when no custom album is available.",
+        "Direct Web URLs: Support for pasting direct image URLs from cloud storage, personal photo servers, or web links.",
+        "Guest Photo Drop QR Card: Optional on-screen QR card enabling guests to point their phones and drop their photos into the host’s shared album in real-time during the party."
+      ]
+    },
+    {
       "version": "v3.3.0",
       "releaseDate": "October 2026",
       "title": "Party & Celebration Mode Screen",
-      "isCurrent": true,
+      "isCurrent": false,
       "highlights": [
         "Dedicated celebration screen for parties, birthdays, anniversaries, and family gatherings",
         "Edge-to-edge photo slideshow with smart face-safe framing preventing heads from being cut off",

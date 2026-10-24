@@ -299,6 +299,25 @@ export interface AppConfig {
 export type PartyAccentColor = 'gold' | 'neon-pink' | 'emerald' | 'cyan' | 'purple' | 'amber';
 export type PartyEffect = 'confetti' | 'sparkles' | 'none';
 
+export type PartyPhotoSourceType =
+  | 'dedicated_icloud'
+  | 'wallpaper_sync'
+  | 'curated_theme'
+  | 'custom_urls'
+  | 'sample'
+  | 'icloud_album';
+
+export type PartyCuratedTheme =
+  | 'celebration'
+  | 'cocktails'
+  | 'disco'
+  | 'dinner'
+  | 'tropical'
+  | 'starry';
+
+export type PartyFont = 'rounded' | 'modern' | 'serif' | 'script' | 'neon';
+export type PartyTextAlignment = 'center' | 'top' | 'bottom';
+
 export interface PartyConfig {
   enabled: boolean;
   active: boolean; // Whether party screen is currently launched
@@ -306,13 +325,20 @@ export interface PartyConfig {
   subtitle?: string; // e.g. "Eat, drink, dance & celebrate with us!"
   accentColor: PartyAccentColor;
   effects: PartyEffect;
+  font?: PartyFont; // Font family style (default 'rounded' for bubbly letters)
+  textAlignment?: PartyTextAlignment; // 'center' | 'top' | 'bottom'
   photos: {
-    sourceType: 'icloud_album' | 'wallpaper_sync' | 'sample';
+    sourceType: PartyPhotoSourceType;
     icloudAlbumUrl?: string; // Dedicated event photo album or syncs with main album
+    curatedTheme?: PartyCuratedTheme;
+    customUrls?: string[];
     cycleSeconds: number; // 5 to 60 seconds
     photoBrightness?: number; // 20% to 100%
     photoBlur?: number; // 0 to 20 px
     photoFocalOffsetY?: number; // Face-bias framing offset (default 20%)
+    guestUploadEnabled?: boolean;
+    guestUploadUrl?: string;
+    guestUploadTitle?: string;
   };
   wifi: {
     enabled: boolean;
