@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppConfig, PartyConfig, ICloudPhoto, WeatherData } from '../../types/config';
 import { DEFAULT_ICLOUD_SAMPLE_PHOTOS, PARTY_CURATED_THEME_COLLECTIONS } from '../../constants/defaultConfig';
 import { formatWifiQrString, generateQrDataUrl } from '../../utils/qrCode';
+import { createShuffledDeck, expandShuffledDeck } from '../../utils/shuffleDeck';
 import {
   Wifi,
   Music2,
@@ -121,44 +122,76 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
       .catch(() => {});
   }, []);
 
-  // Fetch photos based on configuration source
+  // Smart Shuffle Deck state
+  const isShuffleEnabled = partyConfig.photos?.shuffle !== false && partyConfig.photos?.playbackOrder !== 'sequential';
+  const shuffleDeckRef = useRef<number[]>([]);
+  const shufflePosRef = useRef<number>(0);
+
+  // Update or expand the shuffle deck whenever photos list changes
+  useEffect(() => {
+    if (photos.length === 0) {
+      shuffleDeckRef.current = [];
+      shufflePosRef.current = 0;
+      return;
+    }
+
+    if (shuffleDeckRef.current.length === 0) {
+      // Initialize fresh deck
+      const initialDeck = isShuffleEnabled ? createShuffledDeck(photos.length) : Array.from({ length: photos.length }, (_, i) => i);
+      shuffleDeckRef.current = initialDeck;
+      shufflePosRef.current = 0;
+      setPhotoIndex(initialDeck[0] || 0);
+    } else if (photos.length > shuffleDeckRef.current.length) {
+      // Progressively expand existing deck with newly synced photos
+      if (isShuffleEnabled) {
+        shuffleDeckRef.current = expandShuffledDeck(shuffleDeckRef.current, shufflePosRef.current, photos.length);
+      } else {
+        shuffleDeckRef.current = Array.from({ length: photos.length }, (_, i) => i);
+      }
+    }
+  }, [photos.length, isShuffleEnabled]);
+
+  // Fetch photos based on configuration source with progressive background sync polling
   useEffect(() => {
     const photoCfg = partyConfig.photos;
     const sourceType = photoCfg.sourceType || 'dedicated_icloud';
+    let isMounted = true;
+    let pollTimer: NodeJS.Timeout | null = null;
 
-    if (sourceType === 'dedicated_icloud' || sourceType === 'icloud_album') {
-      const targetAlbumUrl = photoCfg.icloudAlbumUrl || config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '';
+    if (sourceType === 'dedicated_icloud' || sourceType === 'icloud_album' || sourceType === 'wallpaper_sync') {
+      const targetAlbumUrl = (sourceType === 'wallpaper_sync'
+        ? (config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '')
+        : (photoCfg.icloudAlbumUrl || config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '')
+      ).trim();
+
       if (targetAlbumUrl) {
-        fetch(`/api/icloud-album?url=${encodeURIComponent(targetAlbumUrl)}`)
-          .then((res) => res.json())
-          .then((data) => {
+        const fetchAlbum = async () => {
+          try {
+            const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(targetAlbumUrl)}`);
+            const data = await res.json();
+            if (!isMounted) return;
+
             if (data.ok && Array.isArray(data.photos) && data.photos.length > 0) {
               setPhotos(data.photos);
-            } else {
-              setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+            } else if (data.fallbackPhotos) {
+              setPhotos(data.fallbackPhotos);
             }
-          })
-          .catch(() => {
-            setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
-          });
-      } else {
-        setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
-      }
-    } else if (sourceType === 'wallpaper_sync') {
-      const targetAlbumUrl = config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '';
-      if (targetAlbumUrl) {
-        fetch(`/api/icloud-album?url=${encodeURIComponent(targetAlbumUrl)}`)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data.ok && Array.isArray(data.photos) && data.photos.length > 0) {
-              setPhotos(data.photos);
+
+            // If the album is still streaming more photos in the background, poll again soon
+            if (data.isSyncing) {
+              pollTimer = setTimeout(fetchAlbum, 6000);
             } else {
-              setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
+              // Once fully synced, recheck every 20 minutes for new photos
+              pollTimer = setTimeout(fetchAlbum, 20 * 60 * 1000);
             }
-          })
-          .catch(() => {
-            setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
-          });
+          } catch {
+            if (isMounted) {
+              setPhotos((prev) => (prev.length > 0 ? prev : DEFAULT_ICLOUD_SAMPLE_PHOTOS));
+            }
+          }
+        };
+
+        fetchAlbum();
       } else {
         setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
       }
@@ -189,6 +222,11 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
     } else {
       setPhotos(DEFAULT_ICLOUD_SAMPLE_PHOTOS);
     }
+
+    return () => {
+      isMounted = false;
+      if (pollTimer) clearTimeout(pollTimer);
+    };
   }, [
     partyConfig.photos.sourceType,
     partyConfig.photos.icloudAlbumUrl,
@@ -198,15 +236,36 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
     config.screensaver?.icloudAlbumUrl,
   ]);
 
-  // Slideshow rotation timer
+  // Slideshow rotation timer with Smart Non-Repeating Shuffle Support
   useEffect(() => {
     if (photos.length <= 1) return;
     const intervalSeconds = Math.max(5, partyConfig.photos.cycleSeconds || 10);
+
     const timer = setInterval(() => {
-      setPhotoIndex((prev) => (prev + 1) % photos.length);
+      if (isShuffleEnabled) {
+        const currentDeck = shuffleDeckRef.current;
+        if (currentDeck.length === 0) return;
+
+        let nextPos = shufflePosRef.current + 1;
+        if (nextPos >= currentDeck.length) {
+          // Finished full cycle! Reshuffle deck avoiding back-to-back duplicate with last photo
+          const lastPhotoIdx = currentDeck[currentDeck.length - 1];
+          const newDeck = createShuffledDeck(photos.length, lastPhotoIdx);
+          shuffleDeckRef.current = newDeck;
+          shufflePosRef.current = 0;
+          setPhotoIndex(newDeck[0] || 0);
+        } else {
+          shufflePosRef.current = nextPos;
+          setPhotoIndex(currentDeck[nextPos] || 0);
+        }
+      } else {
+        // Sequential chronological playback
+        setPhotoIndex((prev) => (prev + 1) % photos.length);
+      }
     }, intervalSeconds * 1000);
+
     return () => clearInterval(timer);
-  }, [photos, partyConfig.photos.cycleSeconds]);
+  }, [photos.length, partyConfig.photos.cycleSeconds, isShuffleEnabled]);
 
   // Generate Wi-Fi QR Code
   useEffect(() => {

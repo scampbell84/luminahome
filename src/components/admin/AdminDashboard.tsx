@@ -60,6 +60,7 @@ import {
   Radio,
   Keyboard,
   Volume2,
+  Shuffle,
 } from 'lucide-react';
 
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
@@ -230,11 +231,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     streamName?: string;
     owner?: string;
     count?: number;
+    totalEstimated?: number;
+    isSyncing?: boolean;
+    isComplete?: boolean;
     photos?: ICloudPhoto[];
     error?: string;
   } | null>(null);
 
-  const handleTestICloudAlbum = async (urlToTest?: string) => {
+  const handleTestICloudAlbum = async (urlToTest?: string, force = false) => {
     const rawTarget = (urlToTest !== undefined ? urlToTest : (config.general.icloudAlbumUrl || config.screensaver?.icloudAlbumUrl || '')).trim();
     if (!rawTarget) {
       setIcloudTestResult({
@@ -248,7 +252,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     setIcloudTestResult(null);
 
     try {
-      const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(rawTarget)}`);
+      const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(rawTarget)}${force ? '&force=true' : ''}`);
       const data = await res.json();
       if (res.ok && data.ok) {
         setIcloudTestResult({
@@ -256,6 +260,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           streamName: data.streamName,
           owner: data.owner,
           count: data.count,
+          totalEstimated: data.totalEstimated,
+          isSyncing: data.isSyncing,
+          isComplete: data.isComplete,
           photos: data.photos || [],
         });
       } else {
@@ -1143,24 +1150,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         placeholder="https://www.icloud.com/sharedalbum/#B0zG6XBubJk..."
                         className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-sky-500"
                       />
-                      <button
-                        type="button"
-                        onClick={() => handleTestICloudAlbum()}
-                        disabled={testingICloud}
-                        className="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-colors shadow-sm"
-                      >
-                        {testingICloud ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            <span>Fetching...</span>
-                          </>
-                        ) : (
-                          <>
-                            <Search className="w-3.5 h-3.5" />
-                            <span>Test & Fetch Photos</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleTestICloudAlbum(undefined, false)}
+                          disabled={testingICloud}
+                          className="px-3.5 py-2 bg-sky-600 hover:bg-sky-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 shrink-0 transition-colors shadow-sm"
+                        >
+                          {testingICloud ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <span>Fetching...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Search className="w-3.5 h-3.5" />
+                              <span>Test & Fetch Photos</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleTestICloudAlbum(undefined, true)}
+                          disabled={testingICloud}
+                          title="Forces a fresh pull of all album partitions from Apple CloudKit"
+                          className="px-3 py-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-300 hover:text-white rounded-lg text-xs font-medium flex items-center justify-center gap-1.5 shrink-0 border border-slate-700 transition-colors"
+                        >
+                          <RefreshCw className={`w-3.5 h-3.5 ${testingICloud ? 'animate-spin' : ''}`} />
+                          <span>Force Re-Sync</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div className="p-2.5 rounded-lg bg-sky-950/30 border border-sky-800/40 text-[11px] text-sky-200/80 leading-relaxed flex items-start gap-2">
@@ -1174,7 +1194,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   {/* Test Results Display */}
                   {icloudTestResult && (
                     <div
-                      className={`p-3 rounded-lg border text-xs space-y-2 ${
+                      className={`p-3 rounded-lg border text-xs space-y-2.5 ${
                         icloudTestResult.ok
                           ? 'bg-emerald-950/30 border-emerald-800 text-emerald-200'
                           : 'bg-rose-950/30 border-rose-800 text-rose-200'
@@ -1195,11 +1215,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           )}
                         </div>
                         {icloudTestResult.ok && (
-                          <span className="text-[11px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono">
-                            {icloudTestResult.count} Photos Found
-                          </span>
+                          <div className="flex items-center gap-2">
+                            {icloudTestResult.isSyncing && (
+                              <span className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-500/30 px-2 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                                <span>Background Harvester Syncing</span>
+                              </span>
+                            )}
+                            <span className="text-[11px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono font-bold">
+                              {icloudTestResult.count} Photos Ready
+                            </span>
+                          </div>
                         )}
                       </div>
+
+                      {icloudTestResult.isSyncing && (
+                        <div className="p-2 rounded-md bg-sky-950/50 border border-sky-500/30 text-[11px] text-sky-200 flex items-start gap-2">
+                          <Sparkles className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+                          <span>
+                            Progressive background streaming is active! Initial photos are ready immediately, and remaining photos (2,000+) are being fetched without rate limits or UI lag.
+                          </span>
+                        </div>
+                      )}
 
                       {icloudTestResult.error && (
                         <p className="text-[11px] text-rose-300/90 leading-normal">
@@ -1224,7 +1261,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                   alt={p.caption || `Photo ${idx + 1}`}
                                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-200"
                                   onError={(e) => {
-                                    // Fallback to direct url
                                     (e.target as HTMLImageElement).src = p.url;
                                   }}
                                 />
@@ -1236,8 +1272,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   )}
 
-                  {/* Photo Rotation Interval */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  {/* Photo Rotation Interval and Playback Order */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
                     <div>
                       <label className="text-xs text-slate-300 font-medium block mb-1">
                         Rotate / Cycle Interval
@@ -1265,6 +1301,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </select>
                       <span className="text-[10px] text-slate-400 mt-1 block">
                         Smoothly transitions between photos in the album.
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-slate-300 font-medium block mb-1">
+                        Playback Order
+                      </label>
+                      <div className="flex rounded-lg bg-slate-900 border border-slate-700 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfig(prev => ({
+                              ...prev,
+                              general: { ...prev.general, icloudShuffle: true },
+                            }))
+                          }
+                          className={`flex-1 py-1.5 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                            config.general.icloudShuffle !== false
+                              ? 'bg-sky-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Shuffle className="w-3.5 h-3.5" />
+                          <span>Smart Shuffle</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfig(prev => ({
+                              ...prev,
+                              general: { ...prev.general, icloudShuffle: false },
+                            }))
+                          }
+                          className={`flex-1 py-1.5 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                            config.general.icloudShuffle === false
+                              ? 'bg-sky-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Repeat className="w-3.5 h-3.5" />
+                          <span>Sequential</span>
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Smart Shuffle guarantees non-repeating photos until all are shown.
                       </span>
                     </div>
 
@@ -3334,7 +3415,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
 
                   {/* Cycling and Appearance controls */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
                     {/* Cycling Interval */}
                     <div>
                       <label className="text-xs text-slate-300 font-medium block mb-1">
@@ -3362,6 +3443,58 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </select>
                       <span className="text-[10px] text-slate-400 mt-1 block">
                         Rotates through album photos during screensaver standby.
+                      </span>
+                    </div>
+
+                    {/* Playback Order */}
+                    <div>
+                      <label className="text-xs text-slate-300 font-medium block mb-1">
+                        Playback Order
+                      </label>
+                      <div className="flex rounded-lg bg-slate-950 border border-slate-700 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              screensaver: {
+                                ...prev.screensaver,
+                                icloudShuffle: true,
+                              },
+                            }))
+                          }
+                          className={`flex-1 py-1.5 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                            config.screensaver?.icloudShuffle !== false
+                              ? 'bg-sky-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Shuffle className="w-3.5 h-3.5" />
+                          <span>Smart Shuffle</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setConfig((prev) => ({
+                              ...prev,
+                              screensaver: {
+                                ...prev.screensaver,
+                                icloudShuffle: false,
+                              },
+                            }))
+                          }
+                          className={`flex-1 py-1.5 px-2 rounded-md text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                            config.screensaver?.icloudShuffle === false
+                              ? 'bg-sky-600 text-white shadow-sm'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <Repeat className="w-3.5 h-3.5" />
+                          <span>Sequential</span>
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        Prevents repetitive cycles during standby sleep.
                       </span>
                     </div>
 

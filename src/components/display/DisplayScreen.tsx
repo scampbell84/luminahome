@@ -11,6 +11,7 @@ import { SystemWidget } from '../widgets/SystemWidget';
 import { SmartBriefingWidget } from '../widgets/SmartBriefingWidget';
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
 import { AlertCircle, Camera, Sparkles, PartyPopper } from 'lucide-react';
+import { createShuffledDeck, expandShuffledDeck } from '../../utils/shuffleDeck';
 
 interface DisplayScreenProps {
   config: AppConfig;
@@ -120,7 +121,39 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
     return () => clearInterval(interval);
   }, [config.general.heartbeatIntervalSeconds]);
 
-  // Fetch Apple Photos iCloud Shared Album
+  // Smart Shuffle Deck for Wallpaper
+  const isWallpaperShuffleEnabled = config.general.icloudShuffle !== false;
+  const wallpaperDeckRef = useRef<number[]>([]);
+  const wallpaperPosRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (icloudPhotos.length === 0) {
+      wallpaperDeckRef.current = [];
+      wallpaperPosRef.current = 0;
+      return;
+    }
+
+    if (wallpaperDeckRef.current.length === 0) {
+      const initialDeck = isWallpaperShuffleEnabled
+        ? createShuffledDeck(icloudPhotos.length)
+        : Array.from({ length: icloudPhotos.length }, (_, i) => i);
+      wallpaperDeckRef.current = initialDeck;
+      wallpaperPosRef.current = 0;
+      setActiveICloudIndex(initialDeck[0] || 0);
+    } else if (icloudPhotos.length > wallpaperDeckRef.current.length) {
+      if (isWallpaperShuffleEnabled) {
+        wallpaperDeckRef.current = expandShuffledDeck(
+          wallpaperDeckRef.current,
+          wallpaperPosRef.current,
+          icloudPhotos.length
+        );
+      } else {
+        wallpaperDeckRef.current = Array.from({ length: icloudPhotos.length }, (_, i) => i);
+      }
+    }
+  }, [icloudPhotos.length, isWallpaperShuffleEnabled]);
+
+  // Fetch Apple Photos iCloud Shared Album with background progressive sync
   useEffect(() => {
     if (config.general.backgroundType !== 'icloud_album') return;
 
@@ -131,6 +164,8 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
     }
 
     let isMounted = true;
+    let pollTimer: NodeJS.Timeout | null = null;
+
     const fetchAlbum = async () => {
       try {
         const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(albumUrl)}`);
@@ -145,6 +180,13 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
             if (data.streamName) {
               setAlbumInfo({ title: data.streamName, owner: data.owner });
             }
+
+            // Progressive streaming: poll every 6s while background harvest is syncing, then 20m when complete
+            if (data.isSyncing) {
+              pollTimer = setTimeout(fetchAlbum, 6000);
+            } else {
+              pollTimer = setTimeout(fetchAlbum, 20 * 60 * 1000);
+            }
           }
         }
       } catch (err) {
@@ -153,23 +195,38 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
     };
 
     fetchAlbum();
-    // Re-check album every 20 minutes for new photos
-    const refreshInterval = setInterval(fetchAlbum, 20 * 60 * 1000);
     return () => {
       isMounted = false;
-      clearInterval(refreshInterval);
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [config.general.backgroundType, config.general.icloudAlbumUrl]);
 
-  // iCloud Photos cycling timer (1 min, 3 min, 5 min, etc.)
+  // iCloud Photos cycling timer (1 min, 3 min, 5 min, etc.) with Smart Shuffle
   useEffect(() => {
     if (config.general.backgroundType !== 'icloud_album' || icloudPhotos.length <= 1) return;
     const cycleMinutes = Math.max(1, config.general.icloudCycleMinutes || 3);
     const interval = setInterval(() => {
-      setActiveICloudIndex((prev) => (prev + 1) % icloudPhotos.length);
+      if (isWallpaperShuffleEnabled) {
+        const currentDeck = wallpaperDeckRef.current;
+        if (currentDeck.length === 0) return;
+
+        let nextPos = wallpaperPosRef.current + 1;
+        if (nextPos >= currentDeck.length) {
+          const lastIdx = currentDeck[currentDeck.length - 1];
+          const newDeck = createShuffledDeck(icloudPhotos.length, lastIdx);
+          wallpaperDeckRef.current = newDeck;
+          wallpaperPosRef.current = 0;
+          setActiveICloudIndex(newDeck[0] || 0);
+        } else {
+          wallpaperPosRef.current = nextPos;
+          setActiveICloudIndex(currentDeck[nextPos]);
+        }
+      } else {
+        setActiveICloudIndex((prev) => (prev + 1) % icloudPhotos.length);
+      }
     }, cycleMinutes * 60 * 1000);
     return () => clearInterval(interval);
-  }, [config.general.backgroundType, config.general.icloudCycleMinutes, icloudPhotos.length]);
+  }, [config.general.backgroundType, config.general.icloudCycleMinutes, icloudPhotos.length, isWallpaperShuffleEnabled]);
 
   // Standard wallpaper preset rotation
   useEffect(() => {

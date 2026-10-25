@@ -36,6 +36,8 @@ import {
   Type,
   Sun,
   Droplets,
+  Shuffle,
+  Repeat,
 } from 'lucide-react';
 
 interface PartySettingsTabProps {
@@ -1191,7 +1193,7 @@ export const PartySettingsTab: React.FC<PartySettingsTabProps> = ({
         </div>
 
         {/* Framing & Timing Settings */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-800/80">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-3 border-t border-slate-800/80">
           <div>
             <label className="text-xs font-semibold text-slate-300 block mb-1.5">
               Photo Cycle Interval
@@ -1214,6 +1216,56 @@ export const PartySettingsTab: React.FC<PartySettingsTabProps> = ({
               <option value={15}>15 seconds (Relaxed)</option>
               <option value={25}>25 seconds (Slow Ambient)</option>
             </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-slate-300 block mb-1.5">
+              Playback Order
+            </label>
+            <div className="flex rounded-xl bg-slate-950 border border-slate-700 p-0.5">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdatePartyConfig((prev) => ({
+                    ...prev,
+                    photos: {
+                      ...prev.photos,
+                      shuffle: true,
+                      playbackOrder: 'shuffle',
+                    },
+                  }))
+                }
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  (partyConfig.photos?.playbackOrder ?? 'shuffle') === 'shuffle' && partyConfig.photos?.shuffle !== false
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Shuffle className="w-3.5 h-3.5" />
+                <span>Smart Shuffle</span>
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdatePartyConfig((prev) => ({
+                    ...prev,
+                    photos: {
+                      ...prev.photos,
+                      shuffle: false,
+                      playbackOrder: 'sequential',
+                    },
+                  }))
+                }
+                className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  partyConfig.photos?.playbackOrder === 'sequential' || partyConfig.photos?.shuffle === false
+                    ? 'bg-amber-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                <Repeat className="w-3.5 h-3.5" />
+                <span>Sequential</span>
+              </button>
+            </div>
           </div>
 
           <div>

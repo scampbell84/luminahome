@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { AppConfig, CalendarEvent, WeatherData, ICloudPhoto } from '../../types/config';
 import { DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
+import { createShuffledDeck, expandShuffledDeck } from '../../utils/shuffleDeck';
 import { WeatherIcon } from '../widgets/WeatherIcon';
 import { AlertTriangle, Moon, Sun, Camera } from 'lucide-react';
 
@@ -166,6 +167,32 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
     };
   }, [config.weather]);
 
+  // Smart Shuffle Deck for ScreenSaver
+  const isSsShuffleEnabled = ssConfig.icloudShuffle !== false;
+  const ssDeckRef = useRef<number[]>([]);
+  const ssPosRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (ssPhotos.length === 0) {
+      ssDeckRef.current = [];
+      ssPosRef.current = 0;
+      return;
+    }
+
+    if (ssDeckRef.current.length === 0) {
+      const initialDeck = isSsShuffleEnabled ? createShuffledDeck(ssPhotos.length) : Array.from({ length: ssPhotos.length }, (_, i) => i);
+      ssDeckRef.current = initialDeck;
+      ssPosRef.current = 0;
+      setCurrentSsIndex(initialDeck[0] || 0);
+    } else if (ssPhotos.length > ssDeckRef.current.length) {
+      if (isSsShuffleEnabled) {
+        ssDeckRef.current = expandShuffledDeck(ssDeckRef.current, ssPosRef.current, ssPhotos.length);
+      } else {
+        ssDeckRef.current = Array.from({ length: ssPhotos.length }, (_, i) => i);
+      }
+    }
+  }, [ssPhotos.length, isSsShuffleEnabled]);
+
   // Fetch Apple Photos iCloud Shared Album for ScreenSaver if configured
   useEffect(() => {
     if (ssConfig.backgroundType !== 'icloud_album') return;
@@ -177,6 +204,8 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
     }
 
     let isMounted = true;
+    let pollTimer: NodeJS.Timeout | null = null;
+
     const fetchAlbum = async () => {
       try {
         const res = await fetch(`/api/icloud-album?url=${encodeURIComponent(albumUrl)}`);
@@ -191,6 +220,12 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
             if (data.streamName) {
               setSsAlbumName(data.streamName);
             }
+
+            if (data.isSyncing) {
+              pollTimer = setTimeout(fetchAlbum, 6000);
+            } else {
+              pollTimer = setTimeout(fetchAlbum, 20 * 60 * 1000);
+            }
           }
         }
       } catch (err) {
@@ -199,22 +234,39 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
     };
 
     fetchAlbum();
-    const interval = setInterval(fetchAlbum, 20 * 60 * 1000);
     return () => {
       isMounted = false;
-      clearInterval(interval);
+      if (pollTimer) clearTimeout(pollTimer);
     };
   }, [ssConfig.backgroundType, ssConfig.icloudAlbumUrl, config.general.icloudAlbumUrl]);
 
-  // Screensaver photo cycling timer (1 min, 3 min, 5 min, etc.)
+  // Screensaver photo cycling timer with Smart Non-Repeating Shuffle Support
   useEffect(() => {
     if (ssConfig.backgroundType !== 'icloud_album' || ssPhotos.length <= 1) return;
     const cycleMinutes = Math.max(1, ssConfig.icloudCycleMinutes || 3);
     const interval = setInterval(() => {
-      setCurrentSsIndex((prev) => (prev + 1) % ssPhotos.length);
+      if (isSsShuffleEnabled) {
+        const currentDeck = ssDeckRef.current;
+        if (currentDeck.length === 0) return;
+
+        let nextPos = ssPosRef.current + 1;
+        if (nextPos >= currentDeck.length) {
+          const lastIdx = currentDeck[currentDeck.length - 1];
+          const newDeck = createShuffledDeck(ssPhotos.length, lastIdx);
+          ssDeckRef.current = newDeck;
+          ssPosRef.current = 0;
+          setCurrentSsIndex(newDeck[0] || 0);
+        } else {
+          ssPosRef.current = nextPos;
+          setCurrentSsIndex(currentDeck[nextPos] || 0);
+        }
+      } else {
+        setCurrentSsIndex((prev) => (prev + 1) % ssPhotos.length);
+      }
     }, cycleMinutes * 60 * 1000);
+
     return () => clearInterval(interval);
-  }, [ssConfig.backgroundType, ssConfig.icloudCycleMinutes, ssPhotos.length]);
+  }, [ssConfig.backgroundType, ssConfig.icloudCycleMinutes, ssPhotos.length, isSsShuffleEnabled]);
 
   // Keyboard wake up
   useEffect(() => {

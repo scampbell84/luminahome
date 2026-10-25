@@ -165,6 +165,7 @@ export interface AppConfig {
     icloudBlur?: number; // 0 to 25 px
     photoFocalBias?: 'face_bias' | 'top' | 'center' | 'custom'; // Smart framing focus point
     photoFocalOffsetY?: number; // 0 to 100 percentage (default: 20 for face bias)
+    icloudShuffle?: boolean; // Random non-repeating shuffle (default: true) vs sequential
     kioskHideCursor: boolean;
     heartbeatIntervalSeconds: number;
     fontSizeScale: 'sm' | 'md' | 'lg' | 'xl';
@@ -294,6 +295,7 @@ export interface AppConfig {
     photoBlur?: number; // 0 to 25 px (default 4px)
     photoFocalBias?: 'face_bias' | 'top' | 'center' | 'custom'; // Smart framing focus point
     photoFocalOffsetY?: number; // 0 to 100 percentage (default: 20 for face bias)
+    icloudShuffle?: boolean; // Random non-repeating shuffle (default: true) vs sequential
   };
   party?: PartyConfig;
 }
@@ -338,6 +340,8 @@ export interface PartyConfig {
     photoBrightness?: number; // 20% to 100%
     photoBlur?: number; // 0 to 20 px
     photoFocalOffsetY?: number; // Face-bias framing offset (default 20%)
+    shuffle?: boolean; // Random non-repeating shuffle (default: true)
+    playbackOrder?: 'shuffle' | 'sequential'; // 'shuffle' | 'sequential' (default: 'shuffle')
     guestUploadEnabled?: boolean;
     guestUploadUrl?: string;
     guestUploadTitle?: string;

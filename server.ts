@@ -1885,11 +1885,138 @@ interface ICloudCacheEntry {
     owner: string;
     count: number;
     photos: ICloudPhoto[];
+    isSyncing?: boolean;
+    isComplete?: boolean;
+    lastUpdated?: number;
   };
 }
 
 const icloudCache = new Map<string, ICloudCacheEntry>();
-const ICLOUD_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes cache
+const ICLOUD_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache for progressive library
+
+// Active background sync jobs to prevent duplicate parallel fetches
+const activeSyncJobs = new Set<string>();
+
+/**
+ * Background progressive harvester for CloudKit Photos
+ * Progressively fetches all remaining pages of the album until continuationMarker is null.
+ */
+async function startBackgroundCloudKitSync(
+  shortGUID: string,
+  queryUrl: string,
+  zoneID: any,
+  initialMarker: string | undefined,
+  streamName: string,
+  owner: string
+) {
+  if (!initialMarker || activeSyncJobs.has(shortGUID)) return;
+  activeSyncJobs.add(shortGUID);
+  console.info(`[iCloud Progressive] Started background sync for album ${shortGUID}`);
+
+  try {
+    let continuationMarker: string | undefined = initialMarker;
+    let pageCount = 1;
+
+    // Up to 80 pages with 200 records per page (up to ~8,000 photos safety guard)
+    while (continuationMarker && pageCount < 80) {
+      pageCount++;
+      // Polite 100ms delay between pages to prevent CDN rate limiting
+      await new Promise((r) => setTimeout(r, 100));
+
+      const nextRes = await fetch(queryUrl, {
+        method: 'POST',
+        headers: {
+          'Origin': 'https://photos.icloud.com',
+          'Referer': 'https://photos.icloud.com/',
+          'Content-Type': 'text/plain',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+        body: JSON.stringify({
+          query: {
+            recordType: 'CPLAssetAndMasterByAssetDateWithoutHiddenOrDeleted',
+            filterBy: [
+              { fieldName: 'direction', comparator: 'EQUALS', fieldValue: { value: 'DESCENDING', type: 'STRING' } },
+            ],
+          },
+          zoneID,
+          continuationMarker,
+          resultsLimit: 200,
+        }),
+      });
+
+      if (!nextRes.ok) {
+        console.warn(`[iCloud Progressive] Page ${pageCount} returned HTTP ${nextRes.status}`);
+        break;
+      }
+
+      const nextData = (await nextRes.json()) as any;
+      continuationMarker = nextData.continuationMarker;
+
+      if (nextData.records && Array.isArray(nextData.records)) {
+        const newBatch: ICloudPhoto[] = [];
+        for (const record of nextData.records) {
+          const f = record.fields;
+          if (!f) continue;
+
+          const medRes = f.resJPEGMedRes?.value;
+          const origRes = f.resOriginalRes?.value;
+          const thumbRes = f.resJPEGThumbRes?.value;
+          const targetRes = medRes || origRes || thumbRes;
+          if (!targetRes || !targetRes.downloadURL) continue;
+
+          let filename = 'photo.jpg';
+          if (f.filenameEnc?.value) {
+            try {
+              filename = Buffer.from(f.filenameEnc.value, 'base64').toString('utf-8');
+            } catch {}
+          }
+
+          const fullUrl = targetRes.downloadURL.replace('${f}', encodeURIComponent(filename));
+          const thumbUrl = (thumbRes?.downloadURL || targetRes.downloadURL).replace('${f}', encodeURIComponent(filename));
+
+          newBatch.push({
+            id: record.recordName,
+            url: fullUrl,
+            thumbnailUrl: thumbUrl,
+            width: Number(f.resJPEGMedWidth?.value) || Number(f.resOriginalWidth?.value) || 1920,
+            height: Number(f.resJPEGMedHeight?.value) || Number(f.resOriginalHeight?.value) || 1080,
+            caption: filename,
+            dateCreated: f.originalCreationDate?.value ? new Date(f.originalCreationDate.value).toISOString() : undefined,
+          });
+        }
+
+        const entry = icloudCache.get(shortGUID);
+        if (entry && entry.data) {
+          const existingIds = new Set(entry.data.photos.map((p) => p.id));
+          for (const np of newBatch) {
+            if (!existingIds.has(np.id)) {
+              entry.data.photos.push(np);
+              existingIds.add(np.id);
+            }
+          }
+          entry.data.count = entry.data.photos.length;
+          entry.data.lastUpdated = Date.now();
+          entry.timestamp = Date.now();
+          entry.data.isSyncing = Boolean(continuationMarker);
+          entry.data.isComplete = !continuationMarker;
+        }
+      } else {
+        break;
+      }
+    }
+  } catch (err: any) {
+    console.warn(`[iCloud Progressive] Background sync error:`, err.message);
+  } finally {
+    activeSyncJobs.delete(shortGUID);
+    const entry = icloudCache.get(shortGUID);
+    if (entry && entry.data) {
+      entry.data.isSyncing = false;
+      entry.data.isComplete = true;
+      entry.data.lastUpdated = Date.now();
+      console.info(`[iCloud Progressive] Background sync complete. Total photos cached: ${entry.data.photos.length}`);
+    }
+  }
+}
 
 /**
  * Modern Apple Photos CloudKit Shared Albums resolver
@@ -1901,6 +2028,9 @@ async function fetchCloudKitPhotosAlbum(shortGUID: string): Promise<{
   owner: string;
   count: number;
   photos: ICloudPhoto[];
+  isSyncing?: boolean;
+  isComplete?: boolean;
+  lastUpdated?: number;
 } | null> {
   try {
     const resolveUrl = `https://ckdatabasews.icloud.com/database/1/com.apple.photos.cloud/production/public/records/resolve?remapEnums=true&getCurrentSyncToken=true&sharing_url_key=${encodeURIComponent(shortGUID)}`;
@@ -1955,7 +2085,7 @@ async function fetchCloudKitPhotosAlbum(shortGUID: string): Promise<{
           ],
         },
         zoneID,
-        resultsLimit: 100,
+        resultsLimit: 200,
       }),
     });
 
@@ -1999,63 +2129,77 @@ async function fetchCloudKitPhotosAlbum(shortGUID: string): Promise<{
 
     parseRecords(queryData.records);
 
-    // If there is a continuation marker and we haven't fetched all photos, paginate
-    let continuationMarker = queryData.continuationMarker;
-    let pages = 0;
-    while (continuationMarker && pages < 3 && photos.length < 300) {
-      pages++;
-      try {
-        const nextRes = await fetch(queryUrl, {
-          method: 'POST',
-          headers: {
-            'Origin': 'https://photos.icloud.com',
-            'Referer': 'https://photos.icloud.com/',
-            'Content-Type': 'text/plain',
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
-          body: JSON.stringify({
-            query: {
-              recordType: 'CPLAssetAndMasterByAssetDateWithoutHiddenOrDeleted',
-              filterBy: [
-                { fieldName: 'direction', comparator: 'EQUALS', fieldValue: { value: 'DESCENDING', type: 'STRING' } },
-              ],
-            },
-            zoneID,
-            continuationMarker,
-            resultsLimit: 100,
-          }),
-        });
-
-        if (nextRes.ok) {
-          const nextData = (await nextRes.json()) as any;
-          continuationMarker = nextData.continuationMarker;
-          if (nextData.records && Array.isArray(nextData.records)) {
-            parseRecords(nextData.records);
-          } else {
-            break;
-          }
-        } else {
-          break;
-        }
-      } catch {
-        break;
-      }
-    }
-
     if (photos.length === 0) return null;
 
-    return {
+    const isSyncing = Boolean(queryData.continuationMarker);
+    const initialResult = {
       ok: true,
       streamName,
       owner,
       count: photos.length,
       photos,
+      isSyncing,
+      isComplete: !isSyncing,
+      lastUpdated: Date.now(),
     };
+
+    // Cache initial batch immediately
+    icloudCache.set(shortGUID, { timestamp: Date.now(), data: initialResult });
+
+    // Spawn background progressive harvester to fetch all remaining pages up to 2,000+ photos
+    if (queryData.continuationMarker) {
+      startBackgroundCloudKitSync(
+        shortGUID,
+        queryUrl,
+        zoneID,
+        queryData.continuationMarker,
+        streamName,
+        owner
+      ).catch((err) => console.warn('[iCloud Progressive] Background worker error:', err));
+    }
+
+    return initialResult;
   } catch (err: any) {
     console.warn('[iCloud CloudKit] Fetch exception:', err?.message || err);
     return null;
   }
 }
+
+// Album status check for progressive background streaming progress
+app.get('/api/icloud-album/status', (req: Request, res: Response) => {
+  const rawUrl = (req.query.url as string || '').trim();
+  const token = extractICloudToken(rawUrl);
+  if (!token) {
+    return res.json({ ok: false, count: 0, isSyncing: false, isComplete: true });
+  }
+
+  const cached = icloudCache.get(token);
+  if (!cached || !cached.data) {
+    return res.json({ ok: false, count: 0, isSyncing: activeSyncJobs.has(token), isComplete: false });
+  }
+
+  res.json({
+    ok: true,
+    streamName: cached.data.streamName,
+    owner: cached.data.owner,
+    count: cached.data.count,
+    isSyncing: Boolean(cached.data.isSyncing) || activeSyncJobs.has(token),
+    isComplete: Boolean(cached.data.isComplete),
+    lastUpdated: cached.data.lastUpdated || cached.timestamp,
+  });
+});
+
+// Force refresh an iCloud Shared Album
+app.post('/api/icloud-album/refresh', (req: Request, res: Response) => {
+  const rawUrl = String(req.body?.url || req.query.url || '').trim();
+  const token = extractICloudToken(rawUrl);
+  if (token) {
+    icloudCache.delete(token);
+    activeSyncJobs.delete(token);
+    console.info(`[iCloud] Invalidation triggered for album token ${token}`);
+  }
+  res.json({ ok: true, message: 'Album cache cleared. Ready to re-sync.' });
+});
 
 app.get('/api/icloud-album', async (req: Request, res: Response) => {
   const rawUrl = (req.query.url as string || '').trim();
@@ -2071,6 +2215,8 @@ app.get('/api/icloud-album', async (req: Request, res: Response) => {
       owner: 'Apple Photos Demo',
       count: DEFAULT_ICLOUD_SAMPLE_PHOTOS.length,
       photos: DEFAULT_ICLOUD_SAMPLE_PHOTOS,
+      isSyncing: false,
+      isComplete: true,
     });
   }
 
@@ -2079,9 +2225,15 @@ app.get('/api/icloud-album', async (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: 'Could not parse token from iCloud Shared Album URL' });
   }
 
+  const forceRefresh = req.query.force === 'true';
+  if (forceRefresh) {
+    icloudCache.delete(token);
+    activeSyncJobs.delete(token);
+  }
+
   // Check cache
   const cached = icloudCache.get(token);
-  if (cached && Date.now() - cached.timestamp < ICLOUD_CACHE_TTL_MS) {
+  if (cached && !forceRefresh && (Date.now() - cached.timestamp < ICLOUD_CACHE_TTL_MS || cached.data.isSyncing)) {
     return res.json(cached.data);
   }
 
