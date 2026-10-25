@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { AppConfig, PartyConfig, ICloudPhoto, WeatherData } from '../../types/config';
+import { AppConfig, PartyConfig, ICloudPhoto } from '../../types/config';
 import { DEFAULT_ICLOUD_SAMPLE_PHOTOS, PARTY_CURATED_THEME_COLLECTIONS } from '../../constants/defaultConfig';
 import { formatWifiQrString, generateQrDataUrl } from '../../utils/qrCode';
 import { createShuffledDeck, expandShuffledDeck } from '../../utils/shuffleDeck';
@@ -7,13 +7,8 @@ import {
   Wifi,
   Music2,
   X,
-  Sparkles,
-  PartyPopper,
-  Clock,
   ExternalLink,
-  ChevronRight,
   Radio,
-  Volume2,
   Camera,
   Maximize2,
   Copy,
@@ -64,8 +59,6 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
   const [wifiQrUrl, setWifiQrUrl] = useState<string>('');
   const [musicQrUrl, setMusicQrUrl] = useState<string>('');
   const [guestUploadQrUrl, setGuestUploadQrUrl] = useState<string>('');
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
-  const [weather, setWeather] = useState<WeatherData | null>(null);
 
   // Enlarged QR Code Modal state
   interface EnlargedQrModalData {
@@ -107,20 +100,6 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
       setTimeout(() => setCopiedKey(null), 2000);
     }).catch(() => {});
   };
-
-  // Time ticker
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
-  // Fetch weather for subtle corner complication
-  useEffect(() => {
-    fetch('/api/weather')
-      .then((res) => res.json())
-      .then((data) => setWeather(data))
-      .catch(() => {});
-  }, []);
 
   // Smart Shuffle Deck state
   const isShuffleEnabled = partyConfig.photos?.shuffle !== false && partyConfig.photos?.playbackOrder !== 'sequential';
@@ -508,9 +487,6 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
     }
   }, [partyConfig.accentColor]);
 
-  const formattedTime = currentTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  const formattedDate = currentTime.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
-
   return (
     <div className="fixed inset-0 z-50 w-screen h-screen overflow-hidden bg-slate-950 text-white font-sans select-none flex flex-col justify-between">
       {/* 1. High-Res Photo Slideshow Layer with face-safe focal anchoring */}
@@ -545,53 +521,20 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
       )}
 
       {/* 4. Top Header Strip */}
-      <header className="relative z-20 w-full px-6 py-5 flex items-center justify-between shrink-0">
-        {/* Subtle Ambient Time & Weather Badge */}
-        <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-slate-900/75 border border-white/15 backdrop-blur-xl shadow-lg">
-          <Clock className="w-4 h-4 text-amber-300 shrink-0" />
-          <span className="text-sm font-bold tracking-wide font-mono text-white">
-            {formattedTime}
-          </span>
-          <span className="text-xs text-white/50 border-l border-white/20 pl-2">
-            {formattedDate}
-          </span>
-          {weather && (
-            <span className="text-xs font-semibold text-white/80 border-l border-white/20 pl-2 hidden sm:inline">
-              {Math.round(weather.temp)}° {weather.condition}
-            </span>
-          )}
-        </div>
-
-        {/* Celebration Badge & Exit Button */}
-        <div className="flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900/60 border border-white/10 backdrop-blur-md text-xs font-semibold text-white/75">
-            <PartyPopper className="w-3.5 h-3.5 text-amber-300" />
-            <span>Party Mode Active</span>
-          </div>
-
-          <button
-            type="button"
-            onClick={onExit}
-            className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white/90 hover:text-white border border-white/20 hover:border-white/40 backdrop-blur-xl shadow-2xl transition-all active:scale-95 cursor-pointer font-semibold text-xs group"
-            title="Return to Main Home Display"
-          >
-            <span>Exit Party Mode</span>
-            <X className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors" />
-          </button>
-        </div>
+      <header className="relative z-20 w-full px-6 py-5 flex items-center justify-end shrink-0">
+        <button
+          type="button"
+          onClick={onExit}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-white/90 hover:text-white border border-white/20 hover:border-white/40 backdrop-blur-xl shadow-2xl transition-all active:scale-95 cursor-pointer font-semibold text-xs group"
+          title="Return to Main Home Display"
+        >
+          <span>Exit Party Mode</span>
+          <X className="w-3.5 h-3.5 text-white/60 group-hover:text-white transition-colors" />
+        </button>
       </header>
 
       {/* 5. Centerpiece: Grand Celebratory Greeting Banner with Dynamic Alignment */}
       <main className={`relative z-20 w-full max-w-5xl mx-auto px-4 text-center flex flex-col items-center space-y-4 flex-1 ${alignmentClass}`}>
-        {/* Decorative Top Sparkle Pill */}
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-black/40 border border-white/20 backdrop-blur-2xl shadow-xl animate-pulse">
-          <Sparkles className="w-4 h-4 text-amber-300" />
-          <span className="text-xs md:text-sm font-bold tracking-widest uppercase text-white/90 font-mono">
-            Celebration
-          </span>
-          <Sparkles className="w-4 h-4 text-amber-300" />
-        </div>
-
         {/* Massive Dynamic Event Headline with Chosen Font */}
         <h1
           className={`text-4xl sm:text-6xl md:text-7xl lg:text-8xl leading-tight bg-gradient-to-b ${themeStyles.gradientText} bg-clip-text text-transparent drop-shadow-2xl ${fontClass}`}
@@ -607,15 +550,6 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
           <p className="max-w-2xl text-base sm:text-xl md:text-2xl font-medium text-white/90 drop-shadow-lg tracking-wide leading-relaxed font-party-rounded">
             {partyConfig.subtitle}
           </p>
-        )}
-
-        {/* Photo Counter Indicator Pill */}
-        {photos.length > 1 && (
-          <div className="pt-2 text-xs text-white/50 font-mono flex items-center gap-2">
-            <span>Photo {photoIndex + 1} of {photos.length}</span>
-            <span>•</span>
-            <span>Changes every {partyConfig.photos.cycleSeconds || 10}s</span>
-          </div>
         )}
       </main>
 
