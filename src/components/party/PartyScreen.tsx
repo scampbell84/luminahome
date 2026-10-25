@@ -14,6 +14,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
+import { MediaWallpaper } from '../display/MediaWallpaper';
 
 interface PartyScreenProps {
   config: AppConfig;
@@ -489,16 +490,14 @@ export const PartyScreen: React.FC<PartyScreenProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 w-screen h-screen overflow-hidden bg-slate-950 text-white font-sans select-none flex flex-col justify-between">
-      {/* 1. High-Res Photo Slideshow Layer with face-safe focal anchoring */}
-      {photoUrl && (
-        <div
-          className="absolute inset-0 bg-cover transition-all duration-1000 ease-in-out pointer-events-none"
-          style={{
-            backgroundImage: `url('${photoUrl}')`,
-            backgroundPosition: `center ${photoFocalY}%`,
-            filter: `brightness(${photoBrightness}%) blur(${photoBlur}px)`,
-            transform: photoBlur > 0 ? 'scale(1.06)' : undefined,
-          }}
+      {/* 1. High-Res Photo & Video Slideshow Layer with face-safe focal anchoring */}
+      {currentPhoto && (
+        <MediaWallpaper
+          photo={currentPhoto}
+          photoUrl={photoUrl}
+          brightness={photoBrightness}
+          blur={photoBlur}
+          focalOffsetY={photoFocalY}
         />
       )}
 

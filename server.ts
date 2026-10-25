@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import { createServer as createViteServer } from 'vite';
+import { Readable } from 'stream';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -1898,6 +1899,74 @@ const ICLOUD_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache for progressive 
 const activeSyncJobs = new Set<string>();
 
 /**
+ * Parses CloudKit CPLAsset record into unified ICloudPhoto
+ * Extracts high-res JPEG poster frames for all items and video stream URLs for video items
+ */
+function parseCloudKitRecord(record: any): ICloudPhoto | null {
+  const f = record?.fields;
+  if (!f) return null;
+
+  // Best high-res still image / poster frame
+  const medRes = f.resJPEGMedRes?.value;
+  const thumbRes = f.resJPEGThumbRes?.value;
+  const origRes = f.resOriginalRes?.value;
+  const targetImageRes = medRes || thumbRes || origRes;
+  if (!targetImageRes || !targetImageRes.downloadURL) return null;
+
+  let filename = 'photo.jpg';
+  if (f.filenameEnc?.value) {
+    try {
+      filename = Buffer.from(f.filenameEnc.value, 'base64').toString('utf-8');
+    } catch {}
+  }
+
+  // Detect whether this item is a video or Live Photo video
+  const isVideo = Boolean(
+    f.resVidMedRes?.value ||
+    f.resVidSmallRes?.value ||
+    f.resVidComplRes?.value ||
+    (f.resOriginalFileType?.value && String(f.resOriginalFileType.value).toLowerCase().includes('quicktime')) ||
+    (f.resOriginalFileType?.value && String(f.resOriginalFileType.value).toLowerCase().includes('video')) ||
+    f.itemType?.value === 'video' ||
+    filename.match(/\.(mov|mp4|m4v)$/i)
+  );
+
+  // Guarantee that the base image URL is always treated as an image
+  const photoFilename = filename.match(/\.(jpe?g|png|webp|heic)$/i) ? filename : 'poster.jpg';
+  const fullUrl = targetImageRes.downloadURL.replace('${f}', encodeURIComponent(photoFilename));
+  const thumbUrl = (thumbRes?.downloadURL || targetImageRes.downloadURL).replace('${f}', encodeURIComponent(photoFilename));
+
+  // If it's a video, find the best streaming video source (medium 720p or small 480p is best for Raspberry Pi performance)
+  let videoUrl: string | undefined = undefined;
+  if (isVideo) {
+    const videoTarget = f.resVidMedRes?.value || f.resVidSmallRes?.value || f.resVidComplRes?.value || (
+      f.resOriginalFileType?.value && (String(f.resOriginalFileType.value).toLowerCase().includes('video') || String(f.resOriginalFileType.value).toLowerCase().includes('quicktime')) ? f.resOriginalRes?.value : null
+    );
+    if (videoTarget && videoTarget.downloadURL) {
+      const vidFilename = filename.match(/\.(mov|mp4|m4v)$/i) ? filename : 'video.mp4';
+      videoUrl = videoTarget.downloadURL.replace('${f}', encodeURIComponent(vidFilename));
+    }
+  }
+
+  const durationSec = f.duration?.value ? Number(f.duration.value) : (f.vidComplDurValue?.value ? Number(f.vidComplDurValue.value) / 600 : undefined);
+
+  return {
+    id: record.recordName,
+    url: fullUrl,
+    thumbnailUrl: thumbUrl,
+    videoUrl,
+    mediaType: isVideo && videoUrl ? 'video' : 'photo',
+    duration: durationSec,
+    width: Number(f.resJPEGMedWidth?.value) || Number(f.resOriginalWidth?.value) || 1920,
+    height: Number(f.resJPEGMedHeight?.value) || Number(f.resOriginalHeight?.value) || 1080,
+    caption: filename,
+    dateCreated: f.originalCreationDate?.value ? new Date(f.originalCreationDate.value).toISOString() : (
+      f.assetDate?.value ? new Date(f.assetDate.value).toISOString() : undefined
+    ),
+  };
+}
+
+/**
  * Background progressive harvester for CloudKit Photos
  * Progressively fetches all remaining pages of the album until continuationMarker is null.
  */
@@ -1955,34 +2024,8 @@ async function startBackgroundCloudKitSync(
       if (nextData.records && Array.isArray(nextData.records)) {
         const newBatch: ICloudPhoto[] = [];
         for (const record of nextData.records) {
-          const f = record.fields;
-          if (!f) continue;
-
-          const medRes = f.resJPEGMedRes?.value;
-          const origRes = f.resOriginalRes?.value;
-          const thumbRes = f.resJPEGThumbRes?.value;
-          const targetRes = medRes || origRes || thumbRes;
-          if (!targetRes || !targetRes.downloadURL) continue;
-
-          let filename = 'photo.jpg';
-          if (f.filenameEnc?.value) {
-            try {
-              filename = Buffer.from(f.filenameEnc.value, 'base64').toString('utf-8');
-            } catch {}
-          }
-
-          const fullUrl = targetRes.downloadURL.replace('${f}', encodeURIComponent(filename));
-          const thumbUrl = (thumbRes?.downloadURL || targetRes.downloadURL).replace('${f}', encodeURIComponent(filename));
-
-          newBatch.push({
-            id: record.recordName,
-            url: fullUrl,
-            thumbnailUrl: thumbUrl,
-            width: Number(f.resJPEGMedWidth?.value) || Number(f.resOriginalWidth?.value) || 1920,
-            height: Number(f.resJPEGMedHeight?.value) || Number(f.resOriginalHeight?.value) || 1080,
-            caption: filename,
-            dateCreated: f.originalCreationDate?.value ? new Date(f.originalCreationDate.value).toISOString() : undefined,
-          });
+          const photo = parseCloudKitRecord(record);
+          if (photo) newBatch.push(photo);
         }
 
         const entry = icloudCache.get(shortGUID);
@@ -2094,40 +2137,10 @@ async function fetchCloudKitPhotosAlbum(shortGUID: string): Promise<{
     if (!queryData.records || !Array.isArray(queryData.records)) return null;
 
     const photos: ICloudPhoto[] = [];
-    const parseRecords = (records: any[]) => {
-      for (const record of records) {
-        const f = record.fields;
-        if (!f) continue;
-
-        const medRes = f.resJPEGMedRes?.value;
-        const origRes = f.resOriginalRes?.value;
-        const thumbRes = f.resJPEGThumbRes?.value;
-        const targetRes = medRes || origRes || thumbRes;
-        if (!targetRes || !targetRes.downloadURL) continue;
-
-        let filename = 'photo.jpg';
-        if (f.filenameEnc?.value) {
-          try {
-            filename = Buffer.from(f.filenameEnc.value, 'base64').toString('utf-8');
-          } catch {}
-        }
-
-        const fullUrl = targetRes.downloadURL.replace('${f}', encodeURIComponent(filename));
-        const thumbUrl = (thumbRes?.downloadURL || targetRes.downloadURL).replace('${f}', encodeURIComponent(filename));
-
-        photos.push({
-          id: record.recordName,
-          url: fullUrl,
-          thumbnailUrl: thumbUrl,
-          width: Number(f.resJPEGMedWidth?.value) || Number(f.resOriginalWidth?.value) || 1920,
-          height: Number(f.resJPEGMedHeight?.value) || Number(f.resOriginalHeight?.value) || 1080,
-          caption: filename,
-          dateCreated: f.originalCreationDate?.value ? new Date(f.originalCreationDate.value).toISOString() : undefined,
-        });
-      }
-    };
-
-    parseRecords(queryData.records);
+    for (const record of queryData.records) {
+      const photo = parseCloudKitRecord(record);
+      if (photo) photos.push(photo);
+    }
 
     if (photos.length === 0) return null;
 
@@ -2415,11 +2428,11 @@ app.get('/api/icloud-album', async (req: Request, res: Response) => {
   }
 });
 
-// Proxy route to bypass CORS/referrer headers on Apple CDN photos
+// Proxy route to stream photos and videos, bypassing CORS/referrer headers and supporting HTTP 206 Range requests for HTML5 video
 app.get('/api/icloud-photo-proxy', async (req: Request, res: Response) => {
   const targetUrl = req.query.url as string;
   if (!targetUrl || (!targetUrl.startsWith('https://') && !targetUrl.startsWith('http://'))) {
-    return res.status(400).send('Valid image URL required');
+    return res.status(400).send('Valid media URL required');
   }
 
   try {
@@ -2429,27 +2442,57 @@ app.get('/api/icloud-photo-proxy', async (req: Request, res: Response) => {
                     parsedTarget.hostname.endsWith('.apple.com') ||
                     parsedTarget.hostname.endsWith('.unsplash.com');
     if (!allowed) {
-      return res.status(403).send('Host not permitted for photo proxy');
+      return res.status(403).send('Host not permitted for media proxy');
     }
 
-    const imgRes = await fetch(targetUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)',
-        'Referer': 'https://www.icloud.com/',
-      },
+    const fetchHeaders: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)',
+      'Referer': 'https://www.icloud.com/',
+    };
+
+    if (req.headers.range) {
+      fetchHeaders['Range'] = req.headers.range as string;
+    }
+
+    const mediaRes = await fetch(targetUrl, {
+      headers: fetchHeaders,
     });
 
-    if (!imgRes.ok) {
-      return res.status(imgRes.status).send('Failed to fetch remote photo');
+    if (!mediaRes.ok && mediaRes.status !== 206) {
+      return res.status(mediaRes.status).send('Failed to fetch remote media');
     }
 
-    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    const upstreamContentType = mediaRes.headers.get('content-type');
+    const isVideoFile = targetUrl.includes('.mp4') || targetUrl.includes('.mov') || (upstreamContentType && upstreamContentType.includes('video'));
+    const contentType = upstreamContentType || (isVideoFile ? 'video/mp4' : 'image/jpeg');
+
+    res.status(mediaRes.status);
     res.setHeader('Content-Type', contentType);
+    res.setHeader('Accept-Ranges', 'bytes');
+
+    const contentRange = mediaRes.headers.get('content-range');
+    if (contentRange) {
+      res.setHeader('Content-Range', contentRange);
+    }
+
+    const contentLength = mediaRes.headers.get('content-length');
+    if (contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+
     res.setHeader('Cache-Control', 'public, max-age=86400, stale-while-revalidate=604800');
-    const arrayBuffer = await imgRes.arrayBuffer();
-    res.send(Buffer.from(arrayBuffer));
+
+    if (mediaRes.body) {
+      const nodeStream = Readable.fromWeb(mediaRes.body as any);
+      nodeStream.pipe(res);
+    } else {
+      const arrayBuffer = await mediaRes.arrayBuffer();
+      res.send(Buffer.from(arrayBuffer));
+    }
   } catch (err: any) {
-    res.status(500).send('Image proxy error: ' + err.message);
+    if (!res.headersSent) {
+      res.status(500).send('Media proxy error: ' + err.message);
+    }
   }
 });
 

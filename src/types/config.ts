@@ -140,8 +140,11 @@ export interface CountdownItem {
 
 export interface ICloudPhoto {
   id: string;
-  url: string;
+  url: string; // High-res JPEG poster frame (guaranteed image snapshot)
   thumbnailUrl?: string;
+  videoUrl?: string; // Streaming video stream URL if item is a video
+  mediaType?: 'photo' | 'video';
+  duration?: number;
   width: number;
   height: number;
   caption?: string;

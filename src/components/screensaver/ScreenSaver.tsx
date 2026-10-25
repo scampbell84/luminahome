@@ -4,6 +4,7 @@ import { DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
 import { createShuffledDeck, expandShuffledDeck } from '../../utils/shuffleDeck';
 import { WeatherIcon } from '../widgets/WeatherIcon';
 import { AlertTriangle, Moon, Sun, Camera } from 'lucide-react';
+import { MediaWallpaper } from '../display/MediaWallpaper';
 
 interface ScreenSaverProps {
   config: AppConfig;
@@ -413,16 +414,14 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
         isNightMode ? 'bg-[#000000]' : 'bg-[#02040a]'
       }`}
     >
-      {/* Photo Background Layer for Apple Photos iCloud Shared Album with smart face framing */}
-      {ssConfig.backgroundType === 'icloud_album' && photoUrl && (
-        <div
-          className="absolute inset-0 z-0 bg-cover transition-all duration-1000 ease-in-out pointer-events-none"
-          style={{
-            backgroundImage: `url('${photoUrl}')`,
-            backgroundPosition: `center ${ssFocalOffsetY}%`,
-            filter: `brightness(${photoBrightness}%) blur(${photoBlur}px)`,
-            transform: photoBlur > 0 ? 'scale(1.06)' : undefined,
-          }}
+      {/* Photo Background Layer for Apple Photos iCloud Shared Album with smart face framing & video support */}
+      {ssConfig.backgroundType === 'icloud_album' && currentPhoto && (
+        <MediaWallpaper
+          photo={currentPhoto}
+          brightness={photoBrightness}
+          blur={photoBlur}
+          focalOffsetY={ssFocalOffsetY}
+          className="z-0"
         />
       )}
 

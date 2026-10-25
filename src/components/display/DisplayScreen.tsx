@@ -12,6 +12,7 @@ import { SmartBriefingWidget } from '../widgets/SmartBriefingWidget';
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
 import { AlertCircle, Camera, Sparkles, PartyPopper } from 'lucide-react';
 import { createShuffledDeck, expandShuffledDeck } from '../../utils/shuffleDeck';
+import { MediaWallpaper } from './MediaWallpaper';
 
 interface DisplayScreenProps {
   config: AppConfig;
@@ -372,22 +373,25 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
         config.general.kioskHideCursor && !mouseActive ? 'cursor-none' : ''
       }`}
     >
-      {/* Background Wallpaper Layer with smart face-framing & smooth transition */}
-      {backgroundImageUrl && (
+      {/* Background Wallpaper Layer with smart face-framing, video playback & smooth transition */}
+      {config.general.backgroundType === 'icloud_album' && activeICloudPhoto ? (
+        <MediaWallpaper
+          photo={activeICloudPhoto}
+          brightness={config.general.icloudBrightness ?? 50}
+          blur={config.general.icloudBlur ?? 0}
+          focalOffsetY={wallpaperFocalY}
+        />
+      ) : backgroundImageUrl ? (
         <div
           className="absolute inset-0 bg-cover transition-all duration-1000 ease-in-out"
           style={{
             backgroundImage: `url('${backgroundImageUrl}')`,
             backgroundPosition: `center ${wallpaperFocalY}%`,
-            filter: config.general.backgroundType === 'icloud_album'
-              ? `brightness(${Math.max(10, Math.min(100, config.general.icloudBrightness ?? 50))}%) blur(${config.general.icloudBlur ?? 0}px)`
-              : config.general.backgroundBlur ? `blur(${config.general.backgroundBlur}px)` : undefined,
-            transform: ((config.general.backgroundType === 'icloud_album' ? config.general.icloudBlur : config.general.backgroundBlur) || 0) > 0
-              ? 'scale(1.05)'
-              : undefined,
+            filter: config.general.backgroundBlur ? `blur(${config.general.backgroundBlur}px)` : undefined,
+            transform: (config.general.backgroundBlur || 0) > 0 ? 'scale(1.05)' : undefined,
           }}
         />
-      )}
+      ) : null}
 
       {/* Dim Overlay Layer for guaranteed text contrast */}
       <div
