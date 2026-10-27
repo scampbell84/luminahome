@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { AppConfig, CountdownItem, ICloudPhoto } from '../../types/config';
 import { WALLPAPER_PRESETS, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from '../../constants/defaultConfig';
 import { ClockWidget } from '../widgets/ClockWidget';
@@ -9,6 +9,7 @@ import { NewsWidget } from '../widgets/NewsWidget';
 import { NotesWidget } from '../widgets/NotesWidget';
 import { SystemWidget } from '../widgets/SystemWidget';
 import { SmartBriefingWidget } from '../widgets/SmartBriefingWidget';
+import { RewardStarsWidget } from '../widgets/RewardStarsWidget';
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
 import { AlertCircle, Camera, Sparkles, PartyPopper } from 'lucide-react';
 import { createShuffledDeck, expandShuffledDeck } from '../../utils/shuffleDeck';
@@ -17,6 +18,7 @@ import { MediaWallpaper } from './MediaWallpaper';
 interface DisplayScreenProps {
   config: AppConfig;
   onOpenAdmin: () => void;
+  onOpenRewards?: () => void;
   onRefreshConfig: () => void;
   onUpdateConfig?: (updatedConfig: AppConfig) => void;
   onTriggerPartyMode?: () => void;
@@ -25,6 +27,7 @@ interface DisplayScreenProps {
 export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   config,
   onOpenAdmin,
+  onOpenRewards,
   onRefreshConfig,
   onUpdateConfig,
   onTriggerPartyMode,
@@ -308,7 +311,18 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
   }
 
   const isPortrait = config.general.orientation === 'portrait';
-  const gridItems = config.layout.gridItems;
+  const rawGridItems = config.layout.gridItems;
+  const gridItems = useMemo(() => {
+    if (!rawGridItems || rawGridItems.length === 0) return rawGridItems;
+    const hasRewards = rawGridItems.some((item) => item.i === 'rewards');
+    if (!hasRewards && config.rewards?.enabled !== false && config.rewards?.showWidget !== false) {
+      return [
+        ...rawGridItems,
+        { i: 'rewards', x: 8, y: 3, w: 4, h: 2, minW: 3, minH: 2 },
+      ];
+    }
+    return rawGridItems;
+  }, [rawGridItems, config.rewards?.enabled, config.rewards?.showWidget]);
 
   const handleUpdateCountdownItems = (items: CountdownItem[]) => {
     if (onUpdateConfig) {
@@ -335,6 +349,15 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
       case 'calendar':
         return config.calendar.enabled ? (
           <CalendarWidget config={config.calendar} />
+        ) : null;
+      case 'rewards':
+      case 'starbank':
+        return config.rewards?.enabled !== false && config.rewards?.showWidget !== false ? (
+          <RewardStarsWidget
+            config={config.rewards}
+            allConfig={config}
+            onOpenRewards={onOpenRewards}
+          />
         ) : null;
       case 'countdown':
         return config.countdown.enabled ? (
@@ -530,6 +553,14 @@ export const DisplayScreen: React.FC<DisplayScreenProps> = ({
               )}
 
               <div className={`${isPortrait ? 'w-full space-y-4' : 'lg:col-span-4 space-y-4'}`}>
+                {config.rewards?.enabled !== false && config.rewards?.showWidget !== false && (
+                  <RewardStarsWidget
+                    config={config.rewards}
+                    allConfig={config}
+                    onOpenRewards={onOpenRewards}
+                  />
+                )}
+
                 {config.countdown.enabled && (
                   <CountdownWidget config={config.countdown} onUpdateItems={handleUpdateCountdownItems} />
                 )}

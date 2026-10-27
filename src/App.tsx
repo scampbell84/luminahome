@@ -7,6 +7,7 @@ import { BigCalendarView } from './components/calendar/BigCalendarView';
 import { BottomMenuBar, NavigationTab } from './components/navigation/BottomMenuBar';
 import { ScreenSaver } from './components/screensaver/ScreenSaver';
 import { PartyScreen } from './components/party/PartyScreen';
+import { RewardScreen } from './components/rewards/RewardScreen';
 import { VirtualKeyboard } from './components/keyboard/VirtualKeyboard';
 import { Monitor } from 'lucide-react';
 
@@ -43,6 +44,8 @@ export default function App() {
       setCurrentTab('settings');
     } else if (path.includes('calendar') || viewParam === 'calendar') {
       setCurrentTab('calendar');
+    } else if (path.includes('reward') || viewParam === 'rewards' || viewParam === 'reward') {
+      setCurrentTab('rewards');
     } else {
       setCurrentTab('home');
     }
@@ -57,6 +60,9 @@ export default function App() {
       } else if (p.includes('calendar')) {
         setIsPartyActive(false);
         setCurrentTab('calendar');
+      } else if (p.includes('reward')) {
+        setIsPartyActive(false);
+        setCurrentTab('rewards');
       } else {
         setIsPartyActive(false);
         setCurrentTab('home');
@@ -75,7 +81,8 @@ export default function App() {
       }
       if (e.key === '1') navigateTo('home');
       if (e.key === '2') navigateTo('calendar');
-      if (e.key === '3' || e.key === 's' || e.key === 'S') navigateTo('settings');
+      if (e.key === '3' || e.key === 'r' || e.key === 'R') navigateTo('rewards');
+      if (e.key === '4' || e.key === 's' || e.key === 'S') navigateTo('settings');
       if (e.key === '0') setIsScreensaverActive(true);
     };
 
@@ -252,6 +259,7 @@ export default function App() {
     let path = '/display';
     if (tab === 'settings') path = '/admin';
     if (tab === 'calendar') path = '/calendar';
+    if (tab === 'rewards') path = '/rewards';
     window.history.pushState({}, '', path);
   };
 
@@ -276,6 +284,7 @@ export default function App() {
             <DisplayScreen
               config={config}
               onOpenAdmin={() => navigateTo('settings')}
+              onOpenRewards={() => navigateTo('rewards')}
               onRefreshConfig={loadConfig}
               onUpdateConfig={handleSaveConfig}
               onTriggerPartyMode={() => setIsPartyActive(true)}
@@ -290,6 +299,15 @@ export default function App() {
               feeds={config.calendar.feeds}
               config={config.calendar}
               onRefresh={loadCalendar}
+            />
+          </div>
+        )}
+
+        {visitedTabs.has('rewards') && (
+          <div className={currentTab === 'rewards' ? 'w-full h-full overflow-hidden pb-14 md:pb-16' : 'hidden'}>
+            <RewardScreen
+              config={config}
+              onUpdateConfig={handleSaveConfig}
             />
           </div>
         )}

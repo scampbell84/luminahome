@@ -1,0 +1,306 @@
+export interface SuggestedTask {
+  id: string;
+  title: string;
+  category: 'routine' | 'chore' | 'learning' | 'behaviour' | 'health';
+  icon: string;
+  defaultPoints: number;
+  description: string;
+}
+
+export const TASK_CATEGORIES: Array<{
+  id: 'all' | 'routine' | 'chore' | 'learning' | 'behaviour' | 'health';
+  label: string;
+  iconName: string;
+  color: string;
+}> = [
+  { id: 'all', label: 'All Categories', iconName: 'sparkles', color: 'slate' },
+  { id: 'routine', label: 'Daily Routines', iconName: 'bed', color: 'sky' },
+  { id: 'chore', label: 'Household Chores', iconName: 'utensils', color: 'amber' },
+  { id: 'learning', label: 'Learning & School', iconName: 'book', color: 'emerald' },
+  { id: 'behaviour', label: 'Manners & Kindness', iconName: 'heart', color: 'rose' },
+  { id: 'health', label: 'Health & Activity', iconName: 'activity', color: 'indigo' },
+];
+
+export const SUGGESTED_TASKS: SuggestedTask[] = [
+  // 1. Daily Routines (7 tasks)
+  {
+    id: 'sug-brush-teeth',
+    title: 'Brush Teeth (Morning & Night)',
+    category: 'routine',
+    icon: 'sparkles',
+    defaultPoints: 1,
+    description: 'Keep teeth clean and sparkling twice a day',
+  },
+  {
+    id: 'sug-make-bed',
+    title: 'Make Bed & Tidy Pillows',
+    category: 'routine',
+    icon: 'bed',
+    defaultPoints: 1,
+    description: 'Pull covers up and straighten pillows before school',
+  },
+  {
+    id: 'sug-get-dressed',
+    title: 'Get Dressed On Time',
+    category: 'routine',
+    icon: 'shirt',
+    defaultPoints: 1,
+    description: 'Pick clothes and get dressed without being asked twice',
+  },
+  {
+    id: 'sug-shoes-coat',
+    title: 'Put Away Shoes & Coat',
+    category: 'routine',
+    icon: 'clock',
+    defaultPoints: 1,
+    description: 'Hang coat on the peg and put shoes by the door',
+  },
+  {
+    id: 'sug-bath-shower',
+    title: 'Bath or Shower Without Fuss',
+    category: 'routine',
+    icon: 'droplets',
+    defaultPoints: 1,
+    description: 'Wash thoroughly and get clean happily',
+  },
+  {
+    id: 'sug-bedtime',
+    title: 'Go to Bed on Time & Lights Out',
+    category: 'routine',
+    icon: 'bed',
+    defaultPoints: 1,
+    description: 'Stick to bedtime routine and stay in bed quietly',
+  },
+  {
+    id: 'sug-pack-bag',
+    title: 'Pack School Bag the Night Before',
+    category: 'routine',
+    icon: 'book',
+    defaultPoints: 1,
+    description: 'Pack books, water bottle, and pencil case in advance',
+  },
+
+  // 2. Household Chores (8 tasks)
+  {
+    id: 'sug-clear-table',
+    title: 'Clear Dinner Plate & Cup',
+    category: 'chore',
+    icon: 'utensils',
+    defaultPoints: 1,
+    description: 'Take plate and cutlery to the kitchen after meals',
+  },
+  {
+    id: 'sug-tidy-toys',
+    title: 'Tidy Away Toys & Games',
+    category: 'chore',
+    icon: 'gamepad',
+    defaultPoints: 1,
+    description: 'Put toys, LEGO, and board games back in their boxes',
+  },
+  {
+    id: 'sug-laundry',
+    title: 'Put Dirty Clothes in Hamper',
+    category: 'chore',
+    icon: 'shirt',
+    defaultPoints: 1,
+    description: 'Keep bedroom floor clear and place laundry in basket',
+  },
+  {
+    id: 'sug-dishwasher',
+    title: 'Empty or Load the Dishwasher',
+    category: 'chore',
+    icon: 'utensils',
+    defaultPoints: 2,
+    description: 'Carefully help stack or empty clean plates and cutlery',
+  },
+  {
+    id: 'sug-take-out-bins',
+    title: 'Take Out Bins or Recycling',
+    category: 'chore',
+    icon: 'trash',
+    defaultPoints: 2,
+    description: 'Collect recycling boxes or empty bedroom wastebaskets',
+  },
+  {
+    id: 'sug-pet-care',
+    title: 'Feed & Water the Family Pet',
+    category: 'chore',
+    icon: 'heart',
+    defaultPoints: 1,
+    description: 'Check water bowl and feed the cat/dog/fish',
+  },
+  {
+    id: 'sug-vacuum-sweep',
+    title: 'Vacuum or Sweep Living Room',
+    category: 'chore',
+    icon: 'sparkles',
+    defaultPoints: 2,
+    description: 'Help keep floors tidy and free of crumbs',
+  },
+  {
+    id: 'sug-groceries',
+    title: 'Help Unpack & Put Away Groceries',
+    category: 'chore',
+    icon: 'apple',
+    defaultPoints: 2,
+    description: 'Unpack shopping bags and put items in cupboard or fridge',
+  },
+
+  // 3. Learning & Growth (7 tasks)
+  {
+    id: 'sug-reading',
+    title: 'Read a Book for 20 Minutes',
+    category: 'learning',
+    icon: 'book',
+    defaultPoints: 1,
+    description: 'Independent reading or shared storytime',
+  },
+  {
+    id: 'sug-homework',
+    title: 'Complete All School Homework',
+    category: 'learning',
+    icon: 'brain',
+    defaultPoints: 2,
+    description: 'Finish homework assignments with effort and care',
+  },
+  {
+    id: 'sug-music-practice',
+    title: 'Practice Musical Instrument (15m)',
+    category: 'learning',
+    icon: 'music',
+    defaultPoints: 2,
+    description: 'Practice piano, guitar, violin or recorder diligently',
+  },
+  {
+    id: 'sug-maths-spelling',
+    title: 'Maths or Spelling Challenge',
+    category: 'learning',
+    icon: 'brain',
+    defaultPoints: 2,
+    description: 'Practice times tables or weekly spelling word list',
+  },
+  {
+    id: 'sug-creative-art',
+    title: 'Drawing, Crafts, or LEGO Project',
+    category: 'learning',
+    icon: 'sparkles',
+    defaultPoints: 1,
+    description: 'Creative independent play without digital screens',
+  },
+  {
+    id: 'sug-learn-fact',
+    title: 'Learn & Share a Cool Fact',
+    category: 'learning',
+    icon: 'brain',
+    defaultPoints: 1,
+    description: 'Read an encyclopedia or nature guide and teach the family',
+  },
+  {
+    id: 'sug-school-excellence',
+    title: 'Teacher Praise or School Award',
+    category: 'learning',
+    icon: 'star',
+    defaultPoints: 3,
+    description: 'Star student certificate or positive teacher note',
+  },
+
+  // 4. Manners & Kindness (6 tasks)
+  {
+    id: 'sug-kindness',
+    title: 'Kind Words & Helpful Attitude',
+    category: 'behaviour',
+    icon: 'heart',
+    defaultPoints: 1,
+    description: 'Speak gently and treat family with love and respect',
+  },
+  {
+    id: 'sug-good-manners',
+    title: 'Say Please, Thank You & Table Manners',
+    category: 'behaviour',
+    icon: 'smile',
+    defaultPoints: 1,
+    description: 'Show polite manners and chew with mouth closed',
+  },
+  {
+    id: 'sug-sharing',
+    title: 'Share Toys & Take Turns Nicely',
+    category: 'behaviour',
+    icon: 'thumbs-up',
+    defaultPoints: 2,
+    description: 'Share toys with siblings or friends without arguing',
+  },
+  {
+    id: 'sug-listen-first-time',
+    title: 'Listen the Very First Time',
+    category: 'behaviour',
+    icon: 'clock',
+    defaultPoints: 2,
+    description: 'Follow parents instructions without delay or complaint',
+  },
+  {
+    id: 'sug-calm-words',
+    title: 'Use Calm Words Instead of Shouting',
+    category: 'behaviour',
+    icon: 'heart',
+    defaultPoints: 2,
+    description: 'Express feelings calmly and take deep breaths when upset',
+  },
+  {
+    id: 'sug-unasked-help',
+    title: 'Big Helper (Helped Without Being Asked)',
+    category: 'behaviour',
+    icon: 'star',
+    defaultPoints: 3,
+    description: 'Noticed something that needed doing and helped voluntarily',
+  },
+
+  // 5. Health & Wellbeing (6 tasks)
+  {
+    id: 'sug-eat-veggies',
+    title: 'Eat All Dinner Vegetables',
+    category: 'health',
+    icon: 'apple',
+    defaultPoints: 1,
+    description: 'Try all healthy vegetables and greens on dinner plate',
+  },
+  {
+    id: 'sug-water',
+    title: 'Drink Plenty of Water Today',
+    category: 'health',
+    icon: 'droplets',
+    defaultPoints: 1,
+    description: 'Keep hydrated throughout the school day and at home',
+  },
+  {
+    id: 'sug-outdoor-play',
+    title: '30 Mins Active Outdoor Play',
+    category: 'health',
+    icon: 'activity',
+    defaultPoints: 2,
+    description: 'Running, cycling, scooting, or playground time in fresh air',
+  },
+  {
+    id: 'sug-wash-hands',
+    title: 'Wash Hands Thoroughly with Soap',
+    category: 'health',
+    icon: 'droplets',
+    defaultPoints: 1,
+    description: 'Wash hands after coming home and before every meal',
+  },
+  {
+    id: 'sug-screen-free',
+    title: 'Screen-Free Evening Before Bed',
+    category: 'health',
+    icon: 'sun',
+    defaultPoints: 2,
+    description: 'Put down iPads and turn off TV 1 hour before bedtime',
+  },
+  {
+    id: 'sug-try-new-food',
+    title: 'Try a Brave New Healthy Food',
+    category: 'health',
+    icon: 'apple',
+    defaultPoints: 2,
+    description: 'Taste a new dish, fruit, or vegetable with an open mind',
+  },
+];

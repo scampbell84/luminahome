@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto, PartyAccentColor, PartyEffect } from '../../types/config';
-import { WALLPAPER_PRESETS, DEFAULT_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS, PARTY_TEMPLATES } from '../../constants/defaultConfig';
+import { WALLPAPER_PRESETS, DEFAULT_CONFIG, DEFAULT_REWARD_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS, PARTY_TEMPLATES } from '../../constants/defaultConfig';
 import { APP_VERSION } from '../../constants/version';
 import { SystemSettings } from '../system/SystemSettings';
 import { AboutSection } from './AboutSection';
 import { GridVisualEditor } from './GridVisualEditor';
 import { PartySettingsTab } from './PartySettingsTab';
+import { RewardSettingsTab } from './RewardSettingsTab';
 import { generateQrDataUrl, formatWifiQrString } from '../../utils/qrCode';
 import {
   Save,
@@ -61,6 +62,7 @@ import {
   Keyboard,
   Volume2,
   Shuffle,
+  Star,
 } from 'lucide-react';
 
 import { SmartBriefingModal } from '../modals/SmartBriefingModal';
@@ -83,7 +85,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onTriggerPartyMode,
 }) => {
   const [config, setConfig] = useState<AppConfig>(initialConfig);
-  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'party' | 'system' | 'about'>('layout');
+  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'party' | 'rewards' | 'system' | 'about'>('layout');
   const [saving, setSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -191,6 +193,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const handleToggleWidget = (key: keyof AppConfig) => {
     setConfig((prev) => {
+      if (key === 'rewards') {
+        const rewards = prev.rewards || DEFAULT_REWARD_CONFIG;
+        const currentShow = rewards.showWidget !== false;
+        return {
+          ...prev,
+          rewards: {
+            ...rewards,
+            showWidget: !currentShow,
+          },
+        };
+      }
       const current = prev[key] as any;
       if (current && typeof current === 'object' && 'enabled' in current) {
         return {
@@ -830,6 +843,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               <span className="text-[10px] bg-fuchsia-500/20 text-fuchsia-300 px-1.5 py-0.5 rounded font-mono font-semibold">
                 New
               </span>
+            </button>
+
+            <button
+              onClick={(e) => {
+                setActiveTab('rewards');
+                e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+              }}
+              className={`px-3.5 py-2 rounded-lg text-xs md:text-sm font-medium transition-colors flex items-center gap-2 shrink-0 ${
+                activeTab === 'rewards'
+                  ? 'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-bold shadow-md shadow-amber-500/20'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800/60'
+              }`}
+            >
+              <Star className="w-4 h-4 text-amber-400" />
+              <span>Reward Chart</span>
             </button>
 
             <button
@@ -4035,6 +4063,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             }
             onTriggerPartyMode={onTriggerPartyMode}
           />
+        )}
+
+        {/* Tab: Reward Chart & Star Bank */}
+        {activeTab === 'rewards' && (
+          <RewardSettingsTab config={config} onChange={setConfig} />
         )}
 
         {/* Tab: System & Updates */}

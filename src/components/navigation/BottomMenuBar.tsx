@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Home, Calendar, Settings, Maximize2, Minimize2, Sparkles, RefreshCw, PartyPopper } from 'lucide-react';
+import { Home, Calendar, Settings, Maximize2, Minimize2, Sparkles, RefreshCw, PartyPopper, Star } from 'lucide-react';
 
-export type NavigationTab = 'home' | 'calendar' | 'settings';
+export type NavigationTab = 'home' | 'calendar' | 'rewards' | 'settings';
 
 interface BottomMenuBarProps {
   activeTab: NavigationTab;
@@ -75,6 +75,11 @@ export const BottomMenuBar: React.FC<BottomMenuBarProps> = ({
       id: 'calendar',
       label: 'Calendar',
       icon: <Calendar className="w-5 h-5" />,
+    },
+    {
+      id: 'rewards',
+      label: 'Reward Chart',
+      icon: <Star className="w-5 h-5 text-amber-400" />,
     },
     {
       id: 'settings',

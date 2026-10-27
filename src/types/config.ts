@@ -182,6 +182,7 @@ export interface AppConfig {
       countdown: WidgetZone;
       notes: WidgetZone;
       system: WidgetZone;
+      rewards?: WidgetZone;
     };
     gridColumns: number; // 12 columns by default
     gridItems?: Array<{
@@ -301,6 +302,88 @@ export interface AppConfig {
     icloudShuffle?: boolean; // Random non-repeating shuffle (default: true) vs sequential
   };
   party?: PartyConfig;
+  rewards?: RewardConfig;
+}
+
+export interface ChildProfile {
+  id: string;
+  name: string;
+  avatarIcon: string; // e.g. 'star' | 'heart' | 'rocket' | 'crown' | 'smile' | 'sparkles'
+  avatarColor: string; // e.g. 'amber' | 'sky' | 'rose' | 'emerald' | 'purple' | 'orange'
+  currentStars: number;
+  lifetimeStars: number;
+}
+
+export interface RewardTask {
+  id: string;
+  title: string;
+  icon?: string;
+  category: 'routine' | 'chore' | 'learning' | 'behaviour' | 'health';
+  points: number; // default: 1
+  assignedChildIds?: string[]; // IDs of children this task applies to (empty = all)
+}
+
+export interface StarLogEntry {
+  id: string; // `${childId}_${taskId}_${dateStr}`
+  childId: string;
+  taskId: string;
+  date: string; // YYYY-MM-DD
+  starsAwarded: number;
+  timestamp: number;
+  approvedBy?: string; // e.g. "Mom", "Dad", "Parent"
+}
+
+export interface RewardShopItem {
+  id: string;
+  title: string;
+  cost: number;
+  icon?: string;
+  description?: string;
+  category?: 'treat' | 'activity' | 'privilege' | 'toy';
+  enabled: boolean;
+}
+
+export interface RewardRedemption {
+  id: string;
+  childId: string;
+  rewardId: string;
+  rewardTitle: string;
+  starCost: number;
+  date: string; // ISO string
+  status: 'approved' | 'completed';
+  approvedBy?: string; // e.g. "Mom", "Dad", "Parent"
+}
+
+export interface RewardAuditEvent {
+  id: string;
+  type: 'star_earned' | 'star_removed' | 'redemption' | 'manual_adjustment';
+  timestamp: string; // ISO string e.g. "2026-10-27T13:40:00.000Z"
+  childId: string;
+  childName: string;
+  childAvatar?: string;
+  actionTitle: string; // Task title or Reward Shop item title
+  starsDelta: number; // e.g. +1, +2, -15, -1
+  category?: string; // chore, treat, routine, etc.
+  approvedBy: string; // e.g. "Mom", "Dad", "Parent (PIN Verified)"
+  notes?: string;
+}
+
+export interface RewardConfig {
+  enabled: boolean;
+  showWidget?: boolean; // Toggles Star Bank widget on Home display screen (default: true)
+  parentPin: string; // default e.g. "1234"
+  requirePinForRedemption: boolean; // default: true
+  requirePinForStarRemoval: boolean; // default: true
+  enableSoundEffects: boolean; // default: true
+  enableConfetti: boolean; // default: true
+  parentNames?: string[]; // e.g. ["Mom", "Dad"]
+  activeParent?: string; // e.g. "Mom"
+  children: ChildProfile[];
+  tasks: RewardTask[];
+  shopItems: RewardShopItem[];
+  starLogs: StarLogEntry[];
+  redemptions: RewardRedemption[];
+  auditLogs?: RewardAuditEvent[];
 }
 
 export type PartyAccentColor = 'gold' | 'neon-pink' | 'emerald' | 'cyan' | 'purple' | 'amber';

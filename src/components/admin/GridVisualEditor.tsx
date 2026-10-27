@@ -16,6 +16,7 @@ import {
   Eye,
   EyeOff,
   Maximize2,
+  Star,
 } from 'lucide-react';
 
 interface GridVisualEditorProps {
@@ -36,9 +37,9 @@ export const GridVisualEditor: React.FC<GridVisualEditorProps> = ({
     { i: 'clock', x: 0, y: 0, w: 6, h: 3, minW: 3, minH: 2 },
     { i: 'weather', x: 6, y: 0, w: 6, h: 3, minW: 3, minH: 2 },
     { i: 'calendar', x: 0, y: 3, w: 8, h: 6, minW: 4, minH: 3 },
-    { i: 'countdown', x: 8, y: 3, w: 4, h: 2, minW: 3, minH: 2 },
-    { i: 'notes', x: 8, y: 5, w: 4, h: 3, minW: 3, minH: 2 },
-    { i: 'system', x: 8, y: 8, w: 4, h: 1, minW: 2, minH: 1 },
+    { i: 'rewards', x: 8, y: 3, w: 4, h: 2, minW: 3, minH: 2 },
+    { i: 'countdown', x: 8, y: 5, w: 4, h: 2, minW: 3, minH: 1 },
+    { i: 'notes', x: 8, y: 7, w: 4, h: 2, minW: 3, minH: 2 },
     { i: 'news', x: 0, y: 9, w: 12, h: 2, minW: 4, minH: 1 },
   ];
 
@@ -76,30 +77,31 @@ export const GridVisualEditor: React.FC<GridVisualEditorProps> = ({
         { i: 'clock', x: 0, y: 0, w: 6, h: 3, minW: 3, minH: 2 },
         { i: 'weather', x: 6, y: 0, w: 6, h: 3, minW: 3, minH: 2 },
         { i: 'calendar', x: 0, y: 3, w: 8, h: 6, minW: 4, minH: 3 },
-        { i: 'countdown', x: 8, y: 3, w: 4, h: 2, minW: 3, minH: 2 },
-        { i: 'notes', x: 8, y: 5, w: 4, h: 3, minW: 3, minH: 2 },
-        { i: 'system', x: 8, y: 8, w: 4, h: 1, minW: 2, minH: 1 },
+        { i: 'rewards', x: 8, y: 3, w: 4, h: 2, minW: 3, minH: 2 },
+        { i: 'countdown', x: 8, y: 5, w: 4, h: 2, minW: 3, minH: 1 },
+        { i: 'notes', x: 8, y: 7, w: 4, h: 2, minW: 3, minH: 2 },
         { i: 'news', x: 0, y: 9, w: 12, h: 2, minW: 4, minH: 1 },
       ]);
     } else if (preset === 'calendar-focus') {
       onChangeLayout([
         { i: 'clock', x: 0, y: 0, w: 4, h: 2, minW: 3, minH: 2 },
         { i: 'weather', x: 4, y: 0, w: 5, h: 2, minW: 3, minH: 2 },
-        { i: 'countdown', x: 9, y: 0, w: 3, h: 2, minW: 2, minH: 2 },
+        { i: 'rewards', x: 9, y: 0, w: 3, h: 2, minW: 2, minH: 2 },
         { i: 'calendar', x: 0, y: 2, w: 9, h: 7, minW: 4, minH: 3 },
-        { i: 'notes', x: 9, y: 2, w: 3, h: 4, minW: 2, minH: 2 },
-        { i: 'system', x: 9, y: 6, w: 3, h: 1, minW: 2, minH: 1 },
+        { i: 'countdown', x: 9, y: 2, w: 3, h: 2, minW: 2, minH: 1 },
+        { i: 'notes', x: 9, y: 4, w: 3, h: 3, minW: 2, minH: 2 },
+        { i: 'system', x: 9, y: 7, w: 3, h: 1, minW: 2, minH: 1 },
         { i: 'news', x: 0, y: 9, w: 12, h: 2, minW: 4, minH: 1 },
       ]);
     } else if (preset === 'split') {
       onChangeLayout([
         { i: 'clock', x: 0, y: 0, w: 6, h: 3, minW: 3, minH: 2 },
         { i: 'weather', x: 0, y: 3, w: 6, h: 3, minW: 3, minH: 2 },
-        { i: 'countdown', x: 0, y: 6, w: 6, h: 2, minW: 3, minH: 2 },
-        { i: 'notes', x: 0, y: 8, w: 6, h: 3, minW: 3, minH: 2 },
-        { i: 'calendar', x: 6, y: 0, w: 6, h: 9, minW: 4, minH: 3 },
-        { i: 'system', x: 6, y: 9, w: 6, h: 1, minW: 2, minH: 1 },
-        { i: 'news', x: 0, y: 11, w: 12, h: 2, minW: 4, minH: 1 },
+        { i: 'rewards', x: 0, y: 6, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'countdown', x: 0, y: 8, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'calendar', x: 6, y: 0, w: 6, h: 8, minW: 4, minH: 3 },
+        { i: 'notes', x: 6, y: 8, w: 6, h: 2, minW: 3, minH: 2 },
+        { i: 'news', x: 0, y: 10, w: 12, h: 2, minW: 4, minH: 1 },
       ]);
     } else if (preset === 'minimal') {
       onChangeLayout([
@@ -107,9 +109,9 @@ export const GridVisualEditor: React.FC<GridVisualEditorProps> = ({
         { i: 'weather', x: 7, y: 0, w: 5, h: 4, minW: 3, minH: 2 },
         { i: 'calendar', x: 0, y: 4, w: 12, h: 6, minW: 4, minH: 3 },
         { i: 'news', x: 0, y: 10, w: 12, h: 2, minW: 4, minH: 1 },
-        { i: 'countdown', x: 0, y: 12, w: 4, h: 2, minW: 3, minH: 2 },
-        { i: 'notes', x: 4, y: 12, w: 4, h: 2, minW: 3, minH: 2 },
-        { i: 'system', x: 8, y: 12, w: 4, h: 2, minW: 2, minH: 1 },
+        { i: 'rewards', x: 0, y: 12, w: 4, h: 2, minW: 3, minH: 2 },
+        { i: 'countdown', x: 4, y: 12, w: 4, h: 2, minW: 3, minH: 2 },
+        { i: 'notes', x: 8, y: 12, w: 4, h: 2, minW: 3, minH: 2 },
       ]);
     }
   };
@@ -143,6 +145,16 @@ export const GridVisualEditor: React.FC<GridVisualEditorProps> = ({
           configKey: 'calendar' as keyof AppConfig,
           badge: `${config.calendar.feeds.length} feeds`,
           desc: 'Month Grid & Upcoming Agenda Schedule',
+        };
+      case 'rewards':
+      case 'starbank':
+        return {
+          title: 'Star Bank & Rewards',
+          icon: <Star className="w-4 h-4 text-amber-400" />,
+          enabled: config.rewards?.enabled !== false && config.rewards?.showWidget !== false,
+          configKey: 'rewards' as keyof AppConfig,
+          badge: `${config.rewards?.children?.length || 2} children`,
+          desc: 'Children star bank totals & habit motivation',
         };
       case 'countdown':
         return {
