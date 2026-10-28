@@ -72,12 +72,14 @@ interface AdminDashboardProps {
   onSave: (config: AppConfig) => Promise<void>;
   onReset: () => Promise<void>;
   onOpenDisplay: () => void;
+  initialTab?: 'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'party' | 'rewards' | 'system' | 'about';
   onTriggerScreensaver?: () => void;
   onTriggerPartyMode?: () => void;
 }
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   initialConfig,
+  initialTab,
   onSave,
   onReset,
   onOpenDisplay,
@@ -85,7 +87,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onTriggerPartyMode,
 }) => {
   const [config, setConfig] = useState<AppConfig>(initialConfig);
-  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'party' | 'rewards' | 'system' | 'about'>('layout');
+  const [activeTab, setActiveTab] = useState<'display' | 'layout' | 'calendar' | 'weather' | 'widgets' | 'screensaver' | 'party' | 'rewards' | 'system' | 'about'>(initialTab || 'layout');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [saving, setSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);

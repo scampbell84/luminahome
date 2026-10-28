@@ -43,7 +43,7 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onNavigateToSystem }
   const [versionData, setVersionData] = useState<VersionData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
-  const [expandedVersion, setExpandedVersion] = useState<string>('v3.1.0');
+  const [expandedVersion, setExpandedVersion] = useState<string>(RELEASE_NOTES[0]?.version || 'v3.5.1');
 
   const fetchVersionInfo = async () => {
     try {

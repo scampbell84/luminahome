@@ -20,6 +20,7 @@ export default function App() {
   const [isScreensaverActive, setIsScreensaverActive] = useState<boolean>(false);
   const [isPartyActive, setIsPartyActive] = useState<boolean>(false);
   const [visitedTabs, setVisitedTabs] = useState<Set<NavigationTab>>(() => new Set([currentTab]));
+  const [adminActiveTab, setAdminActiveTab] = useState<'layout' | 'display' | 'calendar' | 'weather' | 'widgets' | 'rewards' | 'screensaver' | 'party' | 'system' | 'about'>('layout');
 
   // Keep visited tabs in DOM to eliminate re-mount stutter and network re-fetching
   useEffect(() => {
@@ -308,6 +309,10 @@ export default function App() {
             <RewardScreen
               config={config}
               onUpdateConfig={handleSaveConfig}
+              onOpenSettings={() => {
+                setAdminActiveTab('rewards');
+                navigateTo('settings');
+              }}
             />
           </div>
         )}
@@ -316,6 +321,7 @@ export default function App() {
           <div className={currentTab === 'settings' ? 'w-full h-full' : 'hidden'}>
             <AdminDashboard
               initialConfig={config}
+              initialTab={adminActiveTab}
               onSave={handleSaveConfig}
               onReset={handleResetConfig}
               onOpenDisplay={() => navigateTo('home')}

@@ -68,6 +68,8 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
 
   // Add Task Modal state
   const [isAddTaskModalOpen, setIsAddTaskModalOpen] = useState(false);
+  const [taskModalFrequency, setTaskModalFrequency] = useState<'daily' | 'weekly'>('daily');
+  const [taskScheduleTab, setTaskScheduleTab] = useState<'all' | 'daily' | 'weekly'>('all');
 
   // Add Reward Item form state
   const [showAddShopItem, setShowAddShopItem] = useState(false);
@@ -169,13 +171,67 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
     category: 'routine' | 'chore' | 'learning' | 'behaviour' | 'health';
     icon: string;
     points: number;
+    frequency?: 'daily' | 'weekly';
+    description?: string;
+    assignedChildIds?: string[];
   }) => {
+    const allChildIds = rewards.children.map((c) => c.id);
     const newTask: RewardTask = {
       id: `task-${Date.now()}`,
+      frequency: taskData.frequency || 'daily',
+      assignedChildIds:
+        taskData.assignedChildIds && taskData.assignedChildIds.length > 0
+          ? taskData.assignedChildIds
+          : allChildIds, // Default is that any new task added is assigned to all children
       ...taskData,
     };
     updateRewards({
       tasks: [...rewards.tasks, newTask],
+    });
+  };
+
+  const handleToggleTaskChild = (taskId: string, childId: string) => {
+    const allChildIds = rewards.children.map((c) => c.id);
+    updateRewards({
+      tasks: rewards.tasks.map((t) => {
+        if (t.id !== taskId) return t;
+        const current = (!t.assignedChildIds || t.assignedChildIds.length === 0)
+          ? [...allChildIds]
+          : [...t.assignedChildIds];
+
+        const hasChild = current.includes(childId);
+        let updated: string[];
+        if (hasChild) {
+          if (current.length === 1) {
+            // Prevent unassigning the only child
+            alert('A task must be assigned to at least one child.');
+            return t;
+          }
+          updated = current.filter((id) => id !== childId);
+        } else {
+          updated = [...current, childId];
+        }
+        return { ...t, assignedChildIds: updated };
+      }),
+    });
+  };
+
+  const handleAssignAllChildren = (taskId: string) => {
+    updateRewards({
+      tasks: rewards.tasks.map((t) => {
+        if (t.id !== taskId) return t;
+        return { ...t, assignedChildIds: rewards.children.map((c) => c.id) };
+      }),
+    });
+  };
+
+  const handleToggleTaskFrequency = (taskId: string) => {
+    updateRewards({
+      tasks: rewards.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, frequency: t.frequency === 'weekly' ? 'daily' : 'weekly' }
+          : t
+      ),
     });
   };
 
@@ -657,7 +713,7 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
 
           {/* 3. Tasks & Behaviours Management */}
           <div className="p-6 rounded-3xl bg-slate-900 border border-white/10 shadow-xl space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2.5">
                   <CheckSquare className="w-5 h-5 text-emerald-400" />
@@ -667,106 +723,264 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  Select from over 30 suggested habits or create custom tasks. Assign different star values to tasks worth more effort!
+                  Assign tasks to specific children or to all children. Set star reward values and choose whether tasks repeat daily or can be completed anytime during the week.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsAddTaskModalOpen(true)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4 stroke-[3]" />
-                <span>Add Tasks (Suggestions & Custom)</span>
-              </button>
+              {/* Dedicated Add Buttons for Daily Habits and Weekly Tasks */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTaskModalFrequency('daily');
+                    setIsAddTaskModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-400/30 text-cyan-200 font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-sm"
+                  title="Add a daily routine or habit"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Add Daily Habit</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTaskModalFrequency('weekly');
+                    setIsAddTaskModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 text-white font-bold text-xs transition-all shadow-md shadow-purple-500/20 active:scale-95 cursor-pointer"
+                  title="Add a weekly goal or chore"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Add Weekly Task</span>
+                </button>
+              </div>
             </div>
 
-            {/* Tasks List with Star Value Configurator */}
-            <div className="divide-y divide-white/5 pt-1">
-              {rewards.tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs hover:bg-white/[0.02] px-2 rounded-xl transition-colors"
+            {/* Schedule Filter Tabs */}
+            <div className="flex items-center gap-2 pt-1 border-b border-white/10 pb-3 flex-wrap">
+              {[
+                { id: 'all', label: `All Tasks (${rewards.tasks.length})` },
+                { id: 'daily', label: `📅 Daily Habits (${rewards.tasks.filter((t) => t.frequency !== 'weekly').length})` },
+                { id: 'weekly', label: `⭐ Weekly Tasks (${rewards.tasks.filter((t) => t.frequency === 'weekly').length})` },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setTaskScheduleTab(tab.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    taskScheduleTab === tab.id
+                      ? 'bg-white text-slate-950 font-black shadow-md'
+                      : 'bg-white/5 text-slate-300 hover:text-white hover:bg-white/10'
+                  }`}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center font-bold text-base shrink-0">
-                      {task.icon === 'bed' && '🛏️'}
-                      {task.icon === 'book' && '📖'}
-                      {task.icon === 'utensils' && '🍽️'}
-                      {task.icon === 'heart' && '❤️'}
-                      {task.icon === 'sparkles' && '✨'}
-                      {task.icon === 'gamepad' && '🎮'}
-                      {task.icon === 'music' && '🎵'}
-                      {task.icon === 'apple' && '🍎'}
-                      {task.icon === 'droplets' && '💧'}
-                      {task.icon === 'shirt' && '👕'}
-                      {task.icon === 'brain' && '🧠'}
-                      {task.icon === 'sun' && '☀️'}
-                      {task.icon === 'trash' && '🗑️'}
-                      {(task.icon === 'thumbs-up' || task.icon === 'thumbsup') && '👍'}
-                      {task.icon === 'activity' && '🏃'}
-                      {task.icon === 'clock' && '⏰'}
-                      {task.icon === 'star' && '⭐'}
-                      {!['bed', 'book', 'utensils', 'heart', 'sparkles', 'gamepad', 'music', 'apple', 'droplets', 'shirt', 'brain', 'sun', 'trash', 'thumbs-up', 'thumbsup', 'activity', 'clock', 'star'].includes(task.icon || '') && '✨'}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-white text-sm">{task.title}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white/5 text-slate-300 border-white/10">
-                          {task.category || 'habit'}
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Schedule Context Banner */}
+            <div className="p-3 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center gap-2 text-xs text-slate-300">
+              {taskScheduleTab === 'weekly' ? (
+                <>
+                  <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                  <span>
+                    <strong>Weekly Tasks:</strong> Flexible chores and milestones that children can complete at any point during the week.
+                  </span>
+                </>
+              ) : taskScheduleTab === 'daily' ? (
+                <>
+                  <CheckSquare className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <span>
+                    <strong>Daily Habits:</strong> Regular routines tracked every day across the Monday–Sunday chart.
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Users className="w-4 h-4 text-indigo-400 shrink-0" />
+                  <span>
+                    Use the child pills below each task to specify which children are assigned to it. Tasks default to all children.
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Tasks List with Star Value Configurator & Child Assignment Toggles */}
+            <div className="divide-y divide-white/5 pt-1 space-y-1">
+              {rewards.tasks
+                .filter((t) => {
+                  if (taskScheduleTab === 'daily') return t.frequency !== 'weekly';
+                  if (taskScheduleTab === 'weekly') return t.frequency === 'weekly';
+                  return true;
+                })
+                .map((task) => {
+                  const assignedIds = task.assignedChildIds && task.assignedChildIds.length > 0
+                    ? task.assignedChildIds
+                    : rewards.children.map((c) => c.id);
+                  const isAllChildren = assignedIds.length === rewards.children.length;
+
+                  return (
+                    <div
+                      key={task.id}
+                      className="py-3.5 px-3 rounded-2xl bg-white/[0.02] hover:bg-white/[0.04] transition-all flex flex-col gap-2.5 border border-white/5"
+                    >
+                      {/* Top Row: Task Info, Schedule Badge & Star Values */}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center font-bold text-base shrink-0">
+                            {task.icon === 'bed' && '🛏️'}
+                            {task.icon === 'book' && '📖'}
+                            {task.icon === 'utensils' && '🍽️'}
+                            {task.icon === 'heart' && '❤️'}
+                            {task.icon === 'sparkles' && '✨'}
+                            {task.icon === 'gamepad' && '🎮'}
+                            {task.icon === 'music' && '🎵'}
+                            {task.icon === 'apple' && '🍎'}
+                            {task.icon === 'droplets' && '💧'}
+                            {task.icon === 'shirt' && '👕'}
+                            {task.icon === 'brain' && '🧠'}
+                            {task.icon === 'sun' && '☀️'}
+                            {task.icon === 'trash' && '🗑️'}
+                            {(task.icon === 'thumbs-up' || task.icon === 'thumbsup') && '👍'}
+                            {task.icon === 'activity' && '🏃'}
+                            {task.icon === 'clock' && '⏰'}
+                            {task.icon === 'star' && '⭐'}
+                            {!['bed', 'book', 'utensils', 'heart', 'sparkles', 'gamepad', 'music', 'apple', 'droplets', 'shirt', 'brain', 'sun', 'trash', 'thumbs-up', 'thumbsup', 'activity', 'clock', 'star'].includes(task.icon || '') && '✨'}
+                          </span>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-white text-sm">{task.title}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleToggleTaskFrequency(task.id)}
+                                className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border transition-all cursor-pointer ${
+                                  task.frequency === 'weekly'
+                                    ? 'bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/25'
+                                    : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30 hover:bg-cyan-500/25'
+                                }`}
+                                title="Click to toggle between Daily Habit and Weekly Task"
+                              >
+                                {task.frequency === 'weekly' ? 'Weekly Task 🔄' : 'Daily Habit 🔄'}
+                              </button>
+                              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border bg-white/5 text-slate-300 border-white/10">
+                                {task.category || 'habit'}
+                              </span>
+                            </div>
+                            {task.description && (
+                              <p className="text-[11px] text-slate-300/80 mt-0.5 italic line-clamp-1">
+                                {task.description}
+                              </p>
+                            )}
+                            <span className="text-[11px] text-slate-400">
+                              Awards <strong className="text-amber-300 font-mono">+{task.points || 1} star{(task.points || 1) > 1 ? 's' : ''}</strong> when earned
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Star Value Assigner & Delete Action */}
+                        <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                          <div className="flex items-center gap-1.5 bg-black/40 border border-white/15 rounded-xl px-2 py-1">
+                            <span className="text-[11px] font-bold text-slate-400 mr-0.5">Value:</span>
+                            {[1, 2, 3, 5].map((pts) => {
+                              const isSelected = (task.points || 1) === pts;
+                              return (
+                                <button
+                                  key={pts}
+                                  type="button"
+                                  onClick={() => handleUpdateTaskPoints(task.id, pts)}
+                                  className={`px-2 py-0.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
+                                      : 'text-slate-400 hover:text-white hover:bg-white/10'
+                                  }`}
+                                  title={`Set to award ${pts} star${pts > 1 ? 's' : ''}`}
+                                >
+                                  {pts}⭐
+                                </button>
+                              );
+                            })}
+                            {/* Custom Number Input */}
+                            <input
+                              type="number"
+                              min="1"
+                              max="10"
+                              value={task.points || 1}
+                              onChange={(e) => handleUpdateTaskPoints(task.id, Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 1)))}
+                              className="w-12 px-1 py-0.5 rounded bg-slate-950 border border-white/20 text-amber-300 font-mono font-bold text-xs text-center"
+                              title="Custom star points"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTask(task.id)}
+                            className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
+                            title="Delete Task"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Child Assignment Toggles */}
+                      <div className="flex items-center gap-2 flex-wrap pt-2 border-t border-white/5">
+                        <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                          <Users className="w-3.5 h-3.5 text-indigo-400" />
+                          <span>Assigned Child:</span>
+                        </span>
+
+                        {/* All Children Button */}
+                        <button
+                          type="button"
+                          onClick={() => handleAssignAllChildren(task.id)}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${
+                            isAllChildren
+                              ? 'bg-indigo-500 text-white font-black shadow-sm'
+                              : 'bg-white/5 text-slate-400 hover:text-white hover:bg-white/10 border border-white/10'
+                          }`}
+                          title="Assign this task to all children"
+                        >
+                          All Children
+                        </button>
+
+                        {/* Individual Child Toggles */}
+                        {rewards.children.map((child) => {
+                          const isAssigned = assignedIds.includes(child.id);
+                          return (
+                            <button
+                              key={child.id}
+                              type="button"
+                              onClick={() => handleToggleTaskChild(task.id, child.id)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer ${
+                                isAssigned
+                                  ? 'bg-amber-400/20 border-amber-400/50 text-amber-200 shadow-sm'
+                                  : 'bg-white/[0.02] border-white/10 text-slate-500 line-through opacity-50 hover:opacity-100 hover:text-slate-300'
+                              }`}
+                              title={
+                                isAssigned
+                                  ? `Assigned to ${child.name}. Click to toggle off.`
+                                  : `Not assigned to ${child.name}. Click to assign.`
+                              }
+                            >
+                              <span>{getAvatarEmoji(child.avatarIcon)}</span>
+                              <span>{child.name}</span>
+                              {isAssigned && <Check className="w-3 h-3 text-amber-300" />}
+                            </button>
+                          );
+                        })}
+
+                        {/* Assignment Summary Status */}
+                        <span className="text-[10px] text-slate-400 ml-auto font-mono">
+                          {isAllChildren
+                            ? 'All Children'
+                            : `${assignedIds
+                                .map((id) => rewards.children.find((c) => c.id === id)?.name || id)
+                                .join(', ')} only`}
                         </span>
                       </div>
-                      <span className="text-[11px] text-slate-400">
-                        Awards <strong className="text-amber-300 font-mono">+{task.points || 1} star{(task.points || 1) > 1 ? 's' : ''}</strong> when earned
-                      </span>
                     </div>
-                  </div>
-
-                  {/* Star Value Assigner & Actions */}
-                  <div className="flex items-center gap-2.5 self-end sm:self-auto shrink-0">
-                    <div className="flex items-center gap-1.5 bg-black/40 border border-white/15 rounded-xl px-2 py-1">
-                      <span className="text-[11px] font-bold text-slate-400 mr-0.5">Value:</span>
-                      {[1, 2, 3, 5].map((pts) => {
-                        const isSelected = (task.points || 1) === pts;
-                        return (
-                          <button
-                            key={pts}
-                            type="button"
-                            onClick={() => handleUpdateTaskPoints(task.id, pts)}
-                            className={`px-2 py-0.5 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                              isSelected
-                                ? 'bg-amber-400 text-slate-950 font-black shadow-sm'
-                                : 'text-slate-400 hover:text-white hover:bg-white/10'
-                            }`}
-                            title={`Set to award ${pts} star${pts > 1 ? 's' : ''}`}
-                          >
-                            {pts}⭐
-                          </button>
-                        );
-                      })}
-                      {/* Custom Number Input */}
-                      <input
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={task.points || 1}
-                        onChange={(e) => handleUpdateTaskPoints(task.id, Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 1)))}
-                        className="w-12 px-1 py-0.5 rounded bg-slate-950 border border-white/20 text-amber-300 font-mono font-bold text-xs text-center"
-                        title="Custom star points"
-                      />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteTask(task.id)}
-                      className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 transition-colors cursor-pointer"
-                      title="Delete Task"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  );
+                })}
             </div>
           </div>
 
@@ -1042,6 +1256,8 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
         isOpen={isAddTaskModalOpen}
         onClose={() => setIsAddTaskModalOpen(false)}
         existingTasks={rewards.tasks}
+        childrenList={rewards.children}
+        defaultFrequency={taskModalFrequency}
         onAddTask={handleAddCreatedTask}
       />
     </div>

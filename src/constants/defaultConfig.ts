@@ -33,6 +33,8 @@ export const DEFAULT_REWARD_CONFIG: RewardConfig = {
       icon: 'sparkles',
       category: 'routine',
       points: 1,
+      frequency: 'daily',
+      description: 'Brush thoroughly for 2 full minutes, morning and before bed',
     },
     {
       id: 'task-bed',
@@ -40,6 +42,8 @@ export const DEFAULT_REWARD_CONFIG: RewardConfig = {
       icon: 'bed',
       category: 'chore',
       points: 1,
+      frequency: 'daily',
+      description: 'Pull up bedsheets, straighten pillows, and clear floor',
     },
     {
       id: 'task-reading',
@@ -47,6 +51,8 @@ export const DEFAULT_REWARD_CONFIG: RewardConfig = {
       icon: 'book',
       category: 'learning',
       points: 1,
+      frequency: 'daily',
+      description: 'Read a book chapter or complete school homework sheets',
     },
     {
       id: 'task-dishes',
@@ -54,6 +60,8 @@ export const DEFAULT_REWARD_CONFIG: RewardConfig = {
       icon: 'utensils',
       category: 'chore',
       points: 1,
+      frequency: 'daily',
+      description: 'Take plate, cup, and cutlery to kitchen sink or dishwasher',
     },
     {
       id: 'task-kindness',
@@ -61,6 +69,26 @@ export const DEFAULT_REWARD_CONFIG: RewardConfig = {
       icon: 'heart',
       category: 'behaviour',
       points: 1,
+      frequency: 'daily',
+      description: 'Use polite words, share toys, and listen the first time',
+    },
+    {
+      id: 'task-weekly-wash-car',
+      title: 'Help Wash Family Car / Bikes',
+      icon: 'droplets',
+      category: 'chore',
+      points: 3,
+      frequency: 'weekly',
+      description: 'Help soap, sponge, and rinse the family car or bicycles anytime this week',
+    },
+    {
+      id: 'task-weekly-bedroom',
+      title: 'Weekly Deep Clean & Bed Sheets',
+      icon: 'bed',
+      category: 'chore',
+      points: 2,
+      frequency: 'weekly',
+      description: 'Strip bedsheets, dust surfaces, and vacuum under the bed',
     },
   ],
   shopItems: [

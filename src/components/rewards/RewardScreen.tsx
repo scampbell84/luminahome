@@ -32,18 +32,20 @@ import {
   ThumbsUp,
   Activity,
   Clock,
+  Sliders,
 } from 'lucide-react';
 import { playStarChime, playRemovePop } from '../../utils/soundEffects';
 import { StarRemovalModal } from './StarRemovalModal';
 import { RewardShopModal } from './RewardShopModal';
-import { AddTaskModal } from './AddTaskModal';
+import { TaskDetailModal } from './TaskDetailModal';
 
 interface RewardScreenProps {
   config: AppConfig;
   onUpdateConfig?: (updatedConfig: AppConfig) => void;
+  onOpenSettings?: () => void;
 }
 
-export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConfig }) => {
+export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConfig, onOpenSettings }) => {
   const rewards: RewardConfig = config.rewards || DEFAULT_REWARD_CONFIG;
   const childrenList: ChildProfile[] = rewards.children && rewards.children.length > 0
     ? rewards.children
@@ -56,6 +58,10 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
     : DEFAULT_REWARD_CONFIG.shopItems;
   const starLogs: StarLogEntry[] = rewards.starLogs || [];
 
+  // Split daily habits vs weekly tasks
+  const dailyTasks = useMemo(() => tasksList.filter((t) => t.frequency !== 'weekly'), [tasksList]);
+  const weeklyTasks = useMemo(() => tasksList.filter((t) => t.frequency === 'weekly'), [tasksList]);
+
   // Selected child filter: 'all' or child.id
   const [selectedChildId, setSelectedChildId] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'week' | 'month'>('week');
@@ -64,14 +70,16 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
 
   // Modals state
   const [isShopOpen, setIsShopOpen] = useState<boolean>(false);
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState<boolean>(false);
+  const [selectedDetailTask, setSelectedDetailTask] = useState<RewardTask | null>(null);
   const [removalTarget, setRemovalTarget] = useState<{
     childId: string;
     childName: string;
     taskId: string;
     taskTitle: string;
     dateStr: string;
+    actualDateStr?: string;
     logId: string;
+    starsDeducted?: number;
   } | null>(null);
 
   // Sparkle burst celebration feedback
@@ -230,6 +238,12 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
     return map;
   }, [starLogs]);
 
+  // Helper to determine if a task is assigned to a specific child (defaults to all children if empty/undefined)
+  const isTaskAssignedToChild = (task: RewardTask, childId: string) => {
+    if (!task.assignedChildIds || task.assignedChildIds.length === 0) return true;
+    return task.assignedChildIds.includes(childId);
+  };
+
   // Handle cell click (award star or prompt removal)
   const handleCellClick = (child: ChildProfile, task: RewardTask, dateStr: string) => {
     const cellKey = `${child.id}_${task.id}_${dateStr}`;
@@ -237,13 +251,16 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
 
     if (existingLog) {
       // Cell already has a star -> prompt confirmation to remove
+      const pts = existingLog.starsAwarded || task.points || 1;
       setRemovalTarget({
         childId: child.id,
         childName: child.name,
         taskId: task.id,
         taskTitle: task.title,
-        dateStr,
+        dateStr: dateStr.startsWith('week_') ? `Week of ${weekRangeLabel}` : dateStr,
+        actualDateStr: dateStr,
         logId: existingLog.id,
+        starsDeducted: pts,
       });
     } else {
       // Cell is blank -> award star!
@@ -316,10 +333,11 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
       playRemovePop();
     }
 
-    const { childId, taskId, dateStr } = removalTarget;
-    const cellKey = `${childId}_${taskId}_${dateStr}`;
+    const { childId, taskId, dateStr, actualDateStr, starsDeducted } = removalTarget;
+    const targetDate = actualDateStr || dateStr;
+    const cellKey = `${childId}_${taskId}_${targetDate}`;
     const existingLog = starLogMap.get(cellKey);
-    const starVal = existingLog?.starsAwarded || 1;
+    const starVal = starsDeducted || existingLog?.starsAwarded || 1;
     const approver = rewards.activeParent || 'Mom';
 
     const removalAuditEvent: RewardAuditEvent = {
@@ -345,7 +363,7 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
       return c;
     });
 
-    const updatedStarLogs = starLogs.filter((l) => !(l.childId === childId && l.taskId === taskId && l.date === dateStr));
+    const updatedStarLogs = starLogs.filter((l) => !(l.childId === childId && l.taskId === taskId && l.date === targetDate));
 
     const updatedConfig: AppConfig = {
       ...config,
@@ -425,9 +443,12 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
     category: 'routine' | 'chore' | 'learning' | 'behaviour' | 'health';
     icon: string;
     points: number;
+    frequency?: 'daily' | 'weekly';
+    description?: string;
   }) => {
     const newTask: RewardTask = {
       id: `task-${Date.now()}`,
+      frequency: taskData.frequency || 'daily',
       ...taskData,
     };
     const updatedConfig: AppConfig = {
@@ -486,15 +507,17 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => setIsAddTaskOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold text-xs md:text-sm active:scale-95 transition-all cursor-pointer shadow-md"
-            title="Add a suggested or custom habit task"
-          >
-            <Plus className="w-4 h-4 text-emerald-400" />
-            <span>Add Habit</span>
-          </button>
+          {onOpenSettings && (
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-white font-bold text-xs md:text-sm active:scale-95 transition-all cursor-pointer shadow-md"
+              title="Open Reward Chart Settings to configure habits, weekly tasks & children"
+            >
+              <Sliders className="w-4 h-4 text-indigo-400" />
+              <span>Chart Settings</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -638,159 +661,295 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
             {childrenList
               .filter((c) => selectedChildId === 'all' || selectedChildId === c.id)
               .map((child) => {
-                // Total stars earned this week for this child
+                // Total stars earned this week for this child (including weekly tasks completed for this week)
+                const weeklyDateKey = `week_${weekDays[0]?.dateStr}`;
                 const childWeekStars = starLogs
-                  .filter((l) => l.childId === child.id && weekDays.some((w) => w.dateStr === l.date))
+                  .filter((l) => l.childId === child.id && (weekDays.some((w) => w.dateStr === l.date) || l.date === weeklyDateKey))
                   .reduce((sum, l) => sum + (l.starsAwarded || 1), 0);
+
+                // Filter tasks assigned to this specific child (defaults to all children if unassigned)
+                const childDailyTasks = dailyTasks.filter((t) => isTaskAssignedToChild(t, child.id));
+                const childWeeklyTasks = weeklyTasks.filter((t) => isTaskAssignedToChild(t, child.id));
 
                 return (
                   <div
                     key={child.id}
                     className="p-3.5 sm:p-4 md:p-5 rounded-3xl bg-slate-900/90 border border-white/15 backdrop-blur-xl shadow-2xl overflow-hidden flex flex-col justify-between"
                   >
-                    {/* Child Card Header */}
-                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 gap-2">
-                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                        <div
-                          className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center border font-bold text-sm sm:text-base shadow-md shrink-0 ${getChildColorClasses(
-                            child.avatarColor,
-                            true
-                          )}`}
-                        >
-                          {getChildAvatarIcon(child.avatarIcon)}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate">{child.name}</h3>
-                            <span className="text-[10px] sm:text-[11px] font-mono text-amber-300 bg-amber-400/10 border border-amber-400/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
-                              <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                              <span>{child.currentStars} in Bank</span>
-                            </span>
+                    <div>
+                      {/* Child Card Header */}
+                      <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10 gap-2">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                          <div
+                            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center border font-bold text-sm sm:text-base shadow-md shrink-0 ${getChildColorClasses(
+                              child.avatarColor,
+                              true
+                            )}`}
+                          >
+                            {getChildAvatarIcon(child.avatarIcon)}
                           </div>
-                          <p className="text-[11px] text-slate-400 truncate">
-                            Earned <strong className="text-amber-300 font-mono">+{childWeekStars} stars</strong> this week (Total: {child.lifetimeStars})
-                          </p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-base sm:text-lg font-black text-white tracking-tight truncate">{child.name}</h3>
+                              <span className="text-[10px] sm:text-[11px] font-mono text-amber-300 bg-amber-400/10 border border-amber-400/30 px-2 py-0.5 rounded-full font-bold flex items-center gap-1 shrink-0">
+                                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                                <span>{child.currentStars} in Bank</span>
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-400 truncate">
+                              Earned <strong className="text-amber-300 font-mono">+{childWeekStars} stars</strong> this week (Total: {child.lifetimeStars})
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Quick Card Actions: Week Progress & Direct Shop Button */}
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedChildId(child.id);
+                              setIsShopOpen(true);
+                            }}
+                            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all active:scale-95 cursor-pointer"
+                            title={`Open Reward Shop for ${child.name}`}
+                          >
+                            <Gift className="w-3.5 h-3.5" />
+                            <span>Shop</span>
+                          </button>
                         </div>
                       </div>
 
-                      {/* Quick Card Actions: Week Progress & Direct Shop Button */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedChildId(child.id);
-                            setIsShopOpen(true);
-                          }}
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-400/40 text-amber-300 hover:text-amber-200 text-xs font-bold transition-all active:scale-95 cursor-pointer"
-                          title={`Open Reward Shop for ${child.name}`}
-                        >
-                          <Gift className="w-3.5 h-3.5" />
-                          <span>Shop</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Chart Table */}
-                    <div className="overflow-x-auto scrollbar-thin">
-                      <table className="w-full text-left border-collapse min-w-[480px]">
-                        <thead>
-                          <tr className="border-b border-white/10 text-xs text-slate-400 font-mono">
-                            <th className="py-2 pl-2 pr-2 font-bold text-slate-300 w-[120px] sm:w-[140px]">Task / Habit</th>
-                            {weekDays.map((d) => (
-                              <th
-                                key={d.dateStr}
-                                className={`py-2 px-1 text-center transition-colors ${
-                                  d.isToday
-                                    ? 'text-amber-300 font-bold bg-amber-400/10 rounded-t-xl'
-                                    : 'text-slate-400'
-                                }`}
-                              >
-                                <div className="text-[10px] sm:text-[11px] uppercase tracking-wider">{d.label}</div>
-                                <div className="text-xs sm:text-sm font-black text-white">{d.dayNum}</div>
-                              </th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/5">
-                          {tasksList.map((task) => (
-                            <tr key={task.id} className="hover:bg-white/[0.02] transition-colors">
-                              {/* Task Name & Icon */}
-                              <td className="py-2.5 pl-2 pr-2">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                                    {getTaskIcon(task.icon)}
-                                  </div>
-                                  <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
-                                    <span className="text-xs font-semibold text-white tracking-wide truncate max-w-[95px] sm:max-w-[120px]" title={task.title}>
-                                      {task.title}
-                                    </span>
-                                    {(task.points && task.points > 1) ? (
-                                      <span className="text-[10px] font-mono font-black text-amber-300 bg-amber-400/15 border border-amber-400/40 px-1 py-0.2 rounded shrink-0" title={`Awards +${task.points} stars`}>
-                                        +{task.points}⭐
-                                      </span>
-                                    ) : null}
-                                  </div>
+                      {/* Daily Habits Table */}
+                      <div className="overflow-x-auto scrollbar-thin">
+                        <table className="w-full text-left border-collapse min-w-[480px]">
+                          <thead>
+                            <tr className="border-b border-white/10 text-xs text-slate-400 font-mono">
+                              <th className="py-2 pl-2 pr-2 font-bold text-slate-300 w-[120px] sm:w-[145px]">
+                                <div className="flex items-center gap-1 text-[11px]">
+                                  <span>Daily Habit</span>
+                                  <span className="text-[9px] text-amber-300/80 font-normal">(Tap for info)</span>
                                 </div>
-                              </td>
-
-                              {/* Day Interactive Cells */}
-                              {weekDays.map((d) => {
-                                const cellKey = `${child.id}_${task.id}_${d.dateStr}`;
-                                const isEarned = starLogMap.has(cellKey);
-                                const isBursting = celebrationCell === cellKey;
-                                const pts = task.points || 1;
-
-                                return (
-                                  <td
-                                    key={d.dateStr}
-                                    className={`py-1.5 px-0.5 sm:px-1 text-center align-middle ${
-                                      d.isToday ? 'bg-amber-400/5' : ''
-                                    }`}
-                                  >
+                              </th>
+                              {weekDays.map((d) => (
+                                <th
+                                  key={d.dateStr}
+                                  className={`py-2 px-1 text-center transition-colors ${
+                                    d.isToday
+                                      ? 'text-amber-300 font-bold bg-amber-400/10 rounded-t-xl'
+                                      : 'text-slate-400'
+                                  }`}
+                                >
+                                  <div className="text-[10px] sm:text-[11px] uppercase tracking-wider">{d.label}</div>
+                                  <div className="text-xs sm:text-sm font-black text-white">{d.dayNum}</div>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-white/5">
+                            {childDailyTasks.length > 0 ? (
+                              childDailyTasks.map((task) => (
+                                <tr key={task.id} className="hover:bg-white/[0.02] transition-colors">
+                                  {/* Task Name & Icon - Clicking opens TaskDetailModal overlay */}
+                                  <td className="py-2 pl-2 pr-2">
                                     <button
                                       type="button"
-                                      onClick={() => handleCellClick(child, task, d.dateStr)}
-                                      className={`relative w-9 h-9 sm:w-10 sm:h-10 mx-auto rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
-                                        isEarned
-                                          ? 'bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 shadow-md shadow-amber-500/30 scale-100 hover:scale-105 active:scale-95'
-                                          : 'bg-white/5 hover:bg-white/10 active:bg-amber-400/20 border border-dashed border-white/20 hover:border-amber-400/50 text-white/25 hover:text-amber-300'
-                                      } ${isBursting ? 'animate-bounce ring-4 ring-amber-300 scale-110' : ''}`}
-                                      title={isEarned ? `${pts} star${pts > 1 ? 's' : ''} awarded! Tap to remove` : `Tap to award +${pts} star${pts > 1 ? 's' : ''}`}
+                                      onClick={() => setSelectedDetailTask(task)}
+                                      className="flex items-center gap-2 text-left group w-full cursor-pointer hover:opacity-90 transition-opacity"
+                                      title="Tap to view full details & instructions"
                                     >
-                                      {isEarned ? (
-                                        <div className="relative flex items-center justify-center">
-                                          <Star className="w-5 h-5 sm:w-6 sm:h-6 fill-slate-950 text-slate-950 drop-shadow-sm" />
-                                          {pts > 1 && (
-                                            <span className="absolute -bottom-1 -right-1 font-mono font-black text-[9px] bg-slate-950 text-amber-300 px-0.5 rounded border border-amber-400/60 leading-none">
-                                              +{pts}
-                                            </span>
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div className="relative flex items-center justify-center">
-                                          <Star className="w-4 h-4 stroke-1 text-white/40" />
-                                          {pts > 1 && (
-                                            <span className="absolute -bottom-1 -right-1 font-mono font-bold text-[8px] text-amber-400/80">
-                                              +{pts}
-                                            </span>
-                                          )}
-                                        </div>
-                                      )}
-
-                                      {/* Particle burst animation indicator */}
-                                      {isBursting && (
-                                        <span className="absolute -top-1.5 -right-1.5 text-xs animate-ping">
-                                          ✨
+                                      <div className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0 group-hover:border-amber-400/60 group-hover:scale-105 transition-all">
+                                        {getTaskIcon(task.icon)}
+                                      </div>
+                                      <div className="min-w-0 flex items-center gap-1 flex-wrap">
+                                        <span className="text-xs font-semibold text-white tracking-wide truncate max-w-[85px] sm:max-w-[115px] group-hover:text-amber-300 transition-colors" title={task.title}>
+                                          {task.title}
                                         </span>
-                                      )}
+                                        {(task.points && task.points > 1) ? (
+                                          <span className="text-[9px] font-mono font-black text-amber-300 bg-amber-400/15 border border-amber-400/40 px-1 py-0.2 rounded shrink-0" title={`Awards +${task.points} stars`}>
+                                            +{task.points}⭐
+                                          </span>
+                                        ) : null}
+                                      </div>
                                     </button>
                                   </td>
-                                );
-                              })}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
+
+                                  {/* Day Interactive Cells */}
+                                  {weekDays.map((d) => {
+                                    const cellKey = `${child.id}_${task.id}_${d.dateStr}`;
+                                    const isEarned = starLogMap.has(cellKey);
+                                    const isBursting = celebrationCell === cellKey;
+                                    const pts = task.points || 1;
+
+                                    return (
+                                      <td
+                                        key={d.dateStr}
+                                        className={`py-1.5 px-0.5 sm:px-1 text-center align-middle ${
+                                          d.isToday ? 'bg-amber-400/5' : ''
+                                        }`}
+                                      >
+                                        <button
+                                          type="button"
+                                          onClick={() => handleCellClick(child, task, d.dateStr)}
+                                          className={`relative w-9 h-9 sm:w-10 sm:h-10 mx-auto rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer ${
+                                            isEarned
+                                              ? 'bg-gradient-to-tr from-amber-500 to-yellow-300 text-slate-950 shadow-md shadow-amber-500/30 scale-100 hover:scale-105 active:scale-95'
+                                              : 'bg-white/5 hover:bg-white/10 active:bg-amber-400/20 border border-dashed border-white/20 hover:border-amber-400/50 text-white/25 hover:text-amber-300'
+                                          } ${isBursting ? 'animate-bounce ring-4 ring-amber-300 scale-110' : ''}`}
+                                          title={isEarned ? `${pts} star${pts > 1 ? 's' : ''} awarded! Tap to remove` : `Tap to award +${pts} star${pts > 1 ? 's' : ''}`}
+                                        >
+                                          {isEarned ? (
+                                            <div className="relative flex items-center justify-center">
+                                              <Star className="w-5 h-5 sm:w-6 sm:h-6 fill-slate-950 text-slate-950 drop-shadow-sm" />
+                                              {pts > 1 && (
+                                                <span className="absolute -bottom-1 -right-1 font-mono font-black text-[9px] bg-slate-950 text-amber-300 px-0.5 rounded border border-amber-400/60 leading-none">
+                                                  +{pts}
+                                                </span>
+                                              )}
+                                            </div>
+                                          ) : (
+                                            <div className="relative flex items-center justify-center">
+                                              <Star className="w-4 h-4 stroke-1 text-white/40" />
+                                              {pts > 1 && (
+                                                <span className="absolute -bottom-1 -right-1 font-mono font-bold text-[8px] text-amber-400/80">
+                                                  +{pts}
+                                                </span>
+                                              )}
+                                            </div>
+                                          )}
+
+                                          {/* Particle burst animation indicator */}
+                                          {isBursting && (
+                                            <span className="absolute -top-1.5 -right-1.5 text-xs animate-ping">
+                                              ✨
+                                            </span>
+                                          )}
+                                        </button>
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              ))
+                            ) : (
+                              <tr>
+                                <td colSpan={8} className="py-6 text-center text-xs text-slate-400">
+                                  <p>No daily habits assigned to {child.name}.</p>
+                                  {onOpenSettings && (
+                                    <button
+                                      type="button"
+                                      onClick={onOpenSettings}
+                                      className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 font-bold inline-flex items-center gap-1 cursor-pointer"
+                                    >
+                                      <Sliders className="w-3.5 h-3.5" />
+                                      Assign habits in Chart Settings
+                                    </button>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {/* Dedicated Weekly Tasks Section (Can be completed anytime during this week) */}
+                      <div className="mt-4 pt-3 border-t border-white/10">
+                        <div className="flex items-center justify-between mb-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4 text-purple-400" />
+                            <h4 className="text-xs sm:text-sm font-black text-white tracking-tight">
+                              Weekly Tasks
+                            </h4>
+                            <span className="text-[10px] font-mono text-purple-300 bg-purple-500/15 border border-purple-400/30 px-2 py-0.5 rounded-full font-bold">
+                              Anytime this week
+                            </span>
+                          </div>
+
+                          {childWeeklyTasks.length > 0 && (
+                            <span className="text-[11px] text-slate-400 font-mono">
+                              {childWeeklyTasks.filter((t) => starLogMap.has(`${child.id}_${t.id}_${weeklyDateKey}`)).length}/{childWeeklyTasks.length} Done
+                            </span>
+                          )}
+                        </div>
+
+                        {childWeeklyTasks.length > 0 ? (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {childWeeklyTasks.map((task) => {
+                              const cellKey = `${child.id}_${task.id}_${weeklyDateKey}`;
+                              const isCompleted = starLogMap.has(cellKey);
+                              const pts = task.points || 1;
+                              const isBursting = celebrationCell === cellKey;
+
+                              return (
+                                <div
+                                  key={task.id}
+                                  className={`p-2.5 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
+                                    isCompleted
+                                      ? 'bg-gradient-to-r from-amber-500/15 via-purple-500/10 to-amber-500/15 border-amber-400/50 shadow-md shadow-amber-500/10'
+                                      : 'bg-white/[0.03] hover:bg-white/[0.06] border-white/10 hover:border-white/20'
+                                  }`}
+                                >
+                                  {/* Task Info - Tap opens full TaskDetailModal */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setSelectedDetailTask(task)}
+                                    className="flex items-center gap-2.5 min-w-0 text-left cursor-pointer group flex-1"
+                                    title="Tap to view full details & instructions"
+                                  >
+                                    <div className="w-8 h-8 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 group-hover:scale-105 group-hover:border-purple-400/50 transition-all">
+                                      {getTaskIcon(task.icon)}
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="text-xs font-bold text-white group-hover:text-amber-300 transition-colors truncate">
+                                          {task.title}
+                                        </span>
+                                        <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-400/15 border border-amber-400/30 px-1 py-0.2 rounded shrink-0">
+                                          +{pts}⭐
+                                        </span>
+                                      </div>
+                                      {task.description ? (
+                                        <p className="text-[10px] text-slate-400 truncate max-w-[190px]">
+                                          {task.description}
+                                        </p>
+                                      ) : (
+                                        <span className="text-[10px] text-purple-300/80">Tap for details</span>
+                                      )}
+                                    </div>
+                                  </button>
+
+                                  {/* Complete / Remove Button */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCellClick(child, task, weeklyDateKey)}
+                                    className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+                                      isCompleted
+                                        ? 'bg-amber-400 text-slate-950 font-black shadow-md shadow-amber-400/30 hover:bg-amber-300 active:scale-95'
+                                        : 'bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 active:scale-95'
+                                    } ${isBursting ? 'animate-bounce ring-2 ring-amber-300' : ''}`}
+                                    title={isCompleted ? `Earned +${pts} stars! Tap to remove` : `Mark completed to earn +${pts} stars`}
+                                  >
+                                    <Star className={`w-3.5 h-3.5 ${isCompleted ? 'fill-slate-950' : 'text-amber-400'}`} />
+                                    <span>{isCompleted ? 'Done!' : 'Complete'}</span>
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-3 rounded-2xl bg-white/[0.02] border border-dashed border-white/10 text-center">
+                            <p className="text-xs text-slate-400">No weekly tasks assigned to {child.name} this week.</p>
+                            {onOpenSettings && (
+                              <button
+                                type="button"
+                                onClick={onOpenSettings}
+                                className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 font-bold inline-flex items-center gap-1 cursor-pointer"
+                              >
+                                <Sliders className="w-3.5 h-3.5" />
+                                Configure tasks in Reward Chart Settings
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -931,17 +1090,20 @@ export const RewardScreen: React.FC<RewardScreenProps> = ({ config, onUpdateConf
           childName={removalTarget.childName}
           taskTitle={removalTarget.taskTitle}
           dateStr={removalTarget.dateStr}
+          starsDeducted={removalTarget.starsDeducted}
           onConfirm={handleConfirmRemoval}
           onCancel={() => setRemovalTarget(null)}
         />
       )}
 
-      {/* 6. Add Task Modal (Suggested & Custom with Categories & Star Values) */}
-      <AddTaskModal
-        isOpen={isAddTaskOpen}
-        onClose={() => setIsAddTaskOpen(false)}
-        existingTasks={tasksList}
-        onAddTask={handleAddCreatedTask}
+      {/* 6. Task Detail Popup Overlay Modal */}
+      <TaskDetailModal
+        task={selectedDetailTask}
+        isOpen={!!selectedDetailTask}
+        onClose={() => setSelectedDetailTask(null)}
+        childrenList={childrenList}
+        starLogs={starLogs}
+        weekDays={weekDays}
       />
     </div>
   );

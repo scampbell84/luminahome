@@ -5,6 +5,7 @@ interface StarRemovalModalProps {
   childName: string;
   taskTitle: string;
   dateStr: string;
+  starsDeducted?: number;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -13,6 +14,7 @@ export const StarRemovalModal: React.FC<StarRemovalModalProps> = ({
   childName,
   taskTitle,
   dateStr,
+  starsDeducted = 1,
   onConfirm,
   onCancel,
 }) => {
@@ -38,7 +40,7 @@ export const StarRemovalModal: React.FC<StarRemovalModalProps> = ({
         </p>
 
         <p className="text-[11px] text-slate-400 mt-1 mb-5">
-          This will deduct 1 star from their Star Bank balance.
+          This will deduct {starsDeducted} star{starsDeducted > 1 ? 's' : ''} from their Star Bank balance.
         </p>
 
         <div className="flex items-center gap-3 w-full">

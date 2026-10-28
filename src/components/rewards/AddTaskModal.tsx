@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { RewardTask } from '../../types/config';
+import { RewardTask, ChildProfile } from '../../types/config';
 import { SUGGESTED_TASKS, TASK_CATEGORIES, SuggestedTask } from '../../constants/suggestedTasks';
+import { getAvatarEmoji } from '../../constants/avatarIcons';
 import {
   X,
   Plus,
@@ -23,18 +24,25 @@ import {
   ThumbsUp,
   Activity,
   Clock,
+  Calendar,
   Layers,
+  Users,
 } from 'lucide-react';
 
 interface AddTaskModalProps {
   isOpen: boolean;
   onClose: () => void;
   existingTasks: RewardTask[];
+  childrenList?: ChildProfile[];
+  defaultFrequency?: 'daily' | 'weekly';
   onAddTask: (task: {
     title: string;
     category: 'routine' | 'chore' | 'learning' | 'behaviour' | 'health';
     icon: string;
     points: number;
+    frequency?: 'daily' | 'weekly';
+    description?: string;
+    assignedChildIds?: string[];
   }) => void;
 }
 
@@ -42,10 +50,15 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   isOpen,
   onClose,
   existingTasks,
+  childrenList = [],
+  defaultFrequency,
   onAddTask,
 }) => {
   const [activeTab, setActiveTab] = useState<'suggested' | 'custom'>('suggested');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedFrequencyFilter, setSelectedFrequencyFilter] = useState<'all' | 'daily' | 'weekly'>(
+    defaultFrequency ? defaultFrequency : 'all'
+  );
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Per-suggested-task star value overrides: suggestedTaskId -> points
@@ -60,8 +73,14 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   // Custom task form state
   const [customTitle, setCustomTitle] = useState('');
   const [customCategory, setCustomCategory] = useState<'routine' | 'chore' | 'learning' | 'behaviour' | 'health'>('routine');
+  const [customFrequency, setCustomFrequency] = useState<'daily' | 'weekly'>(defaultFrequency || 'daily');
+  const [customDescription, setCustomDescription] = useState('');
   const [customIcon, setCustomIcon] = useState('sparkles');
   const [customPoints, setCustomPoints] = useState(1);
+  // Default is that any new task added is assigned to all children
+  const [customAssignedChildIds, setCustomAssignedChildIds] = useState<string[]>(() =>
+    childrenList.map((c) => c.id)
+  );
 
   // Set of existing task titles (lowercased) for instant duplicate detection
   const existingTitles = useMemo(() => {
@@ -72,13 +91,16 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
   const filteredSuggestions = useMemo(() => {
     return SUGGESTED_TASKS.filter((task) => {
       const matchesCategory = selectedCategory === 'all' || task.category === selectedCategory;
+      const matchesFrequency =
+        selectedFrequencyFilter === 'all' ||
+        (selectedFrequencyFilter === 'weekly' ? task.frequency === 'weekly' : task.frequency !== 'weekly');
       const matchesSearch =
         !searchQuery.trim() ||
         task.title.toLowerCase().includes(searchQuery.toLowerCase().trim()) ||
         task.description.toLowerCase().includes(searchQuery.toLowerCase().trim());
-      return matchesCategory && matchesSearch;
+      return matchesCategory && matchesFrequency && matchesSearch;
     });
-  }, [selectedCategory, searchQuery]);
+  }, [selectedCategory, selectedFrequencyFilter, searchQuery]);
 
   if (!isOpen) return null;
 
@@ -147,6 +169,9 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       category: task.category,
       icon: task.icon,
       points,
+      frequency: task.frequency || 'daily',
+      description: task.description,
+      assignedChildIds: childrenList && childrenList.length > 0 ? childrenList.map((c) => c.id) : undefined,
     });
   };
 
@@ -165,9 +190,20 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
       category: customCategory,
       icon: customIcon,
       points: Math.max(1, customPoints),
+      frequency: customFrequency,
+      description: customDescription.trim() || undefined,
+      assignedChildIds:
+        customAssignedChildIds.length > 0
+          ? customAssignedChildIds
+          : childrenList && childrenList.length > 0
+          ? childrenList.map((c) => c.id)
+          : undefined,
     });
     setCustomTitle('');
+    setCustomDescription('');
+    setCustomFrequency(defaultFrequency || 'daily');
     setCustomPoints(1);
+    setCustomAssignedChildIds(childrenList.map((c) => c.id));
     onClose();
   };
 
@@ -185,7 +221,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 Add Tasks to Reward Chart
               </h3>
               <p className="text-xs text-slate-400">
-                Choose from suggested positive habits or create your own custom tasks with star values
+                Choose from daily habits, weekly goals, or create custom tasks with custom star rewards
               </p>
             </div>
           </div>
@@ -236,7 +272,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search habits (e.g. bed, teeth)..."
+                placeholder="Search habits & weekly tasks..."
                 className="w-full pl-8 pr-3 py-1.5 bg-black/40 border border-white/15 rounded-xl text-xs text-white placeholder-slate-400 focus:outline-none focus:border-emerald-400 font-medium"
               />
               {searchQuery && (
@@ -257,33 +293,59 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
           {activeTab === 'suggested' ? (
             /* TAB 1: SUGGESTED TASKS BROWSER */
             <>
-              {/* Category Filter Pills */}
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
-                {TASK_CATEGORIES.map((cat) => {
-                  const isSelected = selectedCategory === cat.id;
-                  const count =
-                    cat.id === 'all'
-                      ? SUGGESTED_TASKS.length
-                      : SUGGESTED_TASKS.filter((t) => t.category === cat.id).length;
+              {/* Category & Frequency Filter Strip */}
+              <div className="space-y-2">
+                {/* Category Filter Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
+                  {TASK_CATEGORIES.map((cat) => {
+                    const isSelected = selectedCategory === cat.id;
+                    const count =
+                      cat.id === 'all'
+                        ? SUGGESTED_TASKS.length
+                        : SUGGESTED_TASKS.filter((t) => t.category === cat.id).length;
 
-                  return (
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 border ${
+                          isSelected
+                            ? 'bg-white text-slate-950 border-white shadow-md'
+                            : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        <span>{cat.label}</span>
+                        <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-slate-200 text-slate-900 font-bold' : 'bg-white/10 text-slate-400'}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Frequency Filter Chips (Daily vs Weekly) */}
+                <div className="flex items-center gap-1.5 text-xs text-slate-400 pt-0.5">
+                  <span className="text-[10px] uppercase font-bold text-slate-500 mr-1">Schedule:</span>
+                  {[
+                    { id: 'all', label: 'All Schedules' },
+                    { id: 'daily', label: '📅 Daily Habits' },
+                    { id: 'weekly', label: '⭐ Weekly Tasks' },
+                  ].map((freq) => (
                     <button
-                      key={cat.id}
+                      key={freq.id}
                       type="button"
-                      onClick={() => setSelectedCategory(cat.id)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 border ${
-                        isSelected
-                          ? 'bg-white text-slate-950 border-white shadow-md'
-                          : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
+                      onClick={() => setSelectedFrequencyFilter(freq.id as any)}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                        selectedFrequencyFilter === freq.id
+                          ? 'bg-emerald-500/25 border border-emerald-400/50 text-emerald-300'
+                          : 'bg-white/5 border border-white/10 text-slate-400 hover:text-white hover:bg-white/10'
                       }`}
                     >
-                      <span>{cat.label}</span>
-                      <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-slate-200 text-slate-900 font-bold' : 'bg-white/10 text-slate-400'}`}>
-                        {count}
-                      </span>
+                      {freq.label}
                     </button>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
 
               {/* Suggestions Grid */}
@@ -296,6 +358,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                   {filteredSuggestions.map((item) => {
                     const isAlreadyOnChart = existingTitles.has(item.title.toLowerCase().trim());
                     const currentPoints = taskPointsMap[item.id] ?? item.defaultPoints;
+                    const isWeekly = item.frequency === 'weekly';
 
                     return (
                       <div
@@ -306,7 +369,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                             : 'bg-slate-800/80 hover:bg-slate-800 border-white/10 hover:border-emerald-400/50 shadow-md'
                         }`}
                       >
-                        {/* Top: Category & Icon & Title */}
+                        {/* Top: Category, Frequency & Icon & Title */}
                         <div className="flex items-start gap-3">
                           <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center shrink-0 mt-0.5">
                             {getTaskIcon(item.icon)}
@@ -314,8 +377,21 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               {getCategoryBadge(item.category)}
+
+                              {isWeekly ? (
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 bg-purple-500/15 border border-purple-400/30 px-1.5 py-0.2 rounded-full flex items-center gap-1">
+                                  <Calendar className="w-2.5 h-2.5" />
+                                  <span>Weekly</span>
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-500/15 border border-cyan-400/30 px-1.5 py-0.2 rounded-full flex items-center gap-1">
+                                  <Clock className="w-2.5 h-2.5" />
+                                  <span>Daily</span>
+                                </span>
+                              )}
+
                               <span className="text-[10px] font-mono font-bold text-amber-300 bg-amber-400/10 border border-amber-400/30 px-1.5 py-0.2 rounded-full">
-                                {currentPoints}⭐ per completion
+                                {currentPoints}⭐
                               </span>
                             </div>
                             <h4 className="text-sm font-bold text-white tracking-wide">
@@ -388,13 +464,57 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                     required
                     value={customTitle}
                     onChange={(e) => setCustomTitle(e.target.value)}
-                    placeholder="e.g. Water Garden Plants, Practice Typing, Tidy Shoes..."
+                    placeholder="e.g. Wash Family Car, Deep Clean Room, Practice Piano..."
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-white/20 text-white font-bold text-sm focus:outline-none focus:border-emerald-400 placeholder-slate-500"
                     autoFocus
                   />
                 </div>
 
-                {/* Category & Star Value */}
+                {/* Schedule Frequency Toggle: Daily Habit vs Weekly Task */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    Schedule Frequency
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setCustomFrequency('daily')}
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all text-left flex items-start gap-2.5 cursor-pointer ${
+                        customFrequency === 'daily'
+                          ? 'bg-cyan-500/20 border-cyan-400 text-white shadow-md'
+                          : 'bg-black/40 border-white/15 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Clock className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-black text-white text-sm">Daily Habit</div>
+                        <div className="text-[11px] text-slate-400 font-normal mt-0.5">
+                          Tracked each day (Mon through Sun)
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setCustomFrequency('weekly')}
+                      className={`p-3 rounded-2xl border text-xs font-bold transition-all text-left flex items-start gap-2.5 cursor-pointer ${
+                        customFrequency === 'weekly'
+                          ? 'bg-purple-500/20 border-purple-400 text-white shadow-md'
+                          : 'bg-black/40 border-white/15 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      <Calendar className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-black text-white text-sm">Weekly Task</div>
+                        <div className="text-[11px] text-slate-400 font-normal mt-0.5">
+                          Flexible goal: complete anytime during the week
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Category & Points */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-200 mb-1.5">
@@ -403,7 +523,7 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                     <select
                       value={customCategory}
                       onChange={(e) => setCustomCategory(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/20 text-white text-xs font-bold focus:outline-none focus:border-emerald-400"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/20 text-white text-xs font-bold focus:outline-none focus:border-emerald-400 cursor-pointer"
                     >
                       <option value="routine">Daily Routine 🛏️</option>
                       <option value="chore">Household Chore 🧹</option>
@@ -444,6 +564,76 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                     </div>
                   </div>
                 </div>
+
+                {/* Description (Optional) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                    Instructions / Guidance (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={customDescription}
+                    onChange={(e) => setCustomDescription(e.target.value)}
+                    placeholder="e.g. Vacuum under bed, dust shelves, and put away toys"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-white/20 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-emerald-400"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Displayed in the popup overlay when a child or parent taps the task on the chart.
+                  </p>
+                </div>
+
+                {/* Child Assignment (Default: All Children) */}
+                {childrenList.length > 0 && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-xs font-bold text-slate-200">
+                        Assign to Child (Default: All Children)
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setCustomAssignedChildIds(childrenList.map((c) => c.id))}
+                        className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold cursor-pointer"
+                      >
+                        Select All
+                      </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {childrenList.map((child) => {
+                        const isAssigned = customAssignedChildIds.includes(child.id);
+                        return (
+                          <button
+                            key={child.id}
+                            type="button"
+                            onClick={() => {
+                              if (isAssigned) {
+                                if (customAssignedChildIds.length > 1) {
+                                  setCustomAssignedChildIds((prev) => prev.filter((id) => id !== child.id));
+                                }
+                              } else {
+                                setCustomAssignedChildIds((prev) => [...prev, child.id]);
+                              }
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                              isAssigned
+                                ? 'bg-indigo-500/25 border-indigo-400 text-indigo-200 shadow-sm'
+                                : 'bg-white/5 border-white/10 text-slate-500 hover:text-slate-300'
+                            }`}
+                          >
+                            <span>{getAvatarEmoji(child.avatarIcon)}</span>
+                            <span>{child.name}</span>
+                            {isAssigned ? (
+                              <Check className="w-3.5 h-3.5 text-indigo-300 ml-0.5" />
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[11px] text-slate-400 mt-1">
+                      Choose which children this task is for. Default is assigned to all children.
+                    </p>
+                  </div>
+                )}
 
                 {/* Icon Picker */}
                 <div>
@@ -501,27 +691,13 @@ export const AddTaskModal: React.FC<AddTaskModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={!customTitle.trim()}
-                  className="flex items-center gap-2 px-6 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
+                  className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs shadow-lg shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
                 >
-                  <Plus className="w-4 h-4 stroke-[3]" />
-                  <span>Save Custom Task</span>
+                  Create &amp; Add Task
                 </button>
               </div>
             </form>
           )}
-        </div>
-
-        {/* Modal Footer */}
-        <div className="p-3.5 border-t border-white/10 bg-slate-950/60 flex items-center justify-between text-xs text-slate-400 shrink-0">
-          <span>Currently {existingTasks.length} active tasks on chart</span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold text-xs transition-colors"
-          >
-            Done
-          </button>
         </div>
       </div>
     </div>

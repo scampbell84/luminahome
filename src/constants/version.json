@@ -1,37 +1,90 @@
 {
   "appName": "Lumina Home",
-  "version": "3.4.1",
-  "versionTag": "v3.4.1",
-  "buildNumber": 14,
-  "buildTime": "2026-10-25T10:54:34.880Z",
-  "buildDate": "25 Oct 2026, 10:54",
+  "version": "3.5.1",
+  "versionTag": "v3.5.1",
+  "buildNumber": 15,
+  "buildTime": "2026-10-28T18:28:22.428Z",
+  "buildDate": "28 Oct 2026, 18:28",
   "gitCommit": "latest",
   "gitBranch": "main",
-  "nodeVersion": "v22.23.3",
+  "nodeVersion": "v22.23.4",
   "releaseDate": "October 2026",
   "currentRelease": {
-    "version": "v3.4.1",
+    "version": "v3.5.1",
     "releaseDate": "October 2026",
-    "title": "Support for Modern Apple Photos iCloud Shared Albums (photos.icloud.com)",
+    "title": "Per-Child Task Assignments, Centralized Weekly Tasks & Kiosk Streamlining",
     "isCurrent": true,
     "highlights": [
-      "Added full support for modern Apple Photos shared links (photos.icloud.com/shared/album/... and share.icloud.com/photos/...) alongside legacy shared streams",
-      "Implemented automated CloudKit share resolution with anonymous token authentication and batch query pagination",
-      "Tested and verified with live Apple Photos albums, loading up to hundreds of full-resolution (2048px) photos seamlessly",
-      "Works instantly in Home Wallpapers, Ambient Screen Saver, and Party Celebration Mode"
+      "Per-task child assignment toggles in Settings allowing tasks to be assigned to specific children or all children",
+      "New tasks (both suggested and custom) automatically default to being assigned to all children",
+      "Centralized task setup in the Reward Chart settings menu with dedicated \"Add Daily Habit\" and \"Add Weekly Task\" actions",
+      "Kiosk display streamlining: removed task editing controls from the chart screen with direct shortcut to Chart Settings",
+      "Task Detail popup overlay: tap any habit or weekly task to view full details, descriptions, and assigned children",
+      "Hidden Parental Audit Log tab in Reward Settings tracking all star earnings, redemptions, timestamps, and approving parent",
+      "Expanded fun child profile emojis including delicious food items (donuts, pizza, tacos, ice cream, cupcakes, burgers)"
     ],
     "details": [
-      "Modern Apple CloudKit Photos Architecture: Apple introduced a new web sharing structure (photos.icloud.com/shared/album/<shortGUID>/) using CloudKit CPLAssetAndMaster records instead of the legacy pXX-sharedstreams partition endpoint. Lumina Home now natively resolves both sharing architectures automatically.",
-      "Intelligent Bidirectional Resolver: The album parser automatically detects whether a link is a legacy sharedstream URL (#B...) or a modern CloudKit shortGUID token, resolving tokens, anonymous public access keys, and zone IDs dynamically.",
-      "High-Resolution Image Extraction: Retrieves 2048px medium JPEG derivatives directly from Apple CDN with full thumbnail generation, base64 filename decoding, and multi-page pagination for large family photo libraries."
+      "Granular Child Assignment Controls: Parents can now customize which child receives which task via interactive child avatar toggle pills on each task card in Settings. Tasks can be set to all children with one tap or selectively restricted to individual children.",
+      "Centralized Task Management: Moved all task configuration out of the kiosk chart screen into the Admin Dashboard Reward Chart Settings tab to prevent children from accidentally editing habits on the wall display.",
+      "Interactive Task Details Modal: Tapping any truncated or long task title anywhere on the reward chart opens a clean, readable popup overlay displaying category, star value, full description, and per-child progress.",
+      "Security & Audit Trail: The new hidden Audit Log tab logs every star awarded and reward redeemed with precise timestamps, child involved, and which parent approved the transaction.",
+      "Expanded Avatar Emojis: Added a delightful collection of food emojis (🍩 Donuts, 🍕 Pizza, 🌮 Tacos, 🍦 Ice Cream, 🧁 Cupcakes, 🍔 Burgers) to personalize each child's profile on the chart."
     ]
   },
   "releaseNotes": [
     {
+      "version": "v3.5.1",
+      "releaseDate": "October 2026",
+      "title": "Per-Child Task Assignments, Centralized Weekly Tasks & Kiosk Streamlining",
+      "isCurrent": true,
+      "highlights": [
+        "Per-task child assignment toggles in Settings allowing tasks to be assigned to specific children or all children",
+        "New tasks (both suggested and custom) automatically default to being assigned to all children",
+        "Centralized task setup in the Reward Chart settings menu with dedicated \"Add Daily Habit\" and \"Add Weekly Task\" actions",
+        "Kiosk display streamlining: removed task editing controls from the chart screen with direct shortcut to Chart Settings",
+        "Task Detail popup overlay: tap any habit or weekly task to view full details, descriptions, and assigned children",
+        "Hidden Parental Audit Log tab in Reward Settings tracking all star earnings, redemptions, timestamps, and approving parent",
+        "Expanded fun child profile emojis including delicious food items (donuts, pizza, tacos, ice cream, cupcakes, burgers)"
+      ],
+      "details": [
+        "Granular Child Assignment Controls: Parents can now customize which child receives which task via interactive child avatar toggle pills on each task card in Settings. Tasks can be set to all children with one tap or selectively restricted to individual children.",
+        "Centralized Task Management: Moved all task configuration out of the kiosk chart screen into the Admin Dashboard Reward Chart Settings tab to prevent children from accidentally editing habits on the wall display.",
+        "Interactive Task Details Modal: Tapping any truncated or long task title anywhere on the reward chart opens a clean, readable popup overlay displaying category, star value, full description, and per-child progress.",
+        "Security & Audit Trail: The new hidden Audit Log tab logs every star awarded and reward redeemed with precise timestamps, child involved, and which parent approved the transaction.",
+        "Expanded Avatar Emojis: Added a delightful collection of food emojis (🍩 Donuts, 🍕 Pizza, 🌮 Tacos, 🍦 Ice Cream, 🧁 Cupcakes, 🍔 Burgers) to personalize each child's profile on the chart."
+      ]
+    },
+    {
+      "version": "v3.5.0",
+      "releaseDate": "October 2026",
+      "title": "Interactive Multi-Child Reward Chart, Star Bank & Reward Shop",
+      "isCurrent": false,
+      "highlights": [
+        "Dedicated Child's Reward Chart screen accessible directly from the persistent bottom menu bar",
+        "Multi-child tracking with customized profiles, color themes, and vibrant emoji avatars",
+        "Adaptive 50/50 dual-child split screen layout with smooth vertical scrolling for three or more children",
+        "Glanceable Home Screen Star Bank widget complication showing live star totals for each child",
+        "Interactive star earning with gentle audio chimes and sparkling burst celebration effects",
+        "Confirmation safety dialog before unmarking stars to prevent accidental clearing",
+        "Star Bank economy with customizable Reward Shop where children can redeem stars for treats and privileges",
+        "Parent PIN protection to authorize reward spending and protect family settings",
+        "Curated library of 25+ suggested tasks across Chores, Learning, Health, Morning Routines, and Good Behaviour",
+        "Flexible Weekly Tasks for any-day completion alongside daily habit tracking across Week and Month views"
+      ],
+      "details": [
+        "Dedicated Reward Chart Kiosk Screen: Full-featured motivation and habit-tracking screen accessible via the bottom menu dock. Designed for kitchen and hallway wall displays to motivate children through positive visual reinforcement.",
+        "Split Kiosk Layout: When two children are configured, the screen divides into an elegant 50/50 split view. If more children are added, the view smoothly enables vertical scrolling so every child has equal prominence.",
+        "Home Screen Widget: Added a persistent Star Bank complication to the main dashboard displaying each child's avatar, name, and total earned stars with direct one-tap jump to the Reward Chart.",
+        "Star Bank & Reward Shop: Stars collected from completing tasks accumulate in a personal star bank. Children can spend saved stars in the customizable Reward Shop on items with variable star costs.",
+        "Parental PIN & Anti-Tamper Security: Reward redemptions require entering a 4-digit parental PIN, and tapping an already awarded star requires parental confirmation before removal.",
+        "Suggested Task Library: Over 25 pre-configured tasks categorized by Chores, Learning, Health, Morning Routines, and Good Behaviour, with full support for custom tasks and variable star values (1 to 10 stars)."
+      ]
+    },
+    {
       "version": "v3.4.1",
       "releaseDate": "October 2026",
       "title": "Support for Modern Apple Photos iCloud Shared Albums (photos.icloud.com)",
-      "isCurrent": true,
+      "isCurrent": false,
       "highlights": [
         "Added full support for modern Apple Photos shared links (photos.icloud.com/shared/album/... and share.icloud.com/photos/...) alongside legacy shared streams",
         "Implemented automated CloudKit share resolution with anonymous token authentication and batch query pagination",

@@ -318,8 +318,11 @@ export interface RewardTask {
   id: string;
   title: string;
   icon?: string;
+  description?: string;
   category: 'routine' | 'chore' | 'learning' | 'behaviour' | 'health';
   points: number; // default: 1
+  frequency?: 'daily' | 'weekly'; // default: 'daily' (Mon-Sun) vs 'weekly' (complete anytime this week)
+  targetPerWeek?: number; // default: 1 for weekly tasks
   assignedChildIds?: string[]; // IDs of children this task applies to (empty = all)
 }
 

@@ -5,6 +5,7 @@ export interface SuggestedTask {
   icon: string;
   defaultPoints: number;
   description: string;
+  frequency?: 'daily' | 'weekly';
 }
 
 export const TASK_CATEGORIES: Array<{
@@ -302,5 +303,88 @@ export const SUGGESTED_TASKS: SuggestedTask[] = [
     icon: 'apple',
     defaultPoints: 2,
     description: 'Taste a new dish, fruit, or vegetable with an open mind',
+  },
+
+  // 6. Weekly Goals & Flexible Tasks (Can be completed anytime during the week)
+  {
+    id: 'sug-wash-car',
+    title: 'Help Wash Family Car / Bikes',
+    category: 'chore',
+    icon: 'droplets',
+    defaultPoints: 3,
+    frequency: 'weekly',
+    description: 'Help soap, sponge, and rinse the family car or clean up bicycles',
+  },
+  {
+    id: 'sug-deep-clean-room',
+    title: 'Weekly Bedroom Deep Clean & Bed Sheets',
+    category: 'chore',
+    icon: 'bed',
+    defaultPoints: 3,
+    frequency: 'weekly',
+    description: 'Strip bedsheets, dust shelves, and vacuum under the bed',
+  },
+  {
+    id: 'sug-organize-toys',
+    title: 'Sort & Organize Toy Bins & Bookshelf',
+    category: 'chore',
+    icon: 'sparkles',
+    defaultPoints: 2,
+    frequency: 'weekly',
+    description: 'Sort LEGO, puzzles, books, and board games back into their proper bins',
+  },
+  {
+    id: 'sug-yard-garden',
+    title: 'Yard Work & Water Garden Plants',
+    category: 'chore',
+    icon: 'sun',
+    defaultPoints: 2,
+    frequency: 'weekly',
+    description: 'Help pull garden weeds, sweep patio, and water all household/outdoor plants',
+  },
+  {
+    id: 'sug-finish-book',
+    title: 'Finish Reading a Whole Book',
+    category: 'learning',
+    icon: 'book',
+    defaultPoints: 3,
+    frequency: 'weekly',
+    description: 'Complete an entire chapter book or non-fiction book during the week',
+  },
+  {
+    id: 'sug-cook-meal',
+    title: 'Help Cook / Bake a Family Weekend Meal',
+    category: 'routine',
+    icon: 'utensils',
+    defaultPoints: 2,
+    frequency: 'weekly',
+    description: 'Help prepare ingredients, mix, or bake a fun meal with Mom or Dad',
+  },
+  {
+    id: 'sug-long-practice',
+    title: 'Long 45-Min Instrument Practice Session',
+    category: 'learning',
+    icon: 'music',
+    defaultPoints: 3,
+    frequency: 'weekly',
+    description: 'Dedicated deep practice on piano, guitar, violin, or drums',
+  },
+  {
+    id: 'sug-wheelie-bins',
+    title: 'Put Bins & Recycling Out on Collection Day',
+    category: 'chore',
+    icon: 'trash',
+    defaultPoints: 2,
+    frequency: 'weekly',
+    description: 'Wheel the trash and recycling bins to the curb for collection',
+  },
+  {
+    id: 'sug-wardrobe-sort',
+    title: 'Organize Clothes Wardrobe & Drawers',
+    category: 'chore',
+    icon: 'shirt',
+    defaultPoints: 2,
+    frequency: 'weekly',
+    description: 'Fold clean laundry and organize shirt and socks drawers',
   },
 ];
