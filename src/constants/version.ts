@@ -7,14 +7,34 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '3.5.1';
+export const APP_VERSION = '3.5.2';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.5.2',
+    releaseDate: 'November 2026',
+    title: 'UK Met Office High-Resolution Weather & Countdown Day Rounding',
+    isCurrent: true,
+    highlights: [
+      'UK Met Office UKV (2km) convective model integration matching official UK Met Office forecasts',
+      'Automatic UK coordinate detection: seamlessly routes British & Irish coordinates to UK Met Office models',
+      'Forecasting Model Selector in Admin Settings: choose between UK Met Office, Apple Weather ECMWF, DWD ICON, NOAA GFS, or Best Match',
+      'Transparent meteorological attribution badge in detailed weather conditions modal',
+      'Event Countdowns: always rounds up to the closest full day (e.g., tomorrow displays as 1 day remaining)',
+      'Date-only countdown creation: streamlined interface with date-focused picker',
+    ],
+    details: [
+      'UK Met Office Convective Model: Open-Meteo now queries the official UK Met Office UKV 2km regional model (ukmo_seamless) for locations in the UK and Ireland, resolving microclimates and rainfall bands that global models smooth over.',
+      'Custom Model Selection: Added dedicated model selection in Settings > Weather allowing users to switch between the Met Office model, ECMWF IFS (Apple Weather backbone), DWD ICON, NOAA GFS, or automatic smart routing.',
+      'Attribution Badges: Detailed weather modal now displays the active meteorological source and model for full transparency.',
+      'Full Day Rounding: Event countdowns now always round up to the closest full day remaining, ensuring upcoming events tomorrow accurately display "1 day remaining" across widgets and morning/evening household briefings.',
+    ],
+  },
   {
     version: 'v3.5.1',
     releaseDate: 'October 2026',
     title: 'Per-Child Task Assignments, Centralized Weekly Tasks & Kiosk Streamlining',
-    isCurrent: true,
+    isCurrent: false,
     highlights: [
       'Per-task child assignment toggles in Settings allowing tasks to be assigned to specific children or all children',
       'New tasks (both suggested and custom) automatically default to being assigned to all children',

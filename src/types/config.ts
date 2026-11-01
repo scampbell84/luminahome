@@ -33,6 +33,14 @@ export interface WeatherAlert {
   color?: 'amber' | 'red' | 'yellow' | 'orange';
 }
 
+export type WeatherModel =
+  | 'auto'
+  | 'ukmo_seamless'
+  | 'ecmwf_ifs025'
+  | 'best_match'
+  | 'icon_seamless'
+  | 'gfs_seamless';
+
 export interface HourlyPoint {
   time: string; // ISO string e.g. "2026-10-22T14:00"
   hour: number; // 0 to 23
@@ -84,6 +92,7 @@ export interface WeatherData {
   alerts?: WeatherAlert[];
   activeAlert?: WeatherAlert | null;
   daily: DetailedDailyForecast[];
+  modelSource?: string;
   lastUpdated: string;
 }
 
@@ -209,6 +218,7 @@ export interface AppConfig {
     latitude: number;
     longitude: number;
     units: 'imperial' | 'metric';
+    model?: WeatherModel;
     show5Day: boolean;
     refreshIntervalMinutes: number;
     showAlertBadge?: boolean;

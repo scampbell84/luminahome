@@ -149,6 +149,7 @@ export const ScreenSaver: React.FC<ScreenSaverProps> = ({
           lon: String(config.weather.longitude || -0.1278),
           units: config.weather.units || 'metric',
           city: config.weather.cityName || 'London, United Kingdom',
+          ...(config.weather.model ? { model: config.weather.model } : {}),
         });
         const res = await fetch(`/api/weather?${query.toString()}`);
         if (res.ok && isMounted) {

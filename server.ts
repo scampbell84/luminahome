@@ -1276,14 +1276,40 @@ app.get(['/api/briefing', '/api/briefing/'], async (req: Request, res: Response)
     const activeReminders = checklist.filter(item => !item.completed);
     const activeRemindersCount = activeReminders.length;
 
-    // 4. Closest Countdown
+    // 4. Closest Countdown (rounded up to closest full calendar day remaining)
     let nearestCountdown: { title: string; days: number } | null = null;
     const countdownItems = config.countdown?.items || [];
     if (countdownItems.length > 0) {
       let minDiffDays = Infinity;
+      const todayStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), currentDate.getDate()).getTime();
       for (const item of countdownItems) {
-        const target = new Date(item.targetDate).getTime();
-        const diffDays = Math.ceil((target - currentDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (!item.targetDate) continue;
+        const m = String(item.targetDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+        let tYear = currentDate.getFullYear();
+        let tMonth = 0;
+        let tDay = 1;
+        if (m) {
+          tYear = parseInt(m[1], 10);
+          tMonth = parseInt(m[2], 10) - 1;
+          tDay = parseInt(m[3], 10);
+        } else {
+          const d = new Date(item.targetDate);
+          tYear = d.getFullYear();
+          tMonth = d.getMonth();
+          tDay = d.getDate();
+        }
+
+        if (item.annual) {
+          const thisYearEnd = new Date(currentDate.getFullYear(), tMonth, tDay, 23, 59, 59, 999).getTime();
+          if (currentDate.getTime() > thisYearEnd) {
+            tYear = currentDate.getFullYear() + 1;
+          } else {
+            tYear = currentDate.getFullYear();
+          }
+        }
+
+        const targetDayStart = new Date(tYear, tMonth, tDay).getTime();
+        const diffDays = Math.round((targetDayStart - todayStart) / (1000 * 60 * 60 * 24));
         if (diffDays >= 0 && diffDays < minDiffDays) {
           minDiffDays = diffDays;
           nearestCountdown = {
@@ -1484,8 +1510,40 @@ app.get('/api/weather', async (req: Request, res: Response) => {
   const units = (req.query.units as string) || config.weather.units || 'metric';
   const cityName = (req.query.city as string) || config.weather.cityName || 'London, United Kingdom';
   const forceTestAlert = req.query.testAlert === 'true' || Boolean(config.weather.testAlert);
+  const rawModel = (req.query.model as string) || config.weather.model || 'auto';
 
-  const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)},${units},${cityName},alert=${forceTestAlert}`;
+  // Determine effective model & descriptive source label
+  let effectiveModel = rawModel;
+  let modelSource = 'Open-Meteo Best Match';
+
+  if (rawModel === 'auto') {
+    // Check if coordinates fall within the UK and Ireland region (lat 49.0°N to 61.5°N, lon -11.0°W to 2.5°E)
+    const isUkOrIreland = lat >= 49.0 && lat <= 61.5 && lon >= -11.0 && lon <= 2.5;
+    if (isUkOrIreland) {
+      effectiveModel = 'ukmo_seamless';
+      modelSource = 'UK Met Office (UKV 2km)';
+    } else {
+      effectiveModel = 'best_match';
+      modelSource = 'Open-Meteo Best Match';
+    }
+  } else if (rawModel === 'ukmo_seamless') {
+    effectiveModel = 'ukmo_seamless';
+    modelSource = 'UK Met Office (UKV 2km)';
+  } else if (rawModel === 'ecmwf_ifs025') {
+    effectiveModel = 'ecmwf_ifs025';
+    modelSource = 'ECMWF IFS (Apple Weather)';
+  } else if (rawModel === 'icon_seamless') {
+    effectiveModel = 'icon_seamless';
+    modelSource = 'DWD ICON (German Weather)';
+  } else if (rawModel === 'gfs_seamless') {
+    effectiveModel = 'gfs_seamless';
+    modelSource = 'NOAA GFS (US Weather Service)';
+  } else {
+    effectiveModel = 'best_match';
+    modelSource = 'Open-Meteo Best Match';
+  }
+
+  const cacheKey = `${lat.toFixed(2)},${lon.toFixed(2)},${units},${cityName},model=${effectiveModel},alert=${forceTestAlert}`;
   const now = Date.now();
   const cached = weatherCache.get(cacheKey);
 
@@ -1499,9 +1557,22 @@ app.get('/api/weather', async (req: Request, res: Response) => {
   const windUnitParam = units === 'imperial' ? 'mph' : 'kmh';
 
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max&past_days=1&timezone=auto&temperature_unit=${tempUnitParam}&wind_speed_unit=${windUnitParam}`;
+    const modelParam = effectiveModel && effectiveModel !== 'best_match' ? `&models=${encodeURIComponent(effectiveModel)}` : '';
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max&past_days=1&timezone=auto&temperature_unit=${tempUnitParam}&wind_speed_unit=${windUnitParam}${modelParam}`;
 
-    const data = await fetchOpenMeteoWithRetry(url, 2);
+    let data;
+    try {
+      data = await fetchOpenMeteoWithRetry(url, 2);
+    } catch (modelErr: any) {
+      if (modelParam) {
+        console.warn(`[Weather] Primary model ${effectiveModel} failed (${modelErr.message}), falling back to default best_match`);
+        const fallbackUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max&past_days=1&timezone=auto&temperature_unit=${tempUnitParam}&wind_speed_unit=${windUnitParam}`;
+        data = await fetchOpenMeteoWithRetry(fallbackUrl, 2);
+        modelSource = 'Open-Meteo Best Match (Fallback)';
+      } else {
+        throw modelErr;
+      }
+    }
     const current = data.current;
     const daily = data.daily || {};
     const hourly = data.hourly || {};
@@ -1635,6 +1706,7 @@ app.get('/api/weather', async (req: Request, res: Response) => {
       alerts,
       activeAlert: alerts[0] || null,
       daily: formattedDaily,
+      modelSource,
       past24hPrecipitation: Number(past24hPrecip.toFixed(1)),
       next24hPrecipitation: Number(next24hPrecip.toFixed(1)),
       lastUpdated: new Date().toISOString(),

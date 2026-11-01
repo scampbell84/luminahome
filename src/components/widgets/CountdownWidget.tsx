@@ -27,6 +27,7 @@ interface CalculatedCountdown {
   item: CountdownItem;
   effectiveTarget: Date;
   days: number;
+  daysRemaining: number;
   hours: number;
   minutes: number;
   seconds: number;
@@ -60,7 +61,7 @@ function parseEventDate(dateStr: string) {
     day: d.getDate(),
     hour: d.getHours(),
     minute: d.getMinutes(),
-    hasTime: true,
+    hasTime: false,
   };
 }
 
@@ -118,8 +119,7 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
       let needsAnnualRollOver = false;
       let nextYearDateStr: string | undefined;
 
-      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-      const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      const pad = (n: number) => String(n).padStart(2, '0');
 
       if (item.annual) {
         // Annual recurring event
@@ -131,24 +131,16 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
           const nextYear = now.getFullYear() + 1;
           effectiveTarget = new Date(nextYear, parsed.month, parsed.day, parsed.hour, parsed.minute, 0);
           needsAnnualRollOver = true;
-          // Format ISO / local date string pointing to next year
-          const pad = (n: number) => String(n).padStart(2, '0');
-          nextYearDateStr = `${nextYear}-${pad(parsed.month + 1)}-${pad(parsed.day)}${parsed.hasTime ? `T${pad(parsed.hour)}:${pad(parsed.minute)}:00` : ''}`;
+          // Format date string pointing to next year (date-only)
+          nextYearDateStr = `${nextYear}-${pad(parsed.month + 1)}-${pad(parsed.day)}`;
         } else if (
           now.getFullYear() === thisYearTarget.getFullYear() &&
           now.getMonth() === thisYearTarget.getMonth() &&
           now.getDate() === thisYearTarget.getDate()
         ) {
-          // It's the event day!
-          if (parsed.hasTime && now.getTime() < thisYearTarget.getTime()) {
-            // Specific time later today
-            effectiveTarget = thisYearTarget;
-            isToday = false;
-          } else {
-            // Target date/time reached! Show 'Today'
-            effectiveTarget = thisYearTarget;
-            isToday = true;
-          }
+          // It's the event day! Entire day is treated as Today
+          effectiveTarget = thisYearTarget;
+          isToday = true;
         } else {
           // Upcoming later this year
           effectiveTarget = thisYearTarget;
@@ -168,21 +160,15 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
           now.getDate() === target.getDate()
         ) {
           // Event day is today!
-          if (parsed.hasTime && now.getTime() < target.getTime()) {
-            effectiveTarget = target;
-            isToday = false;
-          } else {
-            // Target date/time reached! Show 'Today'
-            effectiveTarget = target;
-            isToday = true;
-          }
+          effectiveTarget = target;
+          isToday = true;
         } else {
           // Future event
           effectiveTarget = target;
         }
       }
 
-      // Calculate time remaining
+      // Calculate time remaining (exact breakdown for full mode)
       const difference = effectiveTarget.getTime() - now.getTime();
       let days = 0;
       let hours = 0;
@@ -196,10 +182,19 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
         seconds = Math.floor((difference % (1000 * 60)) / 1000);
       }
 
+      // Calculate rounded-up full calendar days remaining for 'days' display mode.
+      // Always round up to the closest number of full days remaining so if an event is tomorrow,
+      // it cleanly shows 1 day remaining (rather than 0 days).
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      const targetDayStart = new Date(effectiveTarget.getFullYear(), effectiveTarget.getMonth(), effectiveTarget.getDate(), 0, 0, 0, 0);
+      const calendarDiffDays = Math.round((targetDayStart.getTime() - todayStart.getTime()) / (1000 * 60 * 60 * 24));
+      const daysRemaining = isToday ? 0 : Math.max(1, calendarDiffDays);
+
       return {
         item,
         effectiveTarget,
         days,
+        daysRemaining,
         hours,
         minutes,
         seconds,
@@ -316,7 +311,7 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
       if (diff !== 0) return diff;
 
       // 3. Tie-breaker by remaining days
-      if (a.days !== b.days) return a.days - b.days;
+      if (a.daysRemaining !== b.daysRemaining) return a.daysRemaining - b.daysRemaining;
 
       // 4. Stable tie-breaker by title
       return (a.item.title || '').localeCompare(b.item.title || '');
@@ -412,10 +407,10 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
           <div className="flex items-center justify-center py-2">
             <div className="bg-white/10 rounded-xl px-6 py-2 border border-white/15 text-center shadow-md flex items-baseline gap-2">
               <span className="text-3xl md:text-4xl font-black tracking-tight text-white block">
-                {single.days}
+                {single.daysRemaining}
               </span>
               <span className="text-xs font-bold text-sky-200/80 uppercase tracking-widest">
-                {single.days === 1 ? 'Day to go' : 'Days to go'}
+                {single.daysRemaining === 1 ? 'Day to go' : 'Days to go'}
               </span>
             </div>
           </div>
@@ -459,7 +454,7 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
       {/* Scrollable Countdown List (Ordered Closest to Furthest) */}
       <div className="max-h-[250px] sm:max-h-[290px] md:max-h-[330px] overflow-y-auto agenda-scroll pr-1.5 space-y-2">
         {sortedCalculations.map((calc) => {
-          const { item, days, hours, minutes, seconds, isToday } = calc;
+          const { item, days, daysRemaining, hours, minutes, seconds, isToday } = calc;
 
           if (isToday) {
             return (
@@ -554,10 +549,10 @@ export const CountdownWidget: React.FC<CountdownWidgetProps> = ({ config, onUpda
               ) : (
                 <div className="bg-white/10 rounded-xl px-3 py-1.5 text-center min-w-[54px] sm:min-w-[62px] border border-white/15 shrink-0 flex flex-col items-center justify-center shadow-sm">
                   <span className="text-sm md:text-base font-black text-white block leading-tight">
-                    {days}
+                    {daysRemaining}
                   </span>
                   <span className="text-[8px] sm:text-[9px] text-sky-200/80 uppercase font-bold tracking-wider mt-0.5">
-                    {days === 1 ? 'Day' : 'Days'}
+                    {daysRemaining === 1 ? 'Day' : 'Days'}
                   </span>
                 </div>
               )}

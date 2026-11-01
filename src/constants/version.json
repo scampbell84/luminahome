@@ -1,37 +1,55 @@
 {
   "appName": "Lumina Home",
-  "version": "3.5.1",
-  "versionTag": "v3.5.1",
-  "buildNumber": 15,
-  "buildTime": "2026-10-28T18:28:22.428Z",
-  "buildDate": "28 Oct 2026, 18:28",
+  "version": "3.5.2",
+  "versionTag": "v3.5.2",
+  "buildNumber": 16,
+  "buildTime": "2026-11-01T08:15:00.000Z",
+  "buildDate": "1 Nov 2026, 08:15",
   "gitCommit": "latest",
   "gitBranch": "main",
   "nodeVersion": "v22.23.4",
-  "releaseDate": "October 2026",
+  "releaseDate": "November 2026",
   "currentRelease": {
-    "version": "v3.5.1",
-    "releaseDate": "October 2026",
-    "title": "Per-Child Task Assignments, Centralized Weekly Tasks & Kiosk Streamlining",
+    "version": "v3.5.2",
+    "releaseDate": "November 2026",
+    "title": "UK Met Office High-Resolution Weather & Countdown Day Rounding",
     "isCurrent": true,
     "highlights": [
-      "Per-task child assignment toggles in Settings allowing tasks to be assigned to specific children or all children",
-      "New tasks (both suggested and custom) automatically default to being assigned to all children",
-      "Centralized task setup in the Reward Chart settings menu with dedicated \"Add Daily Habit\" and \"Add Weekly Task\" actions",
-      "Kiosk display streamlining: removed task editing controls from the chart screen with direct shortcut to Chart Settings",
-      "Task Detail popup overlay: tap any habit or weekly task to view full details, descriptions, and assigned children",
-      "Hidden Parental Audit Log tab in Reward Settings tracking all star earnings, redemptions, timestamps, and approving parent",
-      "Expanded fun child profile emojis including delicious food items (donuts, pizza, tacos, ice cream, cupcakes, burgers)"
+      "UK Met Office UKV (2km) convective model integration matching official UK Met Office forecasts",
+      "Automatic UK coordinate detection: seamlessly routes British & Irish coordinates to UK Met Office models",
+      "Forecasting Model Selector in Admin Settings: choose between UK Met Office, Apple Weather ECMWF, DWD ICON, NOAA GFS, or Best Match",
+      "Transparent meteorological attribution badge in detailed weather conditions modal",
+      "Event Countdowns: always rounds up to the closest full day (e.g., tomorrow displays as 1 day remaining)",
+      "Date-only countdown creation: streamlined interface with date-focused picker"
     ],
     "details": [
-      "Granular Child Assignment Controls: Parents can now customize which child receives which task via interactive child avatar toggle pills on each task card in Settings. Tasks can be set to all children with one tap or selectively restricted to individual children.",
-      "Centralized Task Management: Moved all task configuration out of the kiosk chart screen into the Admin Dashboard Reward Chart Settings tab to prevent children from accidentally editing habits on the wall display.",
-      "Interactive Task Details Modal: Tapping any truncated or long task title anywhere on the reward chart opens a clean, readable popup overlay displaying category, star value, full description, and per-child progress.",
-      "Security & Audit Trail: The new hidden Audit Log tab logs every star awarded and reward redeemed with precise timestamps, child involved, and which parent approved the transaction.",
-      "Expanded Avatar Emojis: Added a delightful collection of food emojis (🍩 Donuts, 🍕 Pizza, 🌮 Tacos, 🍦 Ice Cream, 🧁 Cupcakes, 🍔 Burgers) to personalize each child's profile on the chart."
+      "UK Met Office Convective Model: Open-Meteo now queries the official UK Met Office UKV 2km regional model (ukmo_seamless) for locations in the UK and Ireland, resolving microclimates and rainfall bands that global models smooth over.",
+      "Custom Model Selection: Added dedicated model selection in Settings > Weather allowing users to switch between the Met Office model, ECMWF IFS (Apple Weather backbone), DWD ICON, NOAA GFS, or automatic smart routing.",
+      "Attribution Badges: Detailed weather modal now displays the active meteorological source and model for full transparency.",
+      "Full Day Rounding: Event countdowns now always round up to the closest full day remaining, ensuring upcoming events tomorrow accurately display \"1 day remaining\" across widgets and morning/evening household briefings."
     ]
   },
   "releaseNotes": [
+    {
+      "version": "v3.5.2",
+      "releaseDate": "November 2026",
+      "title": "UK Met Office High-Resolution Weather & Countdown Day Rounding",
+      "isCurrent": true,
+      "highlights": [
+        "UK Met Office UKV (2km) convective model integration matching official UK Met Office forecasts",
+        "Automatic UK coordinate detection: seamlessly routes British & Irish coordinates to UK Met Office models",
+        "Forecasting Model Selector in Admin Settings: choose between UK Met Office, Apple Weather ECMWF, DWD ICON, NOAA GFS, or Best Match",
+        "Transparent meteorological attribution badge in detailed weather conditions modal",
+        "Event Countdowns: always rounds up to the closest full day (e.g., tomorrow displays as 1 day remaining)",
+        "Date-only countdown creation: streamlined interface with date-focused picker"
+      ],
+      "details": [
+        "UK Met Office Convective Model: Open-Meteo now queries the official UK Met Office UKV 2km regional model (ukmo_seamless) for locations in the UK and Ireland, resolving microclimates and rainfall bands that global models smooth over.",
+        "Custom Model Selection: Added dedicated model selection in Settings > Weather allowing users to switch between the Met Office model, ECMWF IFS (Apple Weather backbone), DWD ICON, NOAA GFS, or automatic smart routing.",
+        "Attribution Badges: Detailed weather modal now displays the active meteorological source and model for full transparency.",
+        "Full Day Rounding: Event countdowns now always round up to the closest full day remaining, ensuring upcoming events tomorrow accurately display \"1 day remaining\" across widgets and morning/evening household briefings."
+      ]
+    },
     {
       "version": "v3.5.1",
       "releaseDate": "October 2026",

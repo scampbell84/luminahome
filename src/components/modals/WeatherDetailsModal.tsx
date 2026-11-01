@@ -314,6 +314,11 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
             <h2 className="text-sm font-bold tracking-wide text-white">
               Conditions
             </h2>
+            {weather.modelSource && (
+              <span className="px-2 py-0.5 rounded-full text-[10px] bg-sky-500/15 text-sky-300 border border-sky-500/30 font-medium">
+                {weather.modelSource}
+              </span>
+            )}
           </div>
 
           <div className="w-8" />
@@ -999,6 +1004,22 @@ export const WeatherDetailsModal: React.FC<WeatherDetailsModalProps> = ({
                 Feels Like conveys how warm or cold it feels and can be
                 different from the actual temperature. The Feels Like
                 temperature is affected by humidity, sunlight, and wind.
+              </p>
+            </div>
+
+            {/* 5. Forecast Model & Source Attribution */}
+            <div className="bg-slate-900/40 rounded-2xl p-4 border border-white/5 space-y-1 text-slate-400 text-xs">
+              <div className="flex items-center justify-between gap-2">
+                <h4 className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Cloud className="w-3.5 h-3.5 text-sky-400" />
+                  <span>Forecast Model & Provider</span>
+                </h4>
+                <span className="text-[10px] text-sky-300 font-mono font-bold bg-sky-950/60 px-2 py-0.5 rounded-full border border-sky-500/25">
+                  {weather.modelSource || 'UK Met Office (UKV 2km)'}
+                </span>
+              </div>
+              <p className="leading-relaxed text-[11px] text-slate-400">
+                Weather predictions are provided by open meteorological data via Open-Meteo. In the UK and Ireland, high-resolution UK Met Office (UKV 2km) convective models are prioritized to match official UK Met Office forecasts.
               </p>
             </div>
           </div>

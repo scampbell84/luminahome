@@ -24,6 +24,9 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
         units: config.units,
         city: config.cityName,
       });
+      if (config.model) {
+        query.set('model', config.model);
+      }
       if (config.testAlert) {
         query.set('testAlert', 'true');
       }
@@ -50,7 +53,7 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
     const intervalMinutes = Math.max(5, config.refreshIntervalMinutes || 30);
     const interval = setInterval(fetchWeather, intervalMinutes * 60 * 1000);
     return () => clearInterval(interval);
-  }, [config.latitude, config.longitude, config.units, config.cityName, config.refreshIntervalMinutes, config.testAlert]);
+  }, [config.latitude, config.longitude, config.units, config.cityName, config.model, config.refreshIntervalMinutes, config.testAlert]);
 
   if (loading && !weather) {
     return (
@@ -182,6 +185,11 @@ export const WeatherWidget: React.FC<WeatherWidgetProps> = ({ config }) => {
             <Wind className="w-3.5 h-3.5" />
             <span>{weather.windSpeed} {weather.windUnit}</span>
           </div>
+          {weather.modelSource && (
+            <div className="flex items-center justify-end text-[10px] text-white/50 font-mono tracking-tight pt-0.5" title={`Forecast model: ${weather.modelSource}`}>
+              <span>{weather.modelSource.replace(' (Fallback)', '')}</span>
+            </div>
+          )}
         </div>
       </div>
 

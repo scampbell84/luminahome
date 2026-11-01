@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto, PartyAccentColor, PartyEffect } from '../../types/config';
+import { AppConfig, CalendarFeed, CountdownItem, ICloudPhoto, PartyAccentColor, PartyEffect, WeatherModel } from '../../types/config';
 import { WALLPAPER_PRESETS, DEFAULT_CONFIG, DEFAULT_REWARD_CONFIG, CALENDAR_THEMES, HOLIDAY_PRESETS, HolidayFeedPreset, RANDOM_FEED_COLORS, DEFAULT_ICLOUD_SAMPLE_PHOTOS, PARTY_TEMPLATES } from '../../constants/defaultConfig';
 import { APP_VERSION } from '../../constants/version';
 import { SystemSettings } from '../system/SystemSettings';
@@ -473,8 +473,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const addCountdownItem = () => {
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1);
-    nextMonth.setHours(12, 0, 0, 0);
-    const dateStr = nextMonth.toISOString().slice(0, 16);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const dateStr = `${nextMonth.getFullYear()}-${pad(nextMonth.getMonth() + 1)}-${pad(nextMonth.getDate())}`;
 
     const newItem: CountdownItem = {
       id: `countdown-${Date.now()}`,
@@ -2396,6 +2396,98 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 </div>
               </div>
 
+              {/* Weather Forecasting Model & Meteorological Provider */}
+              <div className="mt-4 pt-4 border-t border-slate-800">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+                  <div>
+                    <label className="text-xs font-semibold text-white block">
+                      Forecasting Model & Meteorological Source
+                    </label>
+                    <span className="text-[11px] text-slate-400 block">
+                      Choose which numerical atmospheric prediction model drives your local weather.
+                    </span>
+                  </div>
+                  {(!config.weather.model || config.weather.model === 'auto') && (
+                    <span className="text-[10px] bg-sky-500/20 text-sky-300 font-mono px-2.5 py-0.5 rounded-full font-bold border border-sky-500/30 self-start sm:self-auto">
+                      Auto: Met Office (UK) / Best Match
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                  {[
+                    {
+                      id: 'auto' as WeatherModel,
+                      name: 'Automatic (Recommended)',
+                      badge: 'Smart Default',
+                      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+                      desc: 'Uses UK Met Office UKV (2km) for UK & Ireland locations; uses Open-Meteo Best Match blend worldwide.',
+                    },
+                    {
+                      id: 'ukmo_seamless' as WeatherModel,
+                      name: 'UK Met Office (UKV 2km)',
+                      badge: 'Met Office App',
+                      badgeColor: 'bg-sky-500/20 text-sky-300 border-sky-500/30',
+                      desc: 'Official UK Met Office ultra-high-resolution 2km convective model. Accurately predicts UK rainbands & microclimates.',
+                    },
+                    {
+                      id: 'ecmwf_ifs025' as WeatherModel,
+                      name: 'ECMWF IFS (Apple Weather)',
+                      badge: 'Apple Weather',
+                      badgeColor: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/30',
+                      desc: 'European Centre for Medium-Range Weather Forecasts (IFS 25km). The foundational model behind Apple Weather in Europe.',
+                    },
+                    {
+                      id: 'best_match' as WeatherModel,
+                      name: 'Open-Meteo Best Match',
+                      badge: 'DWD + NOAA Blend',
+                      badgeColor: 'bg-slate-700/50 text-slate-300 border-slate-600',
+                      desc: 'Open-Meteo standard ensemble blending German DWD ICON (7km/13km) and US NOAA GFS models.',
+                    },
+                    {
+                      id: 'icon_seamless' as WeatherModel,
+                      name: 'DWD ICON (German Weather)',
+                      badge: 'DWD ICON-EU',
+                      badgeColor: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+                      desc: 'Deutscher Wetterdienst ICON European high-resolution model (7km grid spacing).',
+                    },
+                    {
+                      id: 'gfs_seamless' as WeatherModel,
+                      name: 'NOAA GFS (US Weather Service)',
+                      badge: 'Global GFS',
+                      badgeColor: 'bg-purple-500/20 text-purple-300 border-purple-500/30',
+                      desc: 'US National Oceanic and Atmospheric Administration Global Forecast System (13-25km).',
+                    },
+                  ].map((option) => {
+                    const isSelected = (config.weather.model || 'auto') === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => setConfig(prev => ({ ...prev, weather: { ...prev.weather, model: option.id } }))}
+                        className={`p-3 rounded-xl border text-left transition-all relative ${
+                          isSelected
+                            ? 'border-sky-500 bg-sky-500/10 shadow-sm'
+                            : 'border-slate-800 bg-slate-950/60 hover:bg-slate-900/60 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className={`text-xs font-bold ${isSelected ? 'text-white' : 'text-slate-200'}`}>
+                            {option.name}
+                          </span>
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border ${option.badgeColor}`}>
+                            {option.badge}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          {option.desc}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Weather Alert Badges & Simulation */}
               <div className="mt-4 pt-4 border-t border-slate-800 space-y-3">
                 <div className="flex items-center justify-between p-3.5 bg-slate-950 rounded-xl border border-slate-800">
@@ -2834,7 +2926,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   ) : (
                     getCountdownItems().map((item, idx) => {
-                      const dtValue = item.targetDate ? item.targetDate.slice(0, 16) : '';
+                      const dateValue = item.targetDate ? item.targetDate.slice(0, 10) : '';
                       return (
                         <div
                           key={item.id}
@@ -2883,18 +2975,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                               />
                             </div>
 
-                            {/* Target Date & Time */}
+                            {/* Target Date */}
                             <div className="sm:col-span-4">
                               <label className="text-[11px] text-slate-400 font-medium block mb-1">
-                                Target Date & Time
+                                Target Date
                               </label>
                               <input
-                                type="datetime-local"
-                                value={dtValue}
+                                type="date"
+                                value={dateValue}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   updateCountdownItem(item.id, {
-                                    targetDate: val ? new Date(val).toISOString() : '',
+                                    targetDate: val,
                                   });
                                 }}
                                 className="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-amber-500"
@@ -2960,7 +3052,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2.5 text-xs text-amber-200/90">
                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
                     <p className="leading-relaxed">
-                      <strong>Automatic Chronological Sorting:</strong> Event Countdowns are automatically displayed in order of <strong>closest to furthest away from today</strong> on your wall display (with any events happening today at the very top), regardless of the order they are entered here. When a target date is reached, it displays <strong>'Today'</strong>; once passed, one-off events are cleared while <strong>Annual</strong> events automatically advance to next year.
+                      <strong>Full-Day Rounding & Chronological Sorting:</strong> When showing just the days number, countdowns always round up to the closest number of full calendar days remaining (so an event tomorrow shows <strong>1 day remaining</strong>, and an event today displays <strong>'Today'</strong>). Events are sorted from <strong>closest to furthest away</strong>, and <strong>Annual</strong> events automatically advance to next year once their date passes.
                     </p>
                   </div>
                 </div>
