@@ -8,9 +8,9 @@ import { exec, spawn, execSync } from 'child_process';
 import { promisify } from 'util';
 import ical from 'node-ical';
 import Parser from 'rss-parser';
-import { DEFAULT_CONFIG, DEFAULT_ICLOUD_SAMPLE_PHOTOS } from './src/constants/defaultConfig.js';
+import { DEFAULT_CONFIG, DEFAULT_ICLOUD_SAMPLE_PHOTOS, DEFAULT_REWARD_CONFIG } from './src/constants/defaultConfig.js';
 import { APP_VERSION } from './src/constants/version.js';
-import { AppConfig, CalendarFeed, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto, HourlyPoint, DetailedDailyForecast } from './src/types/config.js';
+import { AppConfig, CalendarFeed, CalendarEvent, WeatherData, WeatherAlert, NewsItem, SystemInfo, ICloudPhoto, HourlyPoint, DetailedDailyForecast, RewardConfig, ChildProfile, RewardTask, RewardShopItem } from './src/types/config.js';
 import { GoogleGenAI } from '@google/genai';
 
 const app = express();
@@ -18,7 +18,160 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 const execAsync = promisify(exec);
 
-// Resolve persistent config storage outside the Git repository (~/.luminahome)
+// ==============================================================================
+// 1. Resilient Multi-Path Configuration Persistence & Automatic Recovery
+// ==============================================================================
+
+// Deep merge RewardConfig to protect children profiles, star banks, custom tasks, and audit logs
+function mergeRewardConfig(parsedReward: any, defaultReward: RewardConfig): RewardConfig {
+  if (!parsedReward || typeof parsedReward !== 'object') {
+    return defaultReward;
+  }
+
+  // Preserve user children (NEVER replace with default Leo & Mia if user had children configured)
+  let children: ChildProfile[] = defaultReward.children;
+  if (Array.isArray(parsedReward.children) && parsedReward.children.length > 0) {
+    children = parsedReward.children.map((c: any, idx: number) => ({
+      id: String(c.id || `child-${idx}`),
+      name: String(c.name || `Child ${idx + 1}`),
+      avatarIcon: String(c.avatarIcon || 'star'),
+      avatarColor: String(c.avatarColor || 'amber'),
+      currentStars: typeof c.currentStars === 'number' ? c.currentStars : 0,
+      lifetimeStars: typeof c.lifetimeStars === 'number' ? c.lifetimeStars : (typeof c.currentStars === 'number' ? c.currentStars : 0),
+    }));
+  }
+
+  // Preserve user tasks (routine, chore, learning, weekly tasks)
+  let tasks: RewardTask[] = defaultReward.tasks;
+  if (Array.isArray(parsedReward.tasks) && parsedReward.tasks.length > 0) {
+    tasks = parsedReward.tasks.map((t: any, idx: number) => ({
+      id: String(t.id || `task-${idx}`),
+      title: String(t.title || 'Task'),
+      icon: t.icon ? String(t.icon) : undefined,
+      description: t.description ? String(t.description) : undefined,
+      category: t.category || 'routine',
+      points: typeof t.points === 'number' ? Math.max(1, t.points) : 1,
+      frequency: t.frequency === 'weekly' ? 'weekly' : 'daily',
+      targetPerWeek: typeof t.targetPerWeek === 'number' ? t.targetPerWeek : 1,
+      assignedChildIds: Array.isArray(t.assignedChildIds) ? t.assignedChildIds : children.map((c) => c.id),
+    }));
+  }
+
+  // Preserve user reward shop items
+  let shopItems: RewardShopItem[] = defaultReward.shopItems;
+  if (Array.isArray(parsedReward.shopItems) && parsedReward.shopItems.length > 0) {
+    shopItems = parsedReward.shopItems.map((s: any, idx: number) => ({
+      id: String(s.id || `shop-${idx}`),
+      title: String(s.title || 'Reward'),
+      cost: typeof s.cost === 'number' ? s.cost : 10,
+      icon: String(s.icon || 'gift'),
+      category: s.category || 'treat',
+      description: s.description ? String(s.description) : undefined,
+      enabled: s.enabled !== false,
+    }));
+  }
+
+  return {
+    enabled: parsedReward.enabled !== false,
+    showWidget: parsedReward.showWidget !== false,
+    parentPin: typeof parsedReward.parentPin === 'string' && parsedReward.parentPin.length > 0 ? parsedReward.parentPin : defaultReward.parentPin,
+    requirePinForRedemption: parsedReward.requirePinForRedemption !== false,
+    requirePinForStarRemoval: parsedReward.requirePinForStarRemoval !== false,
+    enableSoundEffects: parsedReward.enableSoundEffects !== false,
+    enableConfetti: parsedReward.enableConfetti !== false,
+    activeParent: typeof parsedReward.activeParent === 'string' ? parsedReward.activeParent : (defaultReward.activeParent || 'Mom'),
+    parentNames: Array.isArray(parsedReward.parentNames) && parsedReward.parentNames.length > 0 ? parsedReward.parentNames : (defaultReward.parentNames || ['Mom', 'Dad']),
+    children,
+    tasks,
+    shopItems,
+    starLogs: Array.isArray(parsedReward.starLogs) ? parsedReward.starLogs : (defaultReward.starLogs || []),
+    redemptions: Array.isArray(parsedReward.redemptions) ? parsedReward.redemptions : (defaultReward.redemptions || []),
+    auditLogs: Array.isArray(parsedReward.auditLogs) ? parsedReward.auditLogs : (defaultReward.auditLogs || []),
+  };
+}
+
+// Deep merge complete AppConfig
+function mergeAppConfig(parsed: any, defaultCfg: AppConfig): AppConfig {
+  if (!parsed || typeof parsed !== 'object') return defaultCfg;
+
+  const rewardPayload = parsed.rewards || parsed.reward || defaultCfg.rewards;
+
+  return {
+    ...defaultCfg,
+    ...parsed,
+    general: { ...defaultCfg.general, ...(parsed.general || {}) },
+    layout: {
+      ...defaultCfg.layout,
+      ...(parsed.layout || {}),
+      widgetZones: { ...defaultCfg.layout.widgetZones, ...(parsed.layout?.widgetZones || {}) },
+      gridItems: Array.isArray(parsed.layout?.gridItems) ? parsed.layout.gridItems : defaultCfg.layout.gridItems,
+    },
+    clock: { ...defaultCfg.clock, ...(parsed.clock || {}) },
+    weather: { ...defaultCfg.weather, ...(parsed.weather || {}) },
+    calendar: {
+      ...defaultCfg.calendar,
+      ...(parsed.calendar || {}),
+      feeds: Array.isArray(parsed.calendar?.feeds) ? parsed.calendar.feeds : defaultCfg.calendar.feeds,
+    },
+    news: { ...defaultCfg.news, ...(parsed.news || {}) },
+    countdown: {
+      ...defaultCfg.countdown,
+      ...(parsed.countdown || {}),
+      items: Array.isArray(parsed.countdown?.items) ? parsed.countdown.items : (defaultCfg.countdown.items || []),
+    },
+    notes: {
+      ...defaultCfg.notes,
+      ...(parsed.notes || {}),
+      checklist: Array.isArray(parsed.notes?.checklist) ? parsed.notes.checklist : (defaultCfg.notes.checklist || []),
+    },
+    briefing: { ...defaultCfg.briefing, ...(parsed.briefing || {}) },
+    system: { ...defaultCfg.system, ...(parsed.system || {}) },
+    screensaver: { ...defaultCfg.screensaver, ...(parsed.screensaver || {}) },
+    party: parsed.party ? { ...defaultCfg.party, ...parsed.party } : defaultCfg.party,
+    rewards: mergeRewardConfig(rewardPayload, defaultCfg.rewards || DEFAULT_REWARD_CONFIG),
+  };
+}
+
+// Detect if a configuration contains customized reward chart data (non-default children, custom stars, custom tasks)
+function hasCustomizedRewards(cfg: any): boolean {
+  if (!cfg) return false;
+  const rw = cfg.rewards || cfg.reward;
+  if (!rw || typeof rw !== 'object') return false;
+
+  // Check children names or counts
+  if (Array.isArray(rw.children) && rw.children.length > 0) {
+    const defaultNames = ['Leo', 'Mia'];
+    const names = rw.children.map((c: any) => c.name);
+    if (rw.children.length !== 2) return true;
+    if (names.some((n: string) => !defaultNames.includes(n))) return true;
+    const stars = rw.children.map((c: any) => c.currentStars);
+    if (stars.some((s: number) => s !== 14 && s !== 19)) return true;
+  }
+
+  // Check custom tasks
+  if (Array.isArray(rw.tasks) && rw.tasks.length > 0) {
+    const defaultTaskIds = ['task-teeth', 'task-bed', 'task-reading', 'task-dishes', 'task-kindness', 'task-weekly-wash-car', 'task-weekly-bedroom'];
+    if (rw.tasks.some((t: any) => !defaultTaskIds.includes(t.id))) return true;
+  }
+
+  // Check star logs or audit logs
+  if (Array.isArray(rw.starLogs) && rw.starLogs.length > 0) return true;
+  if (Array.isArray(rw.auditLogs) && rw.auditLogs.length > 0) {
+    // If more audit logs than factory default seeds (5) or non-default child names in logs
+    if (rw.auditLogs.length !== 5) return true;
+    if (rw.auditLogs.some((a: any) => a.childName && a.childName !== 'Leo' && a.childName !== 'Mia')) return true;
+  }
+
+  // Check custom shop items
+  if (Array.isArray(rw.shopItems) && rw.shopItems.length > 0) {
+    const defaultShopIds = ['shop-movie', 'shop-screentime', 'shop-icecream', 'shop-bedtime', 'shop-dinner', 'shop-dayout'];
+    if (rw.shopItems.some((s: any) => !defaultShopIds.includes(s.id))) return true;
+  }
+
+  return false;
+}
+
+// Resolve primary configuration file path with Raspberry Pi user awareness
 function resolveConfigFilePath(): string {
   const customDir = process.env.LUMINA_CONFIG_DIR;
   if (customDir) {
@@ -28,25 +181,27 @@ function resolveConfigFilePath(): string {
 
   try {
     const homeDir = os.homedir();
-    const primaryDir = path.join(homeDir, '.luminahome');
+    let primaryDir = path.join(homeDir, '.luminahome');
+
+    // On Raspberry Pi, if node runs under sudo/root, check if /home/pi/.luminahome exists to avoid splitting storage
+    if (homeDir === '/root' && fs.existsSync('/home/pi')) {
+      const piDir = '/home/pi/.luminahome';
+      if (fs.existsSync(piDir) || fs.existsSync('/home/pi/kioskboard')) {
+        primaryDir = piDir;
+      }
+    }
+
     if (!fs.existsSync(primaryDir)) {
       fs.mkdirSync(primaryDir, { recursive: true });
     }
 
-    const primaryFile = path.join(primaryDir, 'config.json');
-    const legacyFile = path.resolve(process.cwd(), 'data', 'config.json');
-
-    // Auto-migrate from legacy ./data/config.json if primary file does not exist yet
-    if (!fs.existsSync(primaryFile) && fs.existsSync(legacyFile)) {
-      try {
-        fs.copyFileSync(legacyFile, primaryFile);
-        console.log(`[Config] Migrated legacy configuration from ${legacyFile} to ${primaryFile}`);
-      } catch (err: any) {
-        console.warn(`[Config] Migration warning: ${err.message}`);
-      }
+    // Ensure backups directory exists
+    const backupDir = path.join(primaryDir, 'backups');
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
     }
 
-    return primaryFile;
+    return path.join(primaryDir, 'config.json');
   } catch (err: any) {
     console.warn(`[Config] Home directory inaccessible (${err.message}). Using local ./data fallback.`);
     const fallbackDir = path.resolve(process.cwd(), 'data');
@@ -56,51 +211,171 @@ function resolveConfigFilePath(): string {
 }
 
 const CONFIG_FILE = resolveConfigFilePath();
-// Load or initialize config
+const CONFIG_DIR = path.dirname(CONFIG_FILE);
+const CONFIG_BACKUP_DIR = path.join(CONFIG_DIR, 'backups');
+
+// Collect all candidate locations where user configuration files or backups might exist across Raspberry Pi updates
+function getCandidateConfigFiles(): string[] {
+  const candidates: string[] = [];
+
+  if (process.env.LUMINA_CONFIG_DIR) {
+    candidates.push(path.join(process.env.LUMINA_CONFIG_DIR, 'config.json'));
+  }
+
+  const homeDir = os.homedir();
+  candidates.push(path.join(homeDir, '.luminahome', 'config.json'));
+  candidates.push(path.join(homeDir, '.luminahome', 'config.bak.json'));
+
+  // Raspberry Pi common directories
+  candidates.push('/home/pi/.luminahome/config.json');
+  candidates.push('/home/pi/.luminahome/config.bak.json');
+  candidates.push('/home/pi/kioskboard/data/config.json');
+  candidates.push('/home/pi/kioskboard/config.json');
+
+  // Local workspace directories
+  candidates.push(path.resolve(process.cwd(), 'data', 'config.json'));
+  candidates.push(path.resolve(process.cwd(), 'data', 'config.bak.json'));
+  candidates.push(path.resolve(process.cwd(), 'config.json'));
+
+  // Temporary update backups
+  candidates.push(path.join(os.tmpdir(), 'kioskboard-config.bak.json'));
+  candidates.push(path.join(os.tmpdir(), 'luminahome-config.bak.json'));
+
+  // Scan os.tmpdir() for in-app update snapshots
+  try {
+    const tmpEntries = fs.readdirSync(os.tmpdir());
+    for (const entry of tmpEntries) {
+      if ((entry.startsWith('luminahome-config-') || entry.startsWith('kioskboard-config-')) && entry.endsWith('.json')) {
+        candidates.push(path.join(os.tmpdir(), entry));
+      }
+    }
+  } catch {}
+
+  // Scan ~/.luminahome/backups
+  try {
+    if (fs.existsSync(CONFIG_BACKUP_DIR)) {
+      const bEntries = fs.readdirSync(CONFIG_BACKUP_DIR);
+      for (const entry of bEntries) {
+        if (entry.endsWith('.json')) {
+          candidates.push(path.join(CONFIG_BACKUP_DIR, entry));
+        }
+      }
+    }
+  } catch {}
+
+  // Filter unique valid files
+  return Array.from(new Set(candidates)).filter((p) => {
+    try {
+      return fs.existsSync(p) && fs.statSync(p).isFile() && fs.statSync(p).size > 20;
+    } catch {
+      return false;
+    }
+  });
+}
+
+// Load configuration with automatic recovery from backups or secondary paths if current config lost reward data
 function loadConfig(): AppConfig {
+  let activeConfig: AppConfig | null = null;
+  let activeHasCustom = false;
+
+  // 1. Try reading the primary CONFIG_FILE
   try {
     if (fs.existsSync(CONFIG_FILE)) {
-      const data = fs.readFileSync(CONFIG_FILE, 'utf-8');
-      const parsed = JSON.parse(data);
-      // Merge with default to ensure any missing fields are populated
-      return {
-        ...DEFAULT_CONFIG,
-        ...parsed,
-        general: { ...DEFAULT_CONFIG.general, ...(parsed.general || {}) },
-        layout: { 
-          ...DEFAULT_CONFIG.layout, 
-          widgetZones: { ...DEFAULT_CONFIG.layout.widgetZones, ...(parsed.layout?.widgetZones || {}) }
-        },
-        clock: { ...DEFAULT_CONFIG.clock, ...(parsed.clock || {}) },
-        weather: { ...DEFAULT_CONFIG.weather, ...(parsed.weather || {}) },
-        calendar: { ...DEFAULT_CONFIG.calendar, ...(parsed.calendar || {}) },
-        news: { ...DEFAULT_CONFIG.news, ...(parsed.news || {}) },
-        countdown: {
-          ...DEFAULT_CONFIG.countdown,
-          ...(parsed.countdown || {}),
-          items: (parsed.countdown?.items && Array.isArray(parsed.countdown.items))
-            ? parsed.countdown.items
-            : (DEFAULT_CONFIG.countdown.items || []),
-        },
-        notes: { ...DEFAULT_CONFIG.notes, ...(parsed.notes || {}) },
-        briefing: { ...DEFAULT_CONFIG.briefing, ...(parsed.briefing || {}) },
-        system: { ...DEFAULT_CONFIG.system, ...(parsed.system || {}) },
-        screensaver: { ...DEFAULT_CONFIG.screensaver, ...(parsed.screensaver || {}) },
-      };
+      const raw = fs.readFileSync(CONFIG_FILE, 'utf-8');
+      const parsed = JSON.parse(raw);
+      activeConfig = mergeAppConfig(parsed, DEFAULT_CONFIG);
+      activeHasCustom = hasCustomizedRewards(activeConfig);
     }
-  } catch (err) {
-    console.error('Error reading config file, falling back to defaults:', err);
+  } catch (err: any) {
+    console.error(`[Config] Failed reading ${CONFIG_FILE} (${err.message}). Safeguarding file.`);
+    try {
+      // Never overwrite without making a corrupted snapshot
+      const corruptPath = `${CONFIG_FILE}.corrupted-${Date.now()}.json`;
+      fs.copyFileSync(CONFIG_FILE, corruptPath);
+      console.warn(`[Config] Preserved corrupted file snapshot to ${corruptPath}`);
+    } catch {}
   }
-  
+
+  // 2. If activeConfig already has customized reward chart data, return it directly!
+  if (activeConfig && activeHasCustom) {
+    return activeConfig;
+  }
+
+  // 3. Auto-Recovery: Scan all candidate files to see if a pre-update backup or secondary file has user's custom reward data
+  const candidates = getCandidateConfigFiles();
+  for (const candPath of candidates) {
+    if (path.resolve(candPath) === path.resolve(CONFIG_FILE)) continue;
+    try {
+      const candRaw = fs.readFileSync(candPath, 'utf-8');
+      const candParsed = JSON.parse(candRaw);
+      const candConfig = mergeAppConfig(candParsed, DEFAULT_CONFIG);
+
+      if (hasCustomizedRewards(candConfig)) {
+        console.log(`\n======================================================`);
+        console.log(`🛡️ [Config Auto-Recovery] Restored customized Reward Chart from:`);
+        console.log(`   ${candPath}`);
+        console.log(`   Children: ${candConfig.rewards?.children.map(c => c.name).join(', ')}`);
+        console.log(`   Tasks: ${candConfig.rewards?.tasks.length} tasks | Total Stars: ${candConfig.rewards?.children.reduce((acc, c) => acc + c.currentStars, 0)}`);
+        console.log(`======================================================\n`);
+
+        const merged = activeConfig ? { ...activeConfig, rewards: candConfig.rewards } : candConfig;
+        saveConfig(merged);
+        return merged;
+      }
+    } catch {}
+  }
+
+  // 4. If we had an activeConfig without custom data, return it
+  if (activeConfig) {
+    return activeConfig;
+  }
+
+  // 5. If no file existed at all, initialize default safely
+  console.log('[Config] Initializing fresh default configuration at:', CONFIG_FILE);
   saveConfig(DEFAULT_CONFIG);
   return DEFAULT_CONFIG;
 }
 
+// Atomic file saving with rotating backups and local data mirroring
 function saveConfig(config: AppConfig): void {
   try {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to save config:', err);
+    const serialized = JSON.stringify(config, null, 2);
+    const tempFile = `${CONFIG_FILE}.tmp-${Date.now()}`;
+
+    // 1. Write atomically to temp file
+    fs.writeFileSync(tempFile, serialized, 'utf-8');
+    fs.renameSync(tempFile, CONFIG_FILE);
+
+    // 2. Maintain immediate .bak copy
+    try {
+      const bakFile = `${CONFIG_FILE}.bak`;
+      fs.writeFileSync(bakFile, serialized, 'utf-8');
+    } catch {}
+
+    // 3. Mirror to ./data/config.json as local fallback
+    try {
+      const localDataDir = path.resolve(process.cwd(), 'data');
+      if (!fs.existsSync(localDataDir)) fs.mkdirSync(localDataDir, { recursive: true });
+      fs.writeFileSync(path.join(localDataDir, 'config.json'), serialized, 'utf-8');
+    } catch {}
+
+    // 4. Rotate timestamped backup in backups/
+    try {
+      if (!fs.existsSync(CONFIG_BACKUP_DIR)) fs.mkdirSync(CONFIG_BACKUP_DIR, { recursive: true });
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const snapFile = path.join(CONFIG_BACKUP_DIR, `config-${timestamp}.json`);
+      fs.writeFileSync(snapFile, serialized, 'utf-8');
+
+      // Keep latest 15 snapshots
+      const existing = fs.readdirSync(CONFIG_BACKUP_DIR).filter(f => f.startsWith('config-') && f.endsWith('.json'));
+      if (existing.length > 15) {
+        existing.sort().slice(0, existing.length - 15).forEach(f => {
+          try { fs.unlinkSync(path.join(CONFIG_BACKUP_DIR, f)); } catch {}
+        });
+      }
+    } catch {}
+  } catch (err: any) {
+    console.error('[Config] Failed to save config atomically:', err.message);
   }
 }
 
@@ -518,6 +793,124 @@ app.post('/api/config', (req: Request, res: Response) => {
 app.post('/api/config/reset', (_req: Request, res: Response) => {
   saveConfig(DEFAULT_CONFIG);
   res.json({ success: true, config: DEFAULT_CONFIG });
+});
+
+// Query available configuration backups and recovery snapshots
+app.get('/api/config/backups', (_req: Request, res: Response) => {
+  try {
+    const candidates = getCandidateConfigFiles();
+    const currentResolved = path.resolve(CONFIG_FILE);
+
+    const backups = candidates
+      .map((filePath) => {
+        try {
+          const stats = fs.statSync(filePath);
+          const raw = fs.readFileSync(filePath, 'utf-8');
+          const parsed = JSON.parse(raw);
+          const rw = parsed.rewards || parsed.reward;
+          const children = Array.isArray(rw?.children) ? rw.children : [];
+          const tasks = Array.isArray(rw?.tasks) ? rw.tasks : [];
+          const shop = Array.isArray(rw?.shopItems) ? rw.shopItems : [];
+
+          const hasCustom = hasCustomizedRewards(parsed);
+
+          return {
+            path: filePath,
+            filename: path.basename(filePath),
+            dir: path.dirname(filePath),
+            sizeBytes: stats.size,
+            mtime: stats.mtime.toISOString(),
+            isCurrent: path.resolve(filePath) === currentResolved,
+            hasCustomData: hasCustom,
+            summary: {
+              children: children.map((c: any) => ({
+                id: c.id,
+                name: c.name || 'Unnamed',
+                avatarIcon: c.avatarIcon || 'star',
+                avatarColor: c.avatarColor || 'amber',
+                stars: typeof c.currentStars === 'number' ? c.currentStars : 0,
+              })),
+              tasksCount: tasks.length,
+              shopCount: shop.length,
+              starLogsCount: Array.isArray(rw?.starLogs) ? rw.starLogs.length : 0,
+              auditLogsCount: Array.isArray(rw?.auditLogs) ? rw.auditLogs.length : 0,
+            },
+          };
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+
+    res.json({
+      ok: true,
+      currentConfigFile: CONFIG_FILE,
+      backups,
+    });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Restore from a specific backup file
+app.post('/api/config/backups/restore', (req: Request, res: Response) => {
+  const { backupPath } = req.body || {};
+  if (!backupPath || typeof backupPath !== 'string') {
+    return res.status(400).json({ ok: false, error: 'backupPath is required' });
+  }
+
+  try {
+    const resolvedTarget = path.resolve(backupPath);
+    if (!fs.existsSync(resolvedTarget)) {
+      return res.status(404).json({ ok: false, error: 'Backup file not found on disk' });
+    }
+
+    const raw = fs.readFileSync(resolvedTarget, 'utf-8');
+    const parsed = JSON.parse(raw);
+    const merged = mergeAppConfig(parsed, DEFAULT_CONFIG);
+
+    saveConfig(merged);
+
+    console.log(`[Config Recovery] User successfully restored configuration from ${resolvedTarget}`);
+    res.json({
+      ok: true,
+      message: `Configuration restored successfully from ${path.basename(resolvedTarget)}!`,
+      config: merged,
+    });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Export active configuration as downloadable JSON
+app.get('/api/config/export', (_req: Request, res: Response) => {
+  try {
+    const config = loadConfig();
+    const dateStr = new Date().toISOString().split('T')[0];
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="luminahome-backup-${dateStr}.json"`);
+    res.send(JSON.stringify(config, null, 2));
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Import and validate JSON configuration upload
+app.post('/api/config/import', (req: Request, res: Response) => {
+  try {
+    const payload = req.body?.config || req.body;
+    if (!payload || typeof payload !== 'object') {
+      return res.status(400).json({ ok: false, error: 'Valid JSON configuration payload required' });
+    }
+
+    const merged = mergeAppConfig(payload, DEFAULT_CONFIG);
+    saveConfig(merged);
+
+    console.log('[Config Import] Successfully imported external configuration file.');
+    res.json({ ok: true, message: 'Configuration imported and applied successfully!', config: merged });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // Helper: Resolve the Git remote origin URL and repository slug dynamically
@@ -2751,6 +3144,11 @@ app.post('/api/system/update/execute', async (_req: Request, res: Response) => {
       if (fs.existsSync(CONFIG_FILE)) {
         fs.copyFileSync(CONFIG_FILE, backupConfigPath);
         updateState.logs.push(`[${new Date().toLocaleTimeString()}] Backed up user settings to ${backupConfigPath}`);
+        // Also save to backups folder
+        try {
+          if (!fs.existsSync(CONFIG_BACKUP_DIR)) fs.mkdirSync(CONFIG_BACKUP_DIR, { recursive: true });
+          fs.copyFileSync(CONFIG_FILE, path.join(CONFIG_BACKUP_DIR, `pre-update-${Date.now()}.json`));
+        } catch {}
       }
 
       const isGit = fs.existsSync(path.resolve(process.cwd(), '.git'));
@@ -2781,8 +3179,15 @@ app.post('/api/system/update/execute', async (_req: Request, res: Response) => {
 
       // Restore user config if needed
       if (fs.existsSync(backupConfigPath)) {
-        fs.copyFileSync(backupConfigPath, CONFIG_FILE);
-        updateState.logs.push(`[${new Date().toLocaleTimeString()}] Verified configuration integrity.`);
+        try {
+          const raw = fs.readFileSync(backupConfigPath, 'utf-8');
+          const parsed = JSON.parse(raw);
+          const merged = mergeAppConfig(parsed, DEFAULT_CONFIG);
+          saveConfig(merged);
+          updateState.logs.push(`[${new Date().toLocaleTimeString()}] Verified configuration integrity and preserved custom Reward Chart.`);
+        } catch {
+          fs.copyFileSync(backupConfigPath, CONFIG_FILE);
+        }
       }
 
       updateState.step = 4;
@@ -2791,10 +3196,10 @@ app.post('/api/system/update/execute', async (_req: Request, res: Response) => {
       updateState.message = 'Update complete! Lumina Home service restarting...';
       updateState.logs.push(`[${new Date().toLocaleTimeString()}] ✅ Update completed successfully! Reloading service.`);
 
-      // Trigger service restart in detached process after 2 seconds
+      // Trigger service restart in detached process after 2 seconds (support both luminahome and kioskboard services)
       setTimeout(() => {
         try {
-          spawn('sudo', ['systemctl', 'restart', 'luminahome'], {
+          spawn('sh', ['-c', 'sudo systemctl restart luminahome 2>/dev/null || sudo systemctl restart kioskboard 2>/dev/null || pm2 restart all 2>/dev/null'], {
             detached: true,
             stdio: 'ignore',
           }).unref();
@@ -3140,13 +3545,32 @@ echo "=========================================================="
 app.get('/api/scripts/update.sh', (_req: Request, res: Response) => {
   const script = `#!/bin/bash
 # ==============================================================================
-# KioskBoard - Quick Update Script
+# Lumina Home / KioskBoard - Quick Update Script
+# Updates repository, dependencies, rebuilds, and restarts the system service
+# Note: User configurations (Reward Chart, custom tasks, star banks, schedules)
+# are stored in ~/.luminahome/config.json and mirrored to data/config.json.
 # ==============================================================================
 set -e
 cd "$(dirname "$0")"
 
-echo "🔄 Updating KioskBoard to latest release..."
-cp data/config.json /tmp/kioskboard-config.bak.json 2>/dev/null || true
+echo "🔄 Updating Lumina Home to latest release..."
+
+# 1. Back up existing user settings from any known path
+BACKUP_TMP="/tmp/luminahome-preupdate-$(date +%s).json"
+if [ -f "$HOME/.luminahome/config.json" ]; then
+  cp "$HOME/.luminahome/config.json" "$BACKUP_TMP" 2>/dev/null || true
+  cp "$HOME/.luminahome/config.json" "/tmp/kioskboard-config.bak.json" 2>/dev/null || true
+elif [ -f "/home/pi/.luminahome/config.json" ]; then
+  cp "/home/pi/.luminahome/config.json" "$BACKUP_TMP" 2>/dev/null || true
+  cp "/home/pi/.luminahome/config.json" "/tmp/kioskboard-config.bak.json" 2>/dev/null || true
+elif [ -f "data/config.json" ]; then
+  cp "data/config.json" "$BACKUP_TMP" 2>/dev/null || true
+  cp "data/config.json" "/tmp/kioskboard-config.bak.json" 2>/dev/null || true
+fi
+
+if [ -f "$BACKUP_TMP" ]; then
+  echo "🛡️  Backed up existing user settings to $BACKUP_TMP"
+fi
 
 git stash save "Auto-update backup" 2>/dev/null || true
 git pull origin main || git pull
@@ -3154,10 +3578,23 @@ git pull origin main || git pull
 npm install --omit=dev
 npm run build
 
-cp /tmp/kioskboard-config.bak.json data/config.json 2>/dev/null || true
+# 2. Restore settings to ensure no data is lost
+if [ -f "$BACKUP_TMP" ]; then
+  mkdir -p "$HOME/.luminahome" 2>/dev/null || true
+  mkdir -p "data" 2>/dev/null || true
+  if [ ! -s "$HOME/.luminahome/config.json" ]; then
+    cp "$BACKUP_TMP" "$HOME/.luminahome/config.json" 2>/dev/null || true
+  fi
+  if [ ! -s "data/config.json" ]; then
+    cp "$BACKUP_TMP" "data/config.json" 2>/dev/null || true
+  fi
+  if [ -d "/home/pi/.luminahome" ] && [ ! -s "/home/pi/.luminahome/config.json" ]; then
+    cp "$BACKUP_TMP" "/home/pi/.luminahome/config.json" 2>/dev/null || true
+  fi
+fi
 
-sudo systemctl restart kioskboard || pm2 restart kioskboard 2>/dev/null || true
-echo "✅ KioskBoard updated and restarted successfully!"
+sudo systemctl restart luminahome 2>/dev/null || sudo systemctl restart kioskboard 2>/dev/null || pm2 restart all 2>/dev/null || true
+echo "✅ Lumina Home updated and restarted successfully!"
 `;
 
   res.setHeader('Content-Type', 'text/x-shellscript');

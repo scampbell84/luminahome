@@ -25,9 +25,11 @@ import {
   UserCheck,
   Eye,
   EyeOff,
+  ShieldCheck,
 } from 'lucide-react';
 import { AddTaskModal } from '../rewards/AddTaskModal';
 import { RewardAuditLogTab } from '../rewards/RewardAuditLogTab';
+import { RewardDataBackupTab } from '../rewards/RewardDataBackupTab';
 
 interface RewardSettingsTabProps {
   config: AppConfig;
@@ -47,8 +49,8 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
     });
   };
 
-  // Sub-tab navigation: 'config' (default) vs 'audit_log' (hidden audit trail)
-  const [settingsSubTab, setSettingsSubTab] = useState<'config' | 'audit_log'>('config');
+  // Sub-tab navigation: 'config' (default) vs 'audit_log' (hidden audit trail) vs 'backups' (data recovery)
+  const [settingsSubTab, setSettingsSubTab] = useState<'config' | 'audit_log' | 'backups'>('config');
   const [isAuditLogUnlocked, setIsAuditLogUnlocked] = useState<boolean>(false);
 
   // Add Child form state
@@ -325,7 +327,7 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
         </div>
 
         {/* Sub-Tabs Button Strip */}
-        <div className="flex items-center gap-1.5 p-1 bg-white/5 border border-white/10 rounded-2xl w-full sm:w-auto">
+        <div className="flex items-center gap-1.5 p-1 bg-white/5 border border-white/10 rounded-2xl w-full sm:w-auto flex-wrap">
           <button
             type="button"
             onClick={() => setSettingsSubTab('config')}
@@ -358,10 +360,24 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
               </span>
             )}
           </button>
+
+          <button
+            type="button"
+            onClick={() => setSettingsSubTab('backups')}
+            className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              settingsSubTab === 'backups'
+                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white font-black shadow-md shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            }`}
+            title="Data Safety, Snapshots & 1-Click Recovery"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Data Safety & Backups</span>
+          </button>
         </div>
       </div>
 
-      {/* Render Hidden Audit Log Sub-Tab */}
+      {/* Render Sub-Tab Views */}
       {settingsSubTab === 'audit_log' ? (
         <RewardAuditLogTab
           rewards={rewards}
@@ -372,6 +388,11 @@ export const RewardSettingsTab: React.FC<RewardSettingsTabProps> = ({ config, on
             setIsAuditLogUnlocked(false);
             setSettingsSubTab('config');
           }}
+        />
+      ) : settingsSubTab === 'backups' ? (
+        <RewardDataBackupTab
+          currentConfig={config}
+          onApplyConfig={(restored) => onChange(restored)}
         />
       ) : (
         /* Render Standard Chart Configuration Sub-Tab */

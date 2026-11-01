@@ -7,14 +7,34 @@ export interface ReleaseNote {
   details: string[];
 }
 
-export const APP_VERSION = '3.5.2';
+export const APP_VERSION = '3.5.3';
 
 export const RELEASE_NOTES: ReleaseNote[] = [
+  {
+    version: 'v3.5.3',
+    releaseDate: 'November 2026',
+    title: 'Raspberry Pi Configuration Protection, Auto-Recovery & Atomic Storage',
+    isCurrent: true,
+    highlights: [
+      'Automatic Multi-Path Config Recovery: detects and restores custom children, star banks, and custom tasks from Raspberry Pi backups',
+      'Deep Lossless Merging: user children profiles, star banks, custom tasks, and audit logs are never overwritten by factory defaults on update',
+      'Crash-Proof Atomic Writes: writes configuration to temporary file before atomic rename to eliminate file corruption during service restarts',
+      'Dual-Path Storage Mirroring: automatically keeps ~/.luminahome/config.json and data/config.json synchronized',
+      'Data Safety & Backups Center: dedicated UI in Reward Chart Settings with snapshot previews, 1-click restore, and JSON export/import',
+      'Hardened Update Scripts: update.sh now automatically takes pre-update snapshots to protect all settings during git pull and rebuild',
+    ],
+    details: [
+      'Automated Multi-Path Recovery: When booting up, Lumina Home now inspects ~/.luminahome, /home/pi/.luminahome, data/config.json, and temporary update directories. If your chart previously reset to default Leo/Mia, the server automatically recovers your custom children, stars, and tasks.',
+      'Lossless Schema Migration: Added dedicated deep merge validation for RewardConfig ensuring new schema fields are safely incorporated without discarding existing family data.',
+      'Crash-Proof Atomic Saving: saveConfig() now writes to a temporary buffer with fsync before atomic file replacement, preventing partial write corruption during power interruptions or systemctl restarts.',
+      'Data Safety & Backups Tab: New panel in Reward Chart Settings allowing parents to view all historical snapshots on the device, restore previous states with one click, and export/import JSON backups.',
+    ],
+  },
   {
     version: 'v3.5.2',
     releaseDate: 'November 2026',
     title: 'UK Met Office High-Resolution Weather & Countdown Day Rounding',
-    isCurrent: true,
+    isCurrent: false,
     highlights: [
       'UK Met Office UKV (2km) convective model integration matching official UK Met Office forecasts',
       'Automatic UK coordinate detection: seamlessly routes British & Irish coordinates to UK Met Office models',
